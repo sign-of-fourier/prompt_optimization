@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — promptcompression.ai</title>
+<meta name="description" content="Measured results from prompt compression experiments: 97-token prompt compressed to 6–29 tokens across 12 seeds, GEPA versus Bayesian optimization at equal rollouts, Pareto fronts and standing conclusions.">
+<link rel="canonical" href="https://promptcompression.ai/findings">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — promptcompression.ai">
+<meta property="og:description" content="Measured results from prompt compression experiments: 97-token prompt compressed to 6–29 tokens across 12 seeds, GEPA versus Bayesian optimization at equal rollouts, Pareto fronts and standing conclusions.">
+<meta property="og:url" content="https://promptcompression.ai/findings">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — promptcompression.ai">
+<meta name="twitter:description" content="Measured results from prompt compression experiments: 97-token prompt compressed to 6–29 tokens across 12 seeds, GEPA versus Bayesian optimization at equal rollouts, Pareto fronts and standing conclusions.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Prompt compression findings: GEPA vs Bayesian optimization", "datePublished": "2026-09-15", "url": "https://promptcompression.ai/findings", "author": {"@type": "Organization", "name": "promptcompression.ai"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a class="active" href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub ↗</a></li>
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>What the <em>measurements</em> say.</h1>
+    <p class="lead">Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how far a prompt compresses, and which search strategy gets there with fewer rollouts.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>Prompt compression: 97 tokens → 6–29, GEPA vs Bayesian optimization</h2>
+    <p class="m">12 seeds × 2,000 rollouts per arm · 100 training / 200 held-out examples per seed · task: extract people's names from a passage · model under optimization: Amazon Nova Micro; rewrites by Nova Lite · total cost $0.41 · September 2026.</p>
+    <p>Both arms use the same mutation operator (an LLM reads a minibatch of the parent's failures and rewrites), the same evaluation gate, the same budget. They differ only in <em>which parent gets expanded</em> and <em>how many children are proposed and screened</em>. The objective was constrained: minimize template tokens subject to training F1 ≥ a floor that tightened from root − 0.15 to root − 0.05 over the run.</p>
+    <div class="fig" style="background:#fff">
+      <img src="/img/compression-fronts-gepa-vs-bo.png" alt="Scatter plot of template tokens (log scale) versus train F1 for every prompt evaluated by the GEPA and Bayesian optimization arms, with each arm's Pareto front; the BO front lies to the left of GEPA's at every accuracy level. Right panel: per-seed fronts." width="1560" height="600" loading="lazy">
+      <div class="cap" style="color:#555">Left: every prompt each arm fully evaluated, pooled over 12 seeds, with each arm's non-dominated front. Right: per-seed fronts. Star = the 97-token root.</div>
+    </div>
+    <h3>Best prompt per seed (held-out F1 in parentheses; root held-out F1 0.97–0.99)</h3>
+    <div class="tablewrap"><table>
+      <tr><th>seed</th><th>GEPA</th><th>tok</th><th>BO</th><th>tok</th></tr>
+      <tr><td>0</td><td class="mono">List all unique full names of people in: {text}, ignoring titles and organizations.</td><td>19 (0.982)</td><td class="mono">Extract full names from: {text}</td><td>6 (0.904)</td></tr>
+      <tr><td>1</td><td class="mono">List unique full names from this text, ignoring titles: {text}</td><td>14 (0.907)</td><td class="mono">Extract full names from text, excluding titles: {text}</td><td>12 (0.910)</td></tr>
+      <tr><td>2</td><td class="mono">Extract human names from: {text}</td><td>6 (0.965)</td><td class="mono">Extract only personal names from this passage: {text}</td><td>12 (0.951)</td></tr>
+      <tr><td>3</td><td class="mono">Extract all unique full names from: {text}, ignoring titles and organizations.</td><td>18 (0.982)</td><td class="mono">Extract personal names from {text}, avoid titles and organizations.</td><td>15 (0.902)</td></tr>
+      <tr><td>4</td><td class="mono">Extract names from: {text}. List only people, no titles or orgs.</td><td>14 (0.880)</td><td class="mono">Extract full human names from: {text}</td><td>8 (0.891)</td></tr>
+      <tr><td>5</td><td class="mono">List all names of people in this passage, excluding titles: {text}</td><td>15 (0.994)</td><td class="mono">Extract all human names from: {text}</td><td>8 (0.952)</td></tr>
+      <tr><td>6</td><td class="mono">Identify all people's full names mentioned in: {text}. List them once, in order, without titles.</td><td>22 (0.992)</td><td class="mono">Extract only person names from: {text}</td><td>8 (0.987)</td></tr>
+      <tr><td>7</td><td class="mono">Extract full names from this text, omitting titles and entities: {text}</td><td>16 (0.990)</td><td class="mono">Identify human names in: {text}.</td><td>6 (0.942)</td></tr>
+      <tr><td>8</td><td class="mono">Extract all full names of individuals from: {text}</td><td>11 (0.916)</td><td class="mono">List all full person names from the following text.\nPassage:\n{text}</td><td>15 (0.953)</td></tr>
+      <tr><td>9</td><td class="mono">Extract full names from: {text}. Ignore titles and locations.</td><td>14 (0.916)</td><td class="mono">List names in this text, excluding titles and organizations: {text}</td><td>15 (0.972)</td></tr>
+      <tr><td>10</td><td class="mono">Identify all full names of individuals in this passage, avoiding titles and organizations: {text}</td><td>23 (0.996)</td><td class="mono">Identify and list all names of people mentioned in the text below, ignoring titles and non-person entities. Names:\n{text}</td><td>29 (0.946)</td></tr>
+      <tr><td>11</td><td class="mono">Identify all full names of people in this passage and list them in order: {text}</td><td>18 (0.897)</td><td class="mono">Extract full names from: {text}. Exclude titles.</td><td>10 (0.987)</td></tr>
+    </table></div>
+    <p style="margin-top:14px"><strong>Summary:</strong> GEPA 15.8 ± 1.3 tokens, held-out F1 0.951; BO 12.0 ± 1.8 tokens, held-out F1 0.941. Paired difference 3.8 ± 2.0 tokens, BO shorter on 8 of 12 seeds. At the accuracy the floor targeted (root − 0.05 to − 0.10) BO is 3–5 tokens shorter with the ±2 SE band clear of zero; at stricter bars (within 0.03 of root) GEPA's Pareto pool hedges better. BO makes ~3× the reflector calls (3 children per round vs 1); a "GEPA + 3 children, random keep-1" control is planned.</p>
+    <div class="fig" style="background:#fff">
+      <img src="/img/compression-fronts-mean.png" alt="Mean shortest feasible prompt length at each accuracy gap from the root, GEPA versus BO, with standard-error bands, and the paired difference showing BO shorter by 3 to 5 tokens for gaps above 0.03." width="1560" height="600" loading="lazy">
+      <div class="cap" style="color:#555">Same data averaged: at each accuracy bar (train F1 ≥ root − gap), the shortest prompt each seed found, mean ± 1 SE, and the paired GEPA − BO difference.</div>
+    </div>
+    <p class="m">Source: <a href="https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-12-compression-v2-gepa-vs-bo" target="_blank" rel="noopener">experiments/2026-09-12-compression-v2-gepa-vs-bo</a> (NOTES.md, results.jsonl, analysis.md).</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Earlier and supporting runs</h2>
+    <div class="tablewrap"><table>
+      <tr><th>date</th><th>experiment</th><th>result</th></tr>
+      <tr><td>2026-09-10</td><td>Synthetic BO benchmark, 20 seeds, hash embedder + GPR + EI</td><td>BO finds the planted optimum in 1.45 rounds vs 7.35 for random selection. Synthetic landscape only.</td></tr>
+      <tr><td>2026-09-11</td><td>Synthetic ladder: 8 selection arms × 40 seeds × 6 landscape conditions, $0</td><td>The Pareto pool matters, stochastic sampling does not: greedy argmax within the pool beats GEPA's sampler everywhere except a deceptive landscape (tie). BO beats GEPA's sampler under noise (0.97 vs 0.86); surrogate child pre-screening helps most with a weak mutator (0.91 vs 0.83).</td></tr>
+      <tr><td>2026-09-11</td><td>IFBench, Nova Micro, greedy top-k, 802 calls</td><td>Strict accuracy 0.175 → 0.250 held-out (n=40, inside noise). Best node is a depth-1 restatement.</td></tr>
+      <tr><td>2026-09-11</td><td>IFBench, GEPA vs BO, 1,200 rollouts each, $0.16</td><td>Tie by construction: neither arm found a child beating the root; the rewriting model only paraphrased. IFBench is a flat landscape for every published optimizer (+1.7 to +8 points).</td></tr>
+      <tr><td>2026-09-11</td><td>Compression v1, 5 seeds × 600 rollouts, 30 training examples, $0.065</td><td>97 → 5–26 tokens within 0.05 train F1. BO shorter on average (11.4 vs 17.2) but lower held-out F1 (0.936 vs 0.958): not significant, and 30 examples rewards overfitting. Led to the v2 design above.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Standing conclusions</h2>
+    <ul>
+      <li><strong>Report the front, not a number.</strong> A constrained comparison at one accuracy bar hides where each method wins.</li>
+      <li><strong>Selection needs decisions to make.</strong> With 30 training examples and a permissive gate, ~95% of rollouts go to full evaluations of accepted children and there are ~20 parent choices per run — too few for strategy to show. 100 examples and a 5-example gate fixed that.</li>
+      <li><strong>The proposer is the binding constraint live.</strong> A rewriting model that only paraphrases defeats every selector.</li>
+      <li><strong>GEPA's weighting works; its randomness doesn't.</strong> BO's clearest contributions are robustness to evaluation noise and child pre-screening when the mutator is weak.</li>
+      <li><strong>Gains on weak models don't transfer proportionally</strong> to stronger ones.</li>
+      <li><strong>Next for BO:</strong> a front/hypervolume-gain value instead of a threshold-tied scalar, so it stops ignoring accurate-but-not-shorter children.</li>
+    </ul>
+    <p class="m">Reference points from the GEPA paper (Agrawal et al. 2025), Qwen3-8B test accuracy: HotpotQA 42.3 → 62.3, IFBench 36.9 → 38.6, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9 (≤ 7k rollouts); MIPROv2: 55.3 / 36.2 / 47.3 / 81.6.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

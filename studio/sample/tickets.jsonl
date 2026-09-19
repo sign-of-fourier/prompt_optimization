@@ -1,0 +1,50 @@
+{"id": "t00", "message": "The app crashes every time I open the settings page.", "queue": "bug"}
+{"id": "t01", "message": "I want to delete my account and all my data.", "queue": "account"}
+{"id": "t02", "message": "Half my order arrived; the second box is missing.", "queue": "shipping"}
+{"id": "t03", "message": "Charts show last week's data even after I refresh.", "queue": "bug"}
+{"id": "t04", "message": "Tracking hasn't updated in five days for order 3315.", "queue": "shipping"}
+{"id": "t05", "message": "Which browsers do you officially support?", "queue": "other"}
+{"id": "t06", "message": "Do you ship to Canada, and how long does it take?", "queue": "shipping"}
+{"id": "t07", "message": "The package arrived crushed and the mug is broken. I want my money back.", "queue": "refund"}
+{"id": "t08", "message": "I get 'error 500' when I try to upload a CSV.", "queue": "bug"}
+{"id": "t09", "message": "Notifications arrive twice for every message.", "queue": "bug"}
+{"id": "t10", "message": "It would be nice if the app supported Markdown in notes.", "queue": "other"}
+{"id": "t11", "message": "I'd like to upgrade from Basic to Pro - what changes?", "queue": "account"}
+{"id": "t12", "message": "The checkout page freezes when I select PayPal, so I couldn't pay.", "queue": "bug"}
+{"id": "t13", "message": "Order 5520 says delivered but nothing arrived.", "queue": "shipping"}
+{"id": "t14", "message": "I was charged twice for my order #4471 this month.", "queue": "billing"}
+{"id": "t15", "message": "Is there a student discount?", "queue": "other"}
+{"id": "t16", "message": "The headphones don't fit. How do I return them for a refund?", "queue": "refund"}
+{"id": "t17", "message": "The courier left my package at the wrong building.", "queue": "shipping"}
+{"id": "t18", "message": "Wrong item shipped - I ordered blue, got red. Just refund it, I don't want a replacement.", "queue": "refund"}
+{"id": "t19", "message": "Are you hiring support engineers?", "queue": "other"}
+{"id": "t20", "message": "Your support agent Maria was fantastic yesterday, please pass it on.", "queue": "other"}
+{"id": "t21", "message": "The course wasn't what I expected. Can I get a refund within the 30-day window?", "queue": "refund"}
+{"id": "t22", "message": "I love the product but the onboarding video is out of date.", "queue": "other"}
+{"id": "t23", "message": "I need the VAT number on my invoices for order 9931.", "queue": "billing"}
+{"id": "t24", "message": "Downgrade me to the monthly plan, please.", "queue": "account"}
+{"id": "t25", "message": "I returned the jacket two weeks ago and still haven't received the refund.", "queue": "refund"}
+{"id": "t26", "message": "Please cancel my subscription at the end of this period.", "queue": "account"}
+{"id": "t27", "message": "My invoice shows $89 but the plan page says $59. Why the difference?", "queue": "billing"}
+{"id": "t28", "message": "Just wanted to say the new dashboard is great. Thanks!", "queue": "other"}
+{"id": "t29", "message": "Order 8812 never showed up. Please refund me, I bought it elsewhere.", "queue": "refund"}
+{"id": "t30", "message": "Two-factor codes aren't accepted, I'm locked out.", "queue": "account"}
+{"id": "t31", "message": "Can you hold my delivery at the depot? I'm away until Friday.", "queue": "shipping"}
+{"id": "t32", "message": "What's your policy on data residency in the EU?", "queue": "other"}
+{"id": "t33", "message": "Search returns results from someone else's account.", "queue": "bug"}
+{"id": "t34", "message": "Dark mode resets to light every time I restart.", "queue": "bug"}
+{"id": "t35", "message": "There's a $12 fee on my statement I don't recognize.", "queue": "billing"}
+{"id": "t36", "message": "The receipt for order 2210 has the wrong tax amount.", "queue": "billing"}
+{"id": "t37", "message": "I need order 6104 expedited, it's a gift for Saturday.", "queue": "shipping"}
+{"id": "t38", "message": "I forgot my password and the reset email never arrives.", "queue": "account"}
+{"id": "t39", "message": "Could you add a yearly summary export? Feature request, not urgent.", "queue": "other"}
+{"id": "t40", "message": "Can I move my subscription to my company's account?", "queue": "account"}
+{"id": "t41", "message": "Item arrived 3 weeks late so I no longer need it. Refund please.", "queue": "refund"}
+{"id": "t42", "message": "My promo code didn't apply and I paid full price.", "queue": "billing"}
+{"id": "t43", "message": "How do I change the email address on my account?", "queue": "account"}
+{"id": "t44", "message": "You charged my card after I downgraded to the free plan.", "queue": "billing"}
+{"id": "t45", "message": "Can you send me an itemized invoice for last quarter?", "queue": "billing"}
+{"id": "t46", "message": "Do you have an office in Berlin?", "queue": "other"}
+{"id": "t47", "message": "The export button does nothing on Safari.", "queue": "bug"}
+{"id": "t48", "message": "Can I change the delivery address on order 7782 before it ships?", "queue": "shipping"}
+{"id": "t49", "message": "You charged me for a subscription I cancelled last month. I want that charge reversed.", "queue": "refund"}

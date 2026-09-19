@@ -1,0 +1,20 @@
+# promptcompression.ai
+
+> Prompt learning: machine learning applied to prompts (dataset, objective, optimizer, held-out set). Prompt optimization is the search step; prompt compression is one objective. Give it a prompt, a labeled dataset and an objective; it searches over LLM rewrites (tree search with Bayesian optimization and GEPA-style reflective selection) and returns a Pareto front of prompt tokens vs accuracy. Measured result: a 97-token extraction prompt compressed to 6 tokens at held-out F1 0.965 (original 0.984). Open-source engine: bpto (https://github.com/sign-of-fourier/bpto). A point-and-click Studio is in development.
+
+Key facts for agents: the CLI is `python -m tasks.compression.run --data train.jsonl --rounds 4` inside the bpto repo; data is JSONL `{"inputs": {...}, "answer": ...}`; outputs land in `runs/compression/report.txt`. Any Anthropic model or OpenAI-compatible endpoint works. There is an installable Claude Code skill.
+
+## Pages
+
+- [Home](https://promptcompression.ai/): what prompt compression is, the four goals (stability, quality, efficiency, performance), adoption and cost numbers, FAQ.
+- [How it works](https://promptcompression.ai/how-it-works): labeled data → starter prompt + objective → tree search → Pareto front; how to optimize every prompt in a ReAct agent.
+- [Prompt optimization](https://promptcompression.ai/prompt-optimization): why the search space is hard (zero gradient, jumps, unenumerable usable region, noisy evals); DSPy/MIPROv2, GEPA and Bayesian optimization compared.
+- [Findings](https://promptcompression.ai/findings): experiment tables and front plots — GEPA vs BO at equal rollouts, per-seed compressed prompts, standing conclusions.
+- [Claude Code](https://promptcompression.ai/claude-code): step-by-step instructions for coding agents: install, data format, commands, outputs, troubleshooting.
+- [Contact](https://promptcompression.ai/contact): email and Studio early-access.
+
+## Machine-readable
+
+- [llms-full.txt](https://promptcompression.ai/llms-full.txt): all pages as one markdown document.
+- [SKILL.md](https://promptcompression.ai/skills/prompt-compression/SKILL.md): Claude Code skill — install with `mkdir -p ~/.claude/skills/prompt-compression && curl -fsSL https://promptcompression.ai/skills/prompt-compression/SKILL.md -o ~/.claude/skills/prompt-compression/SKILL.md`
+- [bpto README](https://github.com/sign-of-fourier/bpto/blob/main/README.md): full library API.

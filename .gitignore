@@ -1,0 +1,14 @@
+# secrets
+.env
+**/.env
+
+# studio runtime / build
+studio/data/
+studio/web/node_modules/
+studio/web/dist/
+
+# python
+__pycache__/
+*.egg-info/
+*.pyc
+.pytest_cache/

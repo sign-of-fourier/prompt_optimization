@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How prompt compression works — promptcompression.ai</title>
+<meta name="description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
+<link rel="canonical" href="https://promptcompression.ai/how-it-works">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="How prompt compression works — promptcompression.ai">
+<meta property="og:description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
+<meta property="og:url" content="https://promptcompression.ai/how-it-works">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How prompt compression works — promptcompression.ai">
+<meta name="twitter:description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "How to compress a prompt with promptcompression.ai", "step": [{"@type": "HowToStep", "name": "Start with labeled data", "text": "Collect a JSONL dataset of inputs and known answers."}, {"@type": "HowToStep", "name": "Give it a starter prompt and an objective", "text": "Use your production prompt as the root and choose an objective such as F1 minus a per-token penalty."}, {"@type": "HowToStep", "name": "Search", "text": "The optimizer grows a tree of LLM rewrites, evaluates each on the dataset, and selects where to expand next."}, {"@type": "HowToStep", "name": "Read the result off the Pareto front", "text": "Pick the operating point of tokens versus accuracy that your product needs."}]}</script>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a class="active" href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub ↗</a></li>
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Data in. <em>Better prompt</em> out.</h1>
+    <p class="lead">This is the prompt-learning loop: <strong>dataset → objective → optimizer → validation</strong>. It needs three things from you — labeled examples, a starter prompt and an objective. We'll walk through prompt compression, but the same loop optimizes anything you can score.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+
+    <div class="step">
+      <div class="n">1</div>
+      <div>
+        <h3>Start with labeled data</h3>
+        <p>A dataset is a list of inputs with known answers. Here is a name-extraction set: passages of text and the people mentioned in them.</p>
+        <div class="tablewrap">
+        <table>
+          <tr><th>inputs.text</th><th>answer</th></tr>
+          <tr><td>"After the merger, Priya Natarajan moved the Denver office to a four-day week; Marcus Hale objected in the March board meeting."</td><td class="mono">["Priya Natarajan", "Marcus Hale"]</td></tr>
+          <tr><td>"Rainfall in Portland exceeded the September average, the National Weather Service reported."</td><td class="mono">[]</td></tr>
+          <tr><td>"Dr. Elena Vasquez will present the findings; Tuesday's session is chaired by Tom Bright of Unilever."</td><td class="mono">["Elena Vasquez", "Tom Bright"]</td></tr>
+          <tr><td>"The Lakers signed Charles Okafor to a two-year deal, sources told Reuters."</td><td class="mono">["Charles Okafor"]</td></tr>
+        </table>
+        </div>
+        <p style="margin-top:14px">Run a prompt over the dataset and score each output against the answer. Now every prompt has a number — or a vector of numbers. That's what the optimizer sees. It never needs to understand the task; it only needs <em>(prompt, score)</em> pairs.</p>
+        <div class="tablewrap">
+        <table>
+          <tr><th>prompt</th><th>f1</th><th>template_tokens</th></tr>
+          <tr><td class="mono">Extract the full names of all people mentioned in the text below. Return only real people (not places, companies, months …). Output JSON: {"names": [...]}</td><td>0.97</td><td>97</td></tr>
+          <tr><td class="mono">List every person's full name in the text as JSON {"names": [...]}. Skip organizations and places.</td><td>0.96</td><td>31</td></tr>
+          <tr><td class="mono">People named, JSON {"names":[]}</td><td>0.93</td><td>9</td></tr>
+          <tr><td class="mono">Names:</td><td>0.61</td><td>2</td></tr>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">2</div>
+      <div>
+        <h3>Give it a starter prompt and an objective</h3>
+        <p>The starter prompt is the root of the search tree — usually whatever you have in production today. The objective says what "better" means. Scores are vectors; the objective is a small function that turns a vector into a scalar, so it's cheap to swap.</p>
+        <div class="grid c4">
+          <div class="card"><h3>Prompt compression</h3><p>Maximize accuracy minus a per-token penalty, or hold accuracy above a floor and minimize tokens. <code>f1 − 0.001·template_tokens</code>, or a token budget that tightens each round.</p></div>
+          <div class="card"><h3>Accuracy</h3><p>Exact match, set-F1, or an LLM judge asked "is this equivalent to the reference?" Pure quality, no cost term.</p></div>
+          <div class="card"><h3>Format &amp; reliability</h3><p>Fraction of outputs that parse as valid JSON, follow a schema, or stay within a length limit. Great for tool-call formatters.</p></div>
+          <div class="card"><h3>Latency &amp; cost</h3><p>Output tokens, prompt tokens, wall time. Combine with a quality metric to trade them off explicitly.</p></div>
+        </div>
+        <pre style="margin-top:18px"><code>from bpto import AnthropicClient, Dataset, LinearObjective, Task, combine, template_tokens, token_count
+from tasks.compression import Entities, set_f1
+
+task = Task(
+    root=open("prompt.txt").read(),                  # your current prompt, with {text} placeholder
+    description="extracts the names of all people mentioned in a passage",
+    dataset=Dataset.from_jsonl("train.jsonl"),       # {"inputs": {"text": ...}, "answer": [...]}
+    schema=Entities,
+    scorer=combine(set_f1(), template_tokens(), token_count()),
+    objective=LinearObjective(f1=1.0, template_tokens=-0.002),
+    client=AnthropicClient("claude-opus-5"),
+)</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">3</div>
+      <div>
+        <h3>Search</h3>
+        <p>The optimizer grows a tree. An LLM proposes rewrites of a node (random variants, or directed: "make it shorter", "be more precise", or a reflection on the examples the parent got wrong). Each child is evaluated on the dataset. A <em>selector</em> decides which node to expand next — greedy, a Pareto pool, or a Bayesian surrogate over prompt embeddings that predicts where the good children are.</p>
+        <div class="fig">
+          <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,Menlo,monospace" font-size="12">
+            <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#26325a"/></marker></defs>
+            <g stroke="#26325a" stroke-width="1.5" marker-end="url(#a)">
+              <line x1="380" y1="52" x2="200" y2="112"/><line x1="380" y1="52" x2="380" y2="112"/><line x1="380" y1="52" x2="560" y2="112"/>
+              <line x1="200" y1="150" x2="120" y2="212"/><line x1="200" y1="150" x2="260" y2="212"/>
+              <line x1="560" y1="150" x2="520" y2="212"/><line x1="560" y1="150" x2="640" y2="212"/>
+              <line x1="260" y1="250" x2="260" y2="272"/>
+            </g>
+            <g>
+              <rect x="300" y="20" width="160" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="380" y="35" text-anchor="middle" fill="#e8ecf7">root · 97 tok</text><text x="380" y="48" text-anchor="middle" fill="#9aa6c8">f1 0.97</text>
+              <rect x="130" y="116" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="200" y="131" text-anchor="middle" fill="#e8ecf7">31 tok</text><text x="200" y="144" text-anchor="middle" fill="#9aa6c8">f1 0.96</text>
+              <rect x="310" y="116" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="380" y="131" text-anchor="middle" fill="#e8ecf7">58 tok</text><text x="380" y="144" text-anchor="middle" fill="#9aa6c8">f1 0.97</text>
+              <rect x="490" y="116" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="560" y="131" text-anchor="middle" fill="#e8ecf7">22 tok</text><text x="560" y="144" text-anchor="middle" fill="#9aa6c8">f1 0.91</text>
+              <rect x="50" y="216" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="120" y="231" text-anchor="middle" fill="#e8ecf7">14 tok</text><text x="120" y="244" text-anchor="middle" fill="#9aa6c8">f1 0.95</text>
+              <rect x="190" y="216" width="140" height="34" rx="8" fill="#0f3a33" stroke="#5ee3c8" stroke-width="2"/>
+              <text x="260" y="231" text-anchor="middle" fill="#e8ecf7">9 tok</text><text x="260" y="244" text-anchor="middle" fill="#5ee3c8">f1 0.93 ★ best</text>
+              <rect x="450" y="216" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="520" y="231" text-anchor="middle" fill="#e8ecf7">12 tok</text><text x="520" y="244" text-anchor="middle" fill="#9aa6c8">f1 0.84</text>
+              <rect x="570" y="216" width="140" height="34" rx="8" fill="#161f3d" stroke="#26325a"/>
+              <text x="640" y="231" text-anchor="middle" fill="#e8ecf7">19 tok</text><text x="640" y="244" text-anchor="middle" fill="#9aa6c8">f1 0.90</text>
+              <text x="260" y="290" text-anchor="middle" fill="#9aa6c8">selector: expand next ↓</text>
+            </g>
+          </svg>
+          <div class="cap">A prompt tree. Nodes are prompts scored on the dataset; edges are LLM rewrites. The selector picks which node to expand next — that choice is where the sample efficiency comes from. <a href="/prompt-optimization">Why that's hard →</a></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">4</div>
+      <div>
+        <h3>Read the result off the Pareto front</h3>
+        <p>For a two-objective problem like compression, the answer isn't one prompt — it's a front. bpto keeps every non-dominated (tokens, accuracy) pair so you can choose the operating point your product needs.</p>
+        <div class="compare">
+          <div class="card">
+            <div class="tag">Before · 97 tokens · held-out F1 0.97</div>
+            <pre>You are an information extraction system. Read the passage below carefully and extract the full names of every person who is mentioned. Include each person only once, preserve the order in which they first appear, and do not include organisations, places, or pronouns. Titles such as Dr. or Professor are not part of the name. If no people are mentioned, return an empty list.
+
+Passage:
+{text}</pre>
+          </div>
+          <div class="card">
+            <div class="tag">After · 6 tokens · held-out F1 0.965</div>
+            <pre>Extract human names from: {text}</pre>
+            <div class="meter" style="margin-top:14px"><div class="bar big" style="width:100%"></div>97</div>
+            <div class="meter"><div class="bar" style="width:6%"></div>6</div>
+          </div>
+        </div>
+        <div class="callout"><strong>Measured, not assumed.</strong> In the compression v2 run (12 seeds × 2,000 rollouts, 100 training / 200 held-out examples) both search strategies compressed the 97-token root to 6–29 tokens; the best seed reached 6 tokens at held-out F1 0.965 vs 0.984 for the original. Full tables and front plots on the <a href="/findings">findings page</a>. (Table prompts above are illustrative; the before/after pair is real.)</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="general">
+  <div class="wrap prose">
+    <h2>It's not just compression</h2>
+    <p>Nothing above was specific to shortening prompts. The optimizer sees a root, a dataset, a scorer and an objective. Change the objective and the same tree search does something else:</p>
+    <ul>
+      <li><strong>Accuracy</strong> — objective is the judge score; directives like "be more precise" instead of "be shorter".</li>
+      <li><strong>Migration</strong> — you upgraded models and the old prompt regressed; the old prompt is the root, the objective is accuracy on the new model.</li>
+      <li><strong>Reliability</strong> — objective is the fraction of outputs that parse; the dataset is real production traces.</li>
+      <li><strong>Constrained</strong> — maximize accuracy subject to a token budget, or minimize tokens subject to an accuracy floor. bpto supports both weighted-sum and constrained objectives, and objectives that tighten with tree depth.</li>
+    </ul>
+    <p class="m">Completions are cached on (prompt, config, schema), so re-scoring the whole tree under a new objective costs nothing.</p>
+  </div>
+</section>
+
+<section id="system">
+  <div class="wrap prose">
+    <h2>Prompt learning for a whole system</h2>
+    <p>Real products aren't one prompt. A ReAct-style agent is a loop of several prompts, each with its own job, each run several times per task. Every box below is a prompt you can optimize — with its own objective — using the same loop.</p>
+    <div class="fig">
+      <svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" font-size="13">
+        <defs><marker id="b" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5ee3c8"/></marker></defs>
+        <g stroke="#5ee3c8" stroke-width="1.6" fill="none" marker-end="url(#b)">
+          <line x1="160" y1="60" x2="222" y2="60"/>
+          <line x1="382" y1="60" x2="444" y2="60"/>
+          <line x1="604" y1="60" x2="666" y2="60"/>
+          <path d="M 740 82 L 740 200 L 320 200"/>
+          <path d="M 240 200 L 200 200 L 200 82"/>
+          <line x1="302" y1="222" x2="302" y2="270"/>
+        </g>
+        <g>
+          <rect x="20" y="38" width="140" height="44" rx="8" fill="#161f3d" stroke="#26325a"/>
+          <text x="90" y="56" text-anchor="middle" fill="#e8ecf7" font-weight="600">System prompt</text>
+          <text x="90" y="72" text-anchor="middle" fill="#9aa6c8" font-size="11">obj: task accuracy</text>
+
+          <rect x="222" y="38" width="160" height="44" rx="8" fill="#161f3d" stroke="#26325a"/>
+          <text x="302" y="56" text-anchor="middle" fill="#e8ecf7" font-weight="600">Planner / thought</text>
+          <text x="302" y="72" text-anchor="middle" fill="#9aa6c8" font-size="11">obj: steps to solve, tokens</text>
+
+          <rect x="444" y="38" width="160" height="44" rx="8" fill="#161f3d" stroke="#26325a"/>
+          <text x="524" y="56" text-anchor="middle" fill="#e8ecf7" font-weight="600">Tool-call formatter</text>
+          <text x="524" y="72" text-anchor="middle" fill="#9aa6c8" font-size="11">obj: % valid JSON calls</text>
+
+          <rect x="666" y="38" width="120" height="44" rx="8" fill="#161f3d" stroke="#26325a"/>
+          <text x="726" y="56" text-anchor="middle" fill="#e8ecf7" font-weight="600">Tool</text>
+          <text x="726" y="72" text-anchor="middle" fill="#9aa6c8" font-size="11">(not a prompt)</text>
+
+          <rect x="240" y="178" width="200" height="44" rx="8" fill="#0f3a33" stroke="#5ee3c8" stroke-width="1.5"/>
+          <text x="340" y="196" text-anchor="middle" fill="#e8ecf7" font-weight="600">Observation summarizer</text>
+          <text x="340" y="212" text-anchor="middle" fill="#5ee3c8" font-size="11">obj: compress, keep facts</text>
+
+          <rect x="222" y="270" width="160" height="44" rx="8" fill="#161f3d" stroke="#26325a"/>
+          <text x="302" y="288" text-anchor="middle" fill="#e8ecf7" font-weight="600">Final answer</text>
+          <text x="302" y="304" text-anchor="middle" fill="#9aa6c8" font-size="11">obj: LLM-judge score</text>
+
+          <text x="600" y="196" fill="#9aa6c8" font-size="12">loop, several times per task</text>
+        </g>
+      </svg>
+      <div class="cap">A ReAct loop. Five prompts, five objectives, one end-to-end metric. The summarizer is the compression target — it runs once per tool call, so its tokens compound fastest.</div>
+    </div>
+    <h3>How you optimize it</h3>
+    <ul>
+      <li><strong>Collect traces.</strong> Run the agent on labeled tasks and log every module's inputs and outputs. Each module now has its own dataset — for free.</li>
+      <li><strong>Give each module an objective.</strong> The formatter wants valid JSON; the summarizer wants fewer tokens with no lost facts; the final answer wants judge score. Plus one end-to-end metric (did the task succeed?).</li>
+      <li><strong>Optimize one module at a time, holding the others fixed</strong> — the prompt-learning analogue of training a multi-component model with coordinate ascent. Round-robin through them. Re-collect traces when an upstream module changes, because its outputs are the downstream module's inputs.</li>
+      <li><strong>Check the end-to-end metric.</strong> A module that got "better" on its local objective but hurt task success is rejected. That's what the labeled tasks are for.</li>
+    </ul>
+    <p class="m">Because the optimizer only ever sees (prompt, score), a module's "prompt" can be anything text-shaped: a system prompt, a few-shot block, a tool description, or the instructions inside a chain-of-thought template.</p>
+    <p class="m" style="margin-top:20px">Today all of this runs as the open-source <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> library. The promptcompression.ai Studio will put the same steps — upload data, set a starter prompt and objective, search, pick from the front — behind a point-and-click interface.</p>
+    <div class="btns" style="margin-top:24px">
+      <a class="btn primary" href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">Get the code</a>
+      <a class="btn" href="/contact">Get notified about Studio</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

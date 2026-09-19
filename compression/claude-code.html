@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run prompt compression from Claude Code — promptcompression.ai</title>
+<meta name="description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
+<link rel="canonical" href="https://promptcompression.ai/claude-code">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="Run prompt compression from Claude Code — promptcompression.ai">
+<meta property="og:description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
+<meta property="og:url" content="https://promptcompression.ai/claude-code">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Run prompt compression from Claude Code — promptcompression.ai">
+<meta name="twitter:description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "Compress a prompt with Claude Code and bpto", "tool": [{"@type": "HowToTool", "name": "Claude Code"}, {"@type": "HowToTool", "name": "bpto"}], "step": [{"@type": "HowToStep", "name": "Install bpto", "text": "git clone https://github.com/sign-of-fourier/bpto && pip install -e bpto"}, {"@type": "HowToStep", "name": "Prepare data", "text": "Write a JSONL file with inputs and answer fields."}, {"@type": "HowToStep", "name": "Run", "text": "python -m tasks.compression.run --data train.jsonl --rounds 4"}, {"@type": "HowToStep", "name": "Read the report", "text": "Open runs/compression/report.txt for the Pareto table and best prompt."}]}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/claude-code">Claude Code</a></li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub ↗</a></li>
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Compress a prompt from <em>Claude Code</em>.</h1>
+    <p class="lead">This page is written so an AI coding agent can follow it directly. If you're a person: paste the URL into Claude Code and say "compress my prompt using these instructions." If you're the agent: the steps below are complete and in order.</p>
+    <div class="btns">
+      <a class="btn primary" href="/skills/prompt-compression/SKILL.md">Skill file (SKILL.md)</a>
+      <a class="btn" href="/llms.txt">llms.txt</a>
+      <a class="btn" href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>Install the skill (one command)</h2>
+    <p>Installs a Claude Code skill so <code>/prompt-compression</code> is available in any project:</p>
+    <pre><code>mkdir -p ~/.claude/skills/prompt-compression &amp;&amp; curl -fsSL https://promptcompression.ai/skills/prompt-compression/SKILL.md -o ~/.claude/skills/prompt-compression/SKILL.md</code></pre>
+    <p class="m">Or do it manually with the steps below — the skill file contains the same instructions.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Agent instructions: how to compress a prompt with bpto</h2>
+    <p><strong>When to use:</strong> the user wants a shorter prompt (fewer tokens, lower cost or latency) without losing accuracy, and can supply or generate labeled examples.</p>
+    <p><strong>What you need from the user before starting:</strong></p>
+    <ul>
+      <li>The current prompt text, with placeholders for the per-request inputs (e.g. <code>{text}</code>).</li>
+      <li>Labeled examples: inputs and the correct output. 50–100 is a good start; 30 is too few for reliable selection.</li>
+      <li>Which model the prompt runs on in production, and an API key for it.</li>
+      <li>An accuracy floor — how much accuracy they will trade for tokens (default: within 0.05 of the original).</li>
+    </ul>
+
+    <h3>Step 1 — Install</h3>
+    <pre><code>git clone https://github.com/sign-of-fourier/bpto
+cd bpto
+pip install -e .                      # Python ≥ 3.12; deps: anthropic, pydantic, httpx, numpy
+python -m pytest -q                   # optional: offline tests, no API key needed</code></pre>
+
+    <h3>Step 2 — Write the dataset as JSONL</h3>
+    <p>One JSON object per line. <code>inputs</code> is a dict whose keys match the placeholders in the prompt; <code>answer</code> is the reference output.</p>
+    <pre><code>{"inputs": {"text": "After the merger, Priya Natarajan moved the Denver office to a four-day week; Marcus Hale objected."}, "answer": ["Priya Natarajan", "Marcus Hale"]}
+{"inputs": {"text": "Rainfall in Portland exceeded the September average, the National Weather Service reported."}, "answer": []}
+{"inputs": {"text": "The Lakers signed Charles Okafor to a two-year deal, sources told Reuters."}, "answer": ["Charles Okafor"]}</code></pre>
+    <p class="m">Keep a held-out split (e.g. 2:1) that the optimizer never sees; report the held-out score to the user, not the training score.</p>
+
+    <h3>Step 3 — Run a smoke test offline (no API key)</h3>
+    <pre><code>python -m tasks.compression.run --mock --rounds 2</code></pre>
+    <p class="m">Confirms the install. Outputs go to <code>runs/compression/</code>.</p>
+
+    <h3>Step 4 — Run for real</h3>
+    <pre><code># Anthropic
+ANTHROPIC_API_KEY=... python -m tasks.compression.run --data train.jsonl --rounds 4 --model claude-opus-5
+
+# Any OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter)
+OPENAI_API_KEY=... python -m tasks.compression.run --data train.jsonl --rounds 4 \
+    --provider openai --base-url https://api.openai.com/v1 --model gpt-5
+
+# Constrained mode: shrink the token budget each round instead of a weighted sum
+python -m tasks.compression.run --data train.jsonl --rounds 6 --constrained --start-tokens 80 --shrink 10
+
+# Continue a checkpointed run
+python -m tasks.compression.run --data train.jsonl --rounds 8 --resume</code></pre>
+    <p>Useful flags: <code>--n-random</code> / <code>--n-guided</code> (children per expansion, default 3 / 2), <code>--expand-k</code> (leaves expanded per round, default 3), <code>--cheap-n</code> (examples in the first successive-halving rung, default 12), <code>--token-weight</code> (per-token penalty for the weighted objective, default 0.002), <code>--concurrency</code> (default 8), <code>--out</code> (default <code>runs/compression</code>).</p>
+
+    <h3>Step 5 — Read the outputs</h3>
+    <div class="tablewrap"><table>
+      <tr><th>file</th><th>what it is</th></tr>
+      <tr><td class="mono">runs/compression/report.txt</td><td>Pareto table (template_tokens vs f1 for every non-dominated prompt) and the best prompt under the objective. Show this table to the user.</td></tr>
+      <tr><td class="mono">runs/compression/pareto.png</td><td>The same front as a plot.</td></tr>
+      <tr><td class="mono">runs/compression/tree.json</td><td>Checkpoint of the whole search tree; needed for <code>--resume</code>.</td></tr>
+      <tr><td class="mono">runs/compression/cache.jsonl</td><td>Completion cache keyed on (prompt, config, schema). Re-scoring under a new objective is free.</td></tr>
+    </table></div>
+    <p style="margin-top:14px"><strong>Report to the user:</strong> the original prompt's tokens and held-out score, the row on the front that meets their accuracy floor, and its prompt text. Offer 2–3 points on the front (shortest feasible, safest, in between) rather than one.</p>
+
+    <h3>Step 6 — Adapting to a task that is not name extraction</h3>
+    <p>The <code>tasks/compression</code> runner is wired for a list-of-names schema and set-F1. For another task, write a small task module: a Pydantic <code>schema</code> for the output, a <code>scorer</code> returning a dict of metrics per example, and use <code>combine(scorer, template_tokens(), token_count())</code> with a <code>LinearObjective</code> or <code>ConstrainedObjective</code>. The bpto README's question-answering example (LLM judge + token count) is the template. The tree, operators and search loop are unchanged.</p>
+    <pre><code>from bpto import (AnthropicClient, ConstrainedObjective, Dataset, LinearObjective, Task, Tree,
+                  combine, evaluate, guided, llm_judge, random, select, template_tokens, token_count)
+
+task = Task(
+    root=open("prompt.txt").read(),
+    description="one line describing what the prompt does",
+    dataset=Dataset.from_jsonl("train.jsonl"),
+    schema=YourPydanticModel,
+    scorer=combine(llm_judge("Is the answer equivalent to the reference?", client=AnthropicClient("claude-opus-5")),
+                   template_tokens(), token_count()),
+    objective=ConstrainedObjective(LinearObjective(judge=1.0), metric="template_tokens", bound=lambda ctx: 40, penalty=0.01),
+    client=AnthropicClient("claude-opus-5", max_concurrency=16),
+)
+tree = Tree(task)
+await tree.apply(random(n=4), select=select.leaves)
+await tree.apply(guided("make it as short as possible without losing precision", n=3), select=select.leaves)
+await tree.apply(evaluate(), select=select.unevaluated)
+print(tree.best().prompt)
+print(tree.pareto({"judge": True, "template_tokens": False}))</code></pre>
+
+    <h3>Things that go wrong</h3>
+    <ul>
+      <li><strong>Every child scores the same as the root.</strong> The rewriting model is paraphrasing instead of editing. Use a stronger model for proposals, or a more forceful directive ("remove every sentence that is not necessary").</li>
+      <li><strong>Training score is high, held-out is low.</strong> Overfitting a small dataset. Add examples or raise the floor.</li>
+      <li><strong>Output doesn't parse.</strong> The schema is enforced client-side; some small models echo the schema. Check <code>cache.jsonl</code> for raw completions.</li>
+      <li><strong>Budget.</strong> A 4-round run on 100 examples is a few hundred to a few thousand model calls. Set <code>--concurrency</code> to respect rate limits; use <code>--resume</code> after a crash.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Machine-readable resources</h2>
+    <ul>
+      <li><a href="/llms.txt">/llms.txt</a> — site index for LLMs</li>
+      <li><a href="/llms-full.txt">/llms-full.txt</a> — every page of this site as one markdown document</li>
+      <li><a href="/skills/prompt-compression/SKILL.md">/skills/prompt-compression/SKILL.md</a> — the Claude Code skill</li>
+      <li><a href="https://github.com/sign-of-fourier/bpto/blob/main/README.md" target="_blank" rel="noopener">bpto README</a> — full library API</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

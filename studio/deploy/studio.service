@@ -1,0 +1,18 @@
+# sudo cp deploy/studio.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now studio
+[Unit]
+Description=promptcompression.ai studio API (FastAPI + bpto)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/projects/prompt_optimization/studio
+Environment=PATH=/home/ubuntu/miniconda3/bin:/usr/bin:/bin
+Environment=AWS_REGION=us-east-1
+# API keys go in /home/ubuntu/projects/prompt_optimization/studio/.env (KEY=value lines; gitignored):
+#   AWS_BEARER_TOKEN_BEDROCK=...   ANTHROPIC_API_KEY=...   OPENAI_API_KEY=...
+ExecStart=/home/ubuntu/miniconda3/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

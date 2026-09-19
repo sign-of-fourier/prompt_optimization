@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt optimization: why it's a hard search problem (DSPy, GEPA, Bayesian optimization) — promptcompression.ai</title>
+<meta name="description" content="Prompt optimization explained: zero gradients, discontinuous jumps, an unenumerable usable space and noisy evaluations. How DSPy/MIPROv2, GEPA and Bayesian optimization attack it, with side-by-side results.">
+<link rel="canonical" href="https://promptcompression.ai/prompt-optimization">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="Prompt optimization: why it's a hard search problem (DSPy, GEPA, Bayesian optimization) — promptcompression.ai">
+<meta property="og:description" content="Prompt optimization explained: zero gradients, discontinuous jumps, an unenumerable usable space and noisy evaluations. How DSPy/MIPROv2, GEPA and Bayesian optimization attack it, with side-by-side results.">
+<meta property="og:url" content="https://promptcompression.ai/prompt-optimization">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Prompt optimization: why it's a hard search problem (DSPy, GEPA, Bayesian optimization) — promptcompression.ai">
+<meta name="twitter:description" content="Prompt optimization explained: zero gradients, discontinuous jumps, an unenumerable usable space and noisy evaluations. How DSPy/MIPROv2, GEPA and Bayesian optimization attack it, with side-by-side results.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Prompt optimization is a strange search problem", "author": {"@type": "Organization", "name": "promptcompression.ai"}, "publisher": {"@type": "Organization", "name": "promptcompression.ai"}, "datePublished": "2026-09-14", "dateModified": "2026-09-15", "url": "https://promptcompression.ai/prompt-optimization", "about": ["prompt optimization", "GEPA", "DSPy", "MIPROv2", "Bayesian optimization"]}</script>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a class="active" href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub ↗</a></li>
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Prompt optimization is a <em>strange</em> search problem.</h1>
+    <p class="lead">The objective is flat almost everywhere, jumps when it moves, and lives on a thin slice of the space that nobody can write down. Here's what that means and how the current methods deal with it.</p>
+  </div>
+</header>
+
+<section id="prompt-learning">
+  <div class="wrap prose">
+    <h2>Prompt learning, and where optimization sits in it</h2>
+    <p><strong>Prompt learning</strong> is machine learning applied to prompts. The analogy is exact enough to be useful:</p>
+    <div class="tablewrap"><table>
+      <tr><th>training a model</th><th>prompt learning</th></tr>
+      <tr><td>weights</td><td>the prompt text</td></tr>
+      <tr><td>training set</td><td>labeled (input, answer) examples</td></tr>
+      <tr><td>loss function</td><td>the objective: accuracy, tokens, format, latency, or a weighted / constrained combination</td></tr>
+      <tr><td>optimizer (SGD, Adam)</td><td><strong>prompt optimization</strong>: an LLM proposes rewrites, a selector decides which to evaluate and expand</td></tr>
+      <tr><td>validation set</td><td>a held-out set the optimizer never sees</td></tr>
+      <tr><td>overfitting</td><td>a prompt that wins on 30 examples and loses on the next 30</td></tr>
+    </table></div>
+    <p style="margin-top:14px">Where the analogy breaks is the optimizer row, and that break is the subject of this page. Weights are continuous and the loss is differentiable; prompts are discrete text and the objective has no gradient. Everything else transfers — which is why the discipline that comes with it (held-out sets, budgets, reporting fronts instead of single numbers) transfers too.</p>
+    <p class="m">Not to be confused with <em>prompt tuning</em> (Lester et al. 2021) or <em>prefix tuning</em>, which learn continuous "soft prompt" vectors by gradient descent. Prompt learning in the sense used here keeps the model frozen and the prompt human-readable; the output is a string you can paste into a config file.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>The problem</h2>
+    <p>Prompt optimization means: given a task and a scoring function, find the string that scores best. The space is every possible string. The score is what an LLM does when you feed it that string, averaged over a dataset. That's a well-posed optimization problem — and almost none of the usual machinery applies.</p>
+
+    <h3>1. The derivative is zero almost everywhere</h3>
+    <p>Change one word and the score usually doesn't move at all. The model reads "Extract the names" and "Extract all the names" the same way. Gradient descent has nothing to follow: the surface is piecewise flat, and the pieces are wide. The only way to learn anything is to make a <em>real</em> edit and pay for a full evaluation.</p>
+
+    <h3>2. When it does move, it jumps</h3>
+    <p>Drop the word "only" and precision collapses. Add "as JSON" and format compliance goes from 60% to 99%. The landscape is a plateau riddled with cliffs and thousands of tiny basins. Local search gets stuck in the first basin it finds; every basin looks like an optimum from inside.</p>
+
+    <div class="fig">
+      <svg viewBox="0 0 800 260" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" font-size="12">
+        <!-- axes -->
+        <line x1="50" y1="220" x2="770" y2="220" stroke="#26325a"/>
+        <line x1="50" y1="30" x2="50" y2="220" stroke="#26325a"/>
+        <text x="410" y="248" text-anchor="middle" fill="#9aa6c8">prompt space (one dimension of a very large space)</text>
+        <text x="20" y="130" text-anchor="middle" fill="#9aa6c8" transform="rotate(-90 20 130)">score</text>
+        <!-- unusable regions -->
+        <rect x="50" y="30" width="150" height="190" fill="#ff7a90" opacity=".08"/>
+        <rect x="620" y="30" width="150" height="190" fill="#ff7a90" opacity=".08"/>
+        <text x="125" y="50" text-anchor="middle" fill="#ff7a90" font-size="11">unusable (score ≈ 0)</text>
+        <text x="695" y="50" text-anchor="middle" fill="#ff7a90" font-size="11">unusable</text>
+        <!-- landscape: flat with steps and little bumps -->
+        <path d="M50,215 L200,215 L200,150 L230,150 L230,158 L255,158 L255,120 L280,120 L280,124 L300,124 L300,110 L320,110 L320,140 L345,140 L345,95 L360,95 L360,100 L385,100 L385,70 L400,70 L400,74 L425,74 L425,62 L445,62 L445,66 L470,66 L470,90 L495,90 L495,80 L520,80 L520,115 L545,115 L545,105 L570,105 L570,150 L595,150 L595,160 L620,160 L620,215 L770,215"
+              fill="none" stroke="#5ee3c8" stroke-width="2.2"/>
+        <!-- local optima markers -->
+        <g fill="#ffb454">
+          <circle cx="242" cy="150" r="3.5"/><circle cx="310" cy="110" r="3.5"/><circle cx="352" cy="95" r="3.5"/><circle cx="435" cy="62" r="4.5"/><circle cx="507" cy="80" r="3.5"/><circle cx="557" cy="105" r="3.5"/>
+        </g>
+        <text x="455" y="58" text-anchor="start" fill="#ffb454" font-size="11">← global optimum</text>
+        <text x="330" y="190" text-anchor="middle" fill="#9aa6c8" font-size="11">flat steps = zero gradient · dots = local optima</text>
+        <line x1="200" y1="30" x2="200" y2="220" stroke="#ffb454" stroke-dasharray="4 4" opacity=".6"/>
+        <line x1="620" y1="30" x2="620" y2="220" stroke="#ffb454" stroke-dasharray="4 4" opacity=".6"/>
+        <text x="410" y="36" text-anchor="middle" fill="#ffb454" font-size="11">the usable manifold — boundary unknown</text>
+      </svg>
+      <div class="cap">A one-dimensional caricature of the prompt landscape. Flat almost everywhere, discontinuous where it moves, many small local optima, and a usable region whose edges you can't compute in advance.</div>
+    </div>
+
+    <h3>3. Only a sliver of the space is usable — and you can't enumerate it</h3>
+    <p>Almost every string is a useless prompt. The good ones live on a thin manifold of fluent, task-relevant text — and there is no formula for its boundary. You can't grid-search it, you can't sample it uniformly, and you can't project onto it. The only thing that reliably stays on the manifold is another language model generating text. So every practical method has the same shape: <strong>an LLM proposes candidates, a scorer evaluates them, and a selector decides where to look next.</strong> The differences are all in the proposer and the selector.</p>
+
+    <h3>4. Evaluations are expensive and noisy</h3>
+    <p>Every point on the landscape costs one LLM call per dataset example. Scores carry sampling noise. Small datasets overfit: a prompt that wins on 30 examples may lose on the next 30. So the budget is measured in <em>rollouts</em> — unique (prompt, example) calls — and the question every method has to answer is: <em>what do I evaluate next, given what I've already paid for?</em></p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>The approaches</h2>
+    <p class="sub">Three families, each getting one thing right.</p>
+
+    <h3>DSPy and MIPROv2 — prompts as programs, search as hyperparameter tuning</h3>
+    <p><a href="https://github.com/stanfordnlp/dspy" target="_blank" rel="noopener">DSPy</a> separates the <em>program</em> (a pipeline of typed modules) from the <em>prompt text</em> each module ends up using. Its optimizers then fill in the text. MIPROv2 proposes a pool of candidate instructions and bootstrapped few-shot demonstrations for each module, then runs Bayesian optimization over the <em>discrete choice</em> of which instruction and which demos to combine — a surrogate model predicts which combinations will score well, so the expensive full evaluations go where they're most informative.</p>
+    <ul>
+      <li><strong>What it gets right:</strong> treating multi-module systems as first-class, and casting prompt search as a well-understood hyperparameter problem with a surrogate.</li>
+      <li><strong>Where it's limited:</strong> the search space is a fixed pool of pre-generated candidates. It can pick the best of what it proposed; it can't discover what it didn't propose.</li>
+    </ul>
+
+    <h3>GEPA — reflective evolution with a Pareto pool</h3>
+    <p><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">GEPA</a> (Agrawal et al., 2025) treats optimization as evolution, with two ideas that matter. First, the mutation operator is <em>reflective</em>: an LLM reads the parent prompt, the examples it failed on and textual feedback about <em>why</em>, then rewrites. A scalar reward says "0.7"; text feedback says "you extracted the company name as a person" — far more information per rollout. Second, the parent pool is a <em>per-example Pareto front</em>: a candidate stays alive if it's the best on any single training example, and parents are sampled in proportion to how many examples they win. That preserves diversity — a prompt that's mediocre on average but nails a hard case is kept around to breed from.</p>
+    <p>Reference numbers from the paper on Qwen3-8B (test accuracy, %): HotpotQA 42.3 → 62.3, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9, IFBench 36.9 → 38.6, within ~7k rollouts — beating MIPROv2 and GRPO-style RL at a fraction of the rollouts.</p>
+    <ul>
+      <li><strong>What it gets right:</strong> the proposer. Reflection on failures is the richest signal available, and the Pareto pool keeps the search from collapsing into one basin.</li>
+      <li><strong>Where it's limited:</strong> parent selection is stochastic sampling from the pool; nothing predicts which parent is worth expanding before paying for its children.</li>
+    </ul>
+
+    <h3>Bayesian optimization — learn where the good prompts are</h3>
+    <p>Bayesian optimization is the standard answer to "expensive, noisy, black-box objective". Embed each evaluated prompt as a vector, fit a Gaussian process from embedding → score, and use an acquisition function (expected improvement, UCB, Thompson sampling) to choose the next candidate: the one with the best combination of predicted score and uncertainty. The GP handles noise natively — it knows a single high score on a small sample might be luck.</p>
+    <p>Applied to a prompt tree, BO answers two questions: <em>which node should I expand next?</em> (fit the surrogate to a node's descendants' value, so it learns which regions breed good children) and <em>which of these freshly-proposed children are worth a full evaluation?</em> (pre-screen by predicted score, evaluate only the top ones).</p>
+    <ul>
+      <li><strong>What it gets right:</strong> sample efficiency and robustness to evaluation noise; it's the only one of the three with a principled model of uncertainty.</li>
+      <li><strong>Where it's limited:</strong> it needs an embedding in which "nearby" means "scores similarly" — not guaranteed for text — and a scalar value; a threshold-tied scalar leaves the rest of a Pareto front to chance.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>What we learned running them side by side</h2>
+    <p>bpto implements GEPA-style selection and BO selection as peers on the same tree, with the same mutation operators, cache and budget, so they can be compared at equal rollouts with one ingredient swapped at a time. The <a href="https://github.com/sign-of-fourier/bpto/tree/main/experiments" target="_blank" rel="noopener">experiment log</a> is in the repo; the standing conclusions so far:</p>
+    <ul>
+      <li><strong>The Pareto pool is what works in GEPA; its randomness isn't.</strong> On synthetic landscapes (8 arms × 40 seeds × 6 conditions), greedy argmax within the pool beat GEPA's weighted sampler everywhere except a deliberately deceptive landscape, where they tied.</li>
+      <li><strong>BO's edge is noise and weak mutators.</strong> Under evaluation noise BO beat GEPA's sampler (0.97 vs 0.86); surrogate pre-screening of children helped most when the proposer was weak (0.91 vs 0.83). On clean additive landscapes nothing beat greedy.</li>
+      <li><strong>Live, the proposer is the binding constraint.</strong> If the rewriting model only paraphrases, no selection strategy can help — there are no substantive children to select among. Get the mutator making real edits before comparing selectors.</li>
+      <li><strong>Report the front, not a number.</strong> On a real compression task (12 seeds, 2,000 rollouts each), BO's pooled (tokens, F1) front lay left of GEPA's at every accuracy level; at the targeted accuracy BO was ~3.5 tokens shorter. At stricter accuracy bars GEPA's pool hedged better, because BO's scalar value ignored accurate-but-not-shorter children. A single-row comparison would have hidden that.</li>
+      <li><strong>Flat benchmarks can't tell methods apart.</strong> IFBench moves by 1–2 points under every published optimizer; with a few hundred rows that's undetectable. Use it as a plumbing test, not a decider.</li>
+      <li><strong>Gains on weak models don't transfer proportionally.</strong> A restatement that fixes a small model's "cheap" failures does nothing for a model that has already absorbed them.</li>
+    </ul>
+    <div class="callout"><strong>The framing that made the comparison possible:</strong> proposals are operators on a tree, selection is a pluggable strategy, and the tree never knows which one is running. GEPA's reflective proposer and BO's acquisition-based selector are not rivals — the current best configuration uses both.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Further reading</h2>
+    <ul>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</a> — Agrawal et al., 2025 · <a href="https://github.com/gepa-ai/gepa" target="_blank" rel="noopener">code</a></li>
+      <li><a href="https://arxiv.org/abs/2406.11695" target="_blank" rel="noopener">Optimizing Instructions and Demonstrations for Multi-Stage Language Model Programs</a> (MIPROv2) — Opsahl-Ong et al., 2024</li>
+      <li><a href="https://arxiv.org/abs/2310.03714" target="_blank" rel="noopener">DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines</a> — Khattab et al., 2023</li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto — Bayesian Prompt Tree Optimization</a> — the implementation and experiment logs behind this page</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

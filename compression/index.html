@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>promptcompression.ai — prompt learning: ML-driven prompt compression and optimization</title>
+<meta name="description" content="Prompt learning: machine learning applied to prompts. Prompt compression and prompt optimization measured on your own data — 97 tokens to 6 at the same accuracy. Open-source engine (bpto), point-and-click Studio coming.">
+<link rel="canonical" href="https://promptcompression.ai/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="promptcompression.ai — prompt learning: ML-driven prompt compression and optimization">
+<meta property="og:description" content="Prompt learning: machine learning applied to prompts. Prompt compression and prompt optimization measured on your own data — 97 tokens to 6 at the same accuracy. Open-source engine (bpto), point-and-click Studio coming.">
+<meta property="og:url" content="https://promptcompression.ai/">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="promptcompression.ai — prompt learning: ML-driven prompt compression and optimization">
+<meta name="twitter:description" content="Prompt learning: machine learning applied to prompts. Prompt compression and prompt optimization measured on your own data — 97 tokens to 6 at the same accuracy. Open-source engine (bpto), point-and-click Studio coming.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "promptcompression.ai", "url": "https://promptcompression.ai", "logo": "https://promptcompression.ai/favicon.svg", "sameAs": ["https://github.com/sign-of-fourier/bpto"], "email": "markshipman4273@gmail.com"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "bpto — Bayesian Prompt Tree Optimization", "applicationCategory": "DeveloperApplication", "operatingSystem": "Linux, macOS, Windows", "url": "https://github.com/sign-of-fourier/bpto", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "description": "Open-source prompt optimization library: tree search over prompt rewrites with Bayesian optimization and GEPA-style reflective selection. Prompt compression, accuracy and format objectives."}</script>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a class="active" href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub ↗</a></li>
+      <li><a href="/studio/">Studio</a></li>
+      <li><a href="/contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Prompts are code.<br>Optimize them like <em>code</em>.</h1>
+    <p class="lead">Most teams tune prompts by hand and hope they hold. We call the alternative <strong>prompt learning</strong>: treat a prompt like a model parameter — data in, objective set, optimizer runs, held-out set decides. promptcompression.ai applies it to manage prompts for <strong>stability, quality, efficiency and performance</strong>.</p>
+    <div class="btns">
+      <a class="btn primary" href="/how-it-works">See how it works</a>
+      <a class="btn" href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">View on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2 id="what">What is prompt compression?</h2>
+    <p class="sub">Prompt compression is finding the shortest prompt that still does the job — measured, not guessed. You give it your prompt, a labeled dataset and an accuracy floor; an optimizer searches rewrites and hands back the tokens-vs-accuracy trade-off. It is one objective of a general prompt optimizer: the same loop also improves accuracy, format compliance and latency.</p>
+    <h2 id="prompt-learning">What is prompt learning?</h2>
+    <p class="sub">Machine learning applied to prompts. A trained model has a dataset, a loss, an optimizer and a validation set. Prompt learning gives a prompt the same four things: labeled examples, an objective (accuracy, tokens, format, latency, or a combination), a search algorithm that proposes and selects rewrites, and a held-out set that decides. Prompt optimization is the search step; prompt compression is one objective. <a href="/prompt-optimization">Why the search is hard →</a></p>
+    <h2>Four things prompt learning delivers</h2>
+    <p class="sub">Each one is measurable. Each one is optimizable. None of them survive a model upgrade on their own.</p>
+    <div class="grid c4">
+      <div class="card"><h3>Stability</h3><p>Prompts drift every time a model changes. A scored dataset turns "it seems fine" into a regression test you can re-run in minutes.</p></div>
+      <div class="card"><h3>Quality</h3><p>Accuracy, format compliance, judge scores — pick the metric that matters and let the optimizer climb it instead of guessing.</p></div>
+      <div class="card"><h3>Efficiency</h3><p>Shorter prompts, fewer tokens, lower latency. Compression is an objective, not an afterthought.</p></div>
+      <div class="card"><h3>Performance</h3><p>Trade accuracy against cost on a Pareto front and choose the operating point your product actually needs.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The numbers</h2>
+    <p class="sub">Agentic systems multiply the number of prompts you run, and the number of times you run each one.</p>
+    <div class="grid c3">
+      <div class="card stat">
+        <div class="num">97 → 6</div>
+        <div class="label">tokens: a name-extraction prompt compressed by bpto; held-out F1 0.984 → 0.965. Across 12 seeds: 6–29 tokens, mean 12–16.</div>
+        <div class="src">Compression v2 experiment, Sept 2026 — <a href="/findings">see findings</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num alt">40%</div>
+        <div class="label">of enterprise applications will include task-specific AI agents by the end of 2026 — up from under 5% in 2025.</div>
+        <div class="src"><a href="https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025" target="_blank" rel="noopener">Gartner</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num">62%</div>
+        <div class="label">of organizations are experimenting with or scaling agentic AI; 23% have a system in production.</div>
+        <div class="src"><a href="https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai" target="_blank" rel="noopener">McKinsey, State of AI</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num alt">35%</div>
+        <div class="label">average increase in cloud spend attributed to unmonitored token usage at enterprises using generative AI.</div>
+        <div class="src"><a href="https://www.premai.io/blog/llm-token-cost/" target="_blank" rel="noopener">Deloitte 2025 AI expenditure report, via PremAI</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num">$2–4k</div>
+        <div class="label">per month saved by trimming ~80 prompt tokens from a system that makes 10M calls a month at $2.50–$5 per million input tokens.</div>
+        <div class="src">Worked example: 80 tokens × 10M calls = 800M tokens/month. Your numbers will differ.</div>
+      </div>
+      <div class="card stat">
+        <div class="num alt">3–6</div>
+        <div class="label">prompts in a typical agent loop (system, planner, tool formatter, summarizer, answer). Each one is a separate optimization target.</div>
+        <div class="src">See <a href="/how-it-works#system">optimizing a whole system</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="product">
+  <div class="wrap">
+    <h2>Two ways to run it</h2>
+    <p class="sub">The same optimizer, as a library today and as a point-and-click studio next.</p>
+    <div class="grid c2">
+      <div class="card">
+        <span class="pill">Available now</span>
+        <h3 style="margin-top:12px">bpto — the open-source engine</h3>
+        <p>A Python library. Define a task (root prompt, dataset, scorer, objective), compose search operators, run with a budget and checkpoints. Everything on this site was measured with it.</p>
+        <p style="margin-top:14px"><a class="btn" href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">github.com/sign-of-fourier/bpto</a></p>
+      </div>
+      <div class="card">
+        <span class="pill">Coming</span>
+        <h3 style="margin-top:12px">promptcompression.ai Studio</h3>
+        <p>Every step of bpto without writing code. Upload your labeled data, paste your starter prompt, pick an objective, watch the tree grow, and read the result off the Pareto front. No notebooks, no config files.</p>
+        <p style="margin-top:14px"><a class="btn" href="/contact">Get notified</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Why prompts belong in your AI strategy</h2>
+    <p><strong>Agents multiply the prompt surface.</strong> A single chat assistant has one prompt. A ReAct-style agent has a system prompt, a planning prompt, a tool-call formatter, an observation summarizer and a final-answer prompt — and it runs each of them several times per task. Small inefficiencies compound per call, per step, per user.</p>
+    <p><strong>Every model upgrade silently re-tunes every prompt.</strong> Prompts written for one model are not optimal for the next. Without a scored dataset and an optimizer, "upgrading the model" means re-doing the prompt work by hand, or not at all.</p>
+    <p><strong>A measurable prompt strategy is the difference between a pilot and a product.</strong> Teams that treat prompts as versioned, evaluated, optimized artifacts ship faster and spend less. Teams that treat them as text in a config file discover regressions from customers.</p>
+    <p class="m">The optimizer is abstract: it takes a starter prompt, a dataset and an objective, and searches. Compression, accuracy, format compliance, latency — same loop, different objective.</p>
+    <div class="btns" style="margin-top:24px">
+      <a class="btn primary" href="/how-it-works">How it works</a>
+      <a class="btn" href="/prompt-optimization">Why prompt optimization is hard</a>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap prose">
+    <h2>Frequently asked questions</h2>
+    <h3>How is this different from LLMLingua-style compression?</h3>
+    <p>LLMLingua compresses the <em>input</em> of each request at inference time by dropping low-information tokens, and needs a small model in the request path. promptcompression.ai compresses the <em>prompt template</em> once, at optimization time, by searching over rewrites and scoring them on your data. The result is a plain shorter prompt with nothing extra at inference. The two compose: a compressed template with compressed inputs.</p>
+    <h3>How much data do I need?</h3>
+    <p>Enough to detect the differences you care about. 100 training examples plus a held-out set was enough to separate search strategies in our compression runs; 30 was not. If you have production traces, you already have the data.</p>
+    <h3>Which models does it work with?</h3>
+    <p>Any: Anthropic models directly, and anything with an OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter, Bedrock via a proxy). The optimizer only needs a client that returns completions.</p>
+    <h3>Does compression hurt accuracy?</h3>
+    <p>It's a trade-off you control. You set the accuracy floor; the optimizer minimizes tokens subject to it and reports the whole Pareto front, so you choose the operating point. Always read the held-out number, not the training number.</p>
+    <h3>Can I use it from Claude Code or another coding agent?</h3>
+    <p>Yes — there is a <a href="/claude-code">step-by-step page written for agents</a> and an installable skill file.</p>
+    <h3>Is it open source?</h3>
+    <p>The engine, bpto, is open source on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a>. The point-and-click Studio is in development.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
