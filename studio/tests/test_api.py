@@ -6,7 +6,8 @@ import os
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-os.environ["STUDIO_DATA"] = "/tmp/claude-1000/-home-ubuntu-projects-prompt-compression/4264d0dc-9977-44a6-a9c6-6a6ba0d0fe5e/scratchpad/studio_test_data"
+import tempfile
+os.environ["STUDIO_DATA"] = os.path.join(tempfile.gettempdir(), "studio_test_data")
 os.environ["STUDIO_INSECURE_COOKIE"] = "1"
 import shutil
 shutil.rmtree(os.environ["STUDIO_DATA"], ignore_errors=True)
@@ -32,6 +33,12 @@ async def _flow():
             r = await c.post("/auth/signup", json={"email": "a@b.co", "password": "password1"}); assert r.status_code == 200, r.text
             r = await c.post("/projects", json=SPEC); pid = r.json()["id"]
             r = await c.get("/projects"); assert [p["id"] for p in r.json()] == [pid]
+            # default names increment instead of colliding; delete removes the project
+            p2 = (await c.post("/projects")).json(); p3 = (await c.post("/projects")).json()
+            assert p2["spec"]["name"] == "untitled" and p3["spec"]["name"] == "untitled 2"
+            await c.delete(f"/projects/{p2['id']}"); await c.delete(f"/projects/{p3['id']}")
+            r = await c.get("/projects"); assert [p["id"] for p in r.json()] == [pid]
+            assert (await c.get(f"/projects/{p2['id']}")).status_code == 404
             body = "\n".join(json.dumps(x) for x in ROWS).encode()
             r = await c.post(f"/projects/{pid}/datasets", files={"file": ("d.jsonl", body, "application/json")}); assert r.status_code == 200, r.text
             did = r.json()["id"]; assert r.json()["columns"] == ["context", "question", "answer"] and r.json()["label_column"] == "answer"
@@ -66,9 +73,9 @@ async def _flow():
             # usage log: every call of the pilot and the run was recorded for this user
             u = (await c.get("/usage")).json()
             assert u["totals"]["calls"] > 0 and u["totals"]["usd"] == 0 and {m["source"] for m in u["by_model"]} == {"mock"}
-            # tier: beginner by default -> nova micro only, caps 4/4; q above the cap is clamped on start
+            # tier: beginner by default -> nova micro + lite on house keys, caps 4/4; q above the cap is clamped on start
             r = await c.get("/models"); j = r.json()
-            assert j["tier"] == "beginner" and j["max_q"] == 4 and [m["id"] for m in j["models"] if m["source"] == "house"] == ["us.amazon.nova-micro-v1:0"]
+            assert j["tier"] == "beginner" and j["max_q"] == 4 and [m["id"] for m in j["models"] if m["source"] == "house"] == ["us.amazon.nova-micro-v1:0", "us.amazon.nova-lite-v1:0"]
             spec2 = {**SPEC, "optimizer": {**SPEC["optimizer"], "engine": "bo", "bo": {"q": 9, "pca": 4, "acquisition": "qei"}}}
             await c.put(f"/projects/{pid}", json=spec2)
             r = await c.post(f"/projects/{pid}/runs", json={"dataset_id": did, "mock": True}); assert any("q 9 -> 4" in n for n in r.json()["notes"])

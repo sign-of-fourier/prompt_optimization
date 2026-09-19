@@ -37,7 +37,7 @@ export const STEPS = [
   { title: 'The optimizer', anchor: 'btn-optimizer', tab: 'build',
     body: 'The loop is fixed: pick a parent prompt from the Pareto pool, show a reflection model a few of its failures, rewrite one step, and keep the child only if it beats its parent on the same rows. The gear opens its knobs: rounds, budget, minibatch, GEPA vs BO for choosing parents. Your tier caps how many run in parallel. Two rounds is enough for the tutorial.' },
   { title: 'Add labelled data', anchor: 'tab-data', tab: 'data',
-    body: 'This is where the labelled data goes. Download the sample (50 tickets: message + queue), upload it, map {message} to the message column and choose "queue" as the label. Then "Check data" validates it and "Run pilot" measures the baseline, the model\'s noise, and the cost before you spend anything.',
+    body: 'This is where the labelled data goes. Under "Dataset" click "load it directly" to add the sample (50 tickets: message + queue) — or "Download the sample" next to it if you want the file. Then map {message} to the message column and choose "queue" as the label. Then "Check data" validates it and "Run pilot" measures the baseline, the model\'s noise, and the cost before you spend anything.',
     check: (s, ctx) => ctx.datasets.length > 0, action: { label: 'Load the sample for me', run: ctx => ctx.loadSample() } },
   { title: 'Models & keys', anchor: 'btn-keys', tab: 'data',
     body: 'Your tier runs on the site\'s models. You can also add your own endpoint and key (Bedrock, Anthropic, OpenAI, or any OpenAI-compatible server); models from your endpoints then appear in every dropdown and are used in preference to ours.' },

@@ -75,7 +75,10 @@ class OptimizerSpec(BaseModel):
     no_improvement_rounds: int | None = 4
     max_usd: float | None = 2.0
     max_calls: int | None = None
-    reflect_model: str = "us.amazon.nova-micro-v1:0"
+    # Lite reflects, Micro is the target: every committed bpto experiment uses this split (bpto experiments/README.md:
+    # Micro is the cheap rollout model; the one structured rewrite call per expansion is a rounding error on the budget,
+    # and Micro is a poor prompt-writer). Lite returns malformed JSON on a small share of calls; the retry covers it.
+    reflect_model: str = "us.amazon.nova-lite-v1:0"
     reflect_temperature: float = 1.0
     feedback: Literal["plain", "templated", "critic"] = "critic"
     feedback_template: str = "expected: {expected}; model answered: {predicted}; metrics: {metrics}"

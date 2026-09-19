@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -168,9 +169,22 @@ def list_projects(request: Request, user=auth.User):
     return db.rows(request.app.state.db.execute("select id, name, updated from projects where user_id=? order by updated desc", (user["id"],)))
 
 
+def _unique_name(con, user_id: str, base: str) -> str:
+    """'untitled', then 'untitled 2', 'untitled 3', ... among this user's projects."""
+    taken = {r[0] for r in con.execute("select name from projects where user_id=?", (user_id,))}
+    if base not in taken:
+        return base
+    n = 2
+    while f"{base} {n}" in taken:
+        n += 1
+    return f"{base} {n}"
+
+
 @app.post("/projects")
 def create_project(request: Request, spec: ProjectSpec = Body(default=None), user=auth.User):
     spec = spec or ProjectSpec(name="untitled", modules=[])
+    spec.name = _unique_name(request.app.state.db, user["id"], spec.name or "untitled")
+    _coerce_models(spec, _access(request, user))
     pid = db.new_id()
     request.app.state.db.execute("insert into projects values (?,?,?,?,?)", (pid, user["id"], spec.name, spec.model_dump_json(), db.now()))
     request.app.state.db.commit()
@@ -196,7 +210,15 @@ def update_project(pid: str, spec: ProjectSpec, request: Request, user=auth.User
 def delete_project(pid: str, request: Request, user=auth.User):
     _project(request, pid, user)
     con = request.app.state.db
-    con.execute("delete from projects where id=?", (pid,)); con.execute("delete from datasets where project_id=?", (pid,)); con.commit()
+    # stop anything still running, then drop rows and on-disk artifacts (dataset files, run dirs)
+    for (rid,) in con.execute("select id from runs where project_id=?", (pid,)):
+        request.app.state.runs.stop(rid)
+        shutil.rmtree(R.RUNS_DIR / rid, ignore_errors=True)
+    for (path,) in con.execute("select path from datasets where project_id=?", (pid,)):
+        Path(path).unlink(missing_ok=True)
+    for t in ("runs", "validations", "datasets"):
+        con.execute(f"delete from {t} where project_id=?", (pid,))
+    con.execute("delete from projects where id=?", (pid,)); con.commit()
     return {"ok": True}
 
 
@@ -369,12 +391,37 @@ async def start_run(pid: str, body: RunBody, request: Request, user=auth.User):
     return {"id": rid, "notes": notes}
 
 
+def _coerce_models(spec: ProjectSpec, access: Access) -> None:
+    """A fresh project may name models the user cannot run (stale client defaults, a downgraded tier):
+    point those at a model they can, so the first run is not refused for a setting they never chose."""
+    usable = [m["id"] for m in access.catalog()]
+    if not usable:
+        return
+    fallback = spec.eval_model if access.can_use(spec.eval_model) else usable[0]
+    spec.eval_model = fallback
+    if not access.can_use(spec.optimizer.reflect_model):
+        spec.optimizer.reflect_model = fallback
+    for m in spec.modules:
+        if m.model and not access.can_use(m.model):
+            m.model = None
+    for sc in spec.evaluate.scorers:
+        if sc.judge_model and not access.can_use(sc.judge_model):
+            sc.judge_model = None
+    if spec.optimizer.critic_model and not access.can_use(spec.optimizer.critic_model):
+        spec.optimizer.critic_model = None
+
+
 def _check_models(spec: ProjectSpec, access: Access) -> None:
     used = {spec.eval_model, spec.optimizer.reflect_model, *(m.model for m in spec.modules if m.model),
             *(s.judge_model for s in spec.evaluate.scorers if s.judge_model), *([spec.optimizer.critic_model] if spec.optimizer.critic_model else [])}
     blocked = sorted(m for m in used if not access.can_use(m))
     if blocked:
-        raise HTTPException(403, f"no credential for {', '.join(blocked)}: add an endpoint under Endpoints & keys" +
+        where = {spec.eval_model: "evaluation model (canvas)", spec.optimizer.reflect_model: "reflection model (Optimizer ⚙)",
+                 spec.optimizer.critic_model: "critic model (Optimizer ⚙)"}
+        where.update({m.model: f"step '{m.id}' model" for m in spec.modules if m.model})
+        where.update({s.judge_model: f"judge model (scorer {s.type})" for s in spec.evaluate.scorers if s.judge_model})
+        raise HTTPException(403, "your plan cannot run " + "; ".join(f"{m} as the {where.get(m, 'model')}" for m in blocked) +
+                            ". Pick a model from the dropdown there, or add your own endpoint under Endpoints & keys" +
                             ("" if access.house_keys else ", or upgrade to run on the site's keys"))
 
 

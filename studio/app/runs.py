@@ -103,10 +103,11 @@ class RunManager:
                 held_root = await evaluate(dataset=held).score(tree, tree.root)
                 summary["holdout"] = {"best": held_best.metrics, "root": held_root.metrics, "best_score": held_best.score, "root_score": held_root.score,
                                       "se": {k: v / math.sqrt(max(1, held_best.n)) for k, v in held_best.metrics_std.items()}}
-            status.update({"state": "done", "summary": summary})
-            flush()
+            # commit the row before the status file says "done": readers poll the file, then read the row
             con.execute("update runs set status='done', finished=?, summary=? where id=?", (db.now(), json.dumps(summary, default=str), run_id))
             con.commit()
+            status.update({"state": "done", "summary": summary})
+            flush()
         except asyncio.CancelledError:
             status.update({"state": "stopped"}); flush()
             con.execute("update runs set status='stopped', finished=? where id=?", (db.now(), run_id)); con.commit()

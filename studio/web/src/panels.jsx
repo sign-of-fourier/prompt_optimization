@@ -172,7 +172,7 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
         </div>
         <h3 style={{ fontSize: 14, margin: '14px 0 0' }}>Reflection</h3>
         <div className="grid2">
-          <div><label>Reflection model</label><select value={o.reflect_model} onChange={e => set({ reflect_model: e.target.value })}>{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></div>
+          <div><label>Reflection model</label><select value={o.reflect_model} onChange={e => set({ reflect_model: e.target.value })}>{!models.some(m => m.id === o.reflect_model) && <option value={o.reflect_model}>{o.reflect_model} (not available on your plan)</option>}{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></div>
           <div><label>Reflection temperature</label><input type="number" step="0.1" min={0} max={1.5} value={o.reflect_temperature} onChange={e => set({ reflect_temperature: +e.target.value })} /></div>
           <div><label>Feedback shown to the reflector</label><select value={o.feedback} onChange={e => set({ feedback: e.target.value })}>
             <option value="critic">LLM critic (reads the trace, writes 2–4 sentences)</option><option value="templated">templated text</option><option value="plain">expected vs metrics only</option></select></div>

@@ -135,7 +135,7 @@ function Inner({ spec, update, models }) {
           <p>{spec.modules.length} step{spec.modules.length === 1 ? '' : 's'}, {spec.edges.length} edge{spec.edges.length === 1 ? '' : 's'}. Entry: <code>{entry || '—'}</code>. Terminal: <code>{terminals.join(', ') || '—'}</code>.</p>
           <p>Click a step, an edge or the Evaluate block to edit it. Delete with Backspace.</p>
           <label>Evaluation model (default for every step)</label>
-          <select value={spec.eval_model} onChange={e => update({ ...spec, eval_model: e.target.value })}>{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select>
+          <select value={spec.eval_model} onChange={e => update({ ...spec, eval_model: e.target.value })}>{!models.some(m => m.id === spec.eval_model) && <option value={spec.eval_model}>{spec.eval_model} (not available on your plan)</option>}{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select>
           <label>Max steps per example (loops)</label>
           <input type="number" min={1} max={32} value={spec.max_steps} onChange={e => update({ ...spec, max_steps: +e.target.value })} />
         </div>}

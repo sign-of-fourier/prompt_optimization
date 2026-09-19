@@ -13,7 +13,7 @@ import os
 
 TIERS: dict[str, dict] = {
     "free":       {"house_keys": False, "own_keys": True, "house_models": [],                             "max_concurrency": 1,  "max_q": 1,  "assignable": True},
-    "beginner":   {"house_keys": True,  "own_keys": True, "house_models": ["us.amazon.nova-micro-v1:0"],  "max_concurrency": 4,  "max_q": 4,  "assignable": True},
+    "beginner":   {"house_keys": True,  "own_keys": True, "house_models": ["us.amazon.nova-micro-v1:0", "us.amazon.nova-lite-v1:0"], "max_concurrency": 4,  "max_q": 4,  "assignable": True},
     "advanced":   {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 16, "max_q": 16, "assignable": True},
     "enterprise": {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 64, "max_q": 64, "assignable": False},
 }

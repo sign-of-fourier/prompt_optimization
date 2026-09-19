@@ -12,7 +12,7 @@ const EMPTY = {
   evaluate: { label_column: 'answer', scorers: [{ type: 'exact_match', name: '', field: null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }],
               token_count: true, objective: { accuracy: 1.0 }, pareto: {} },
   optimizer: { engine: 'gepa', mode: 'weighted', bo: { q: 2, pca: 4, acquisition: 'qei' }, parents_per_round: 1, children: 1, minibatch: 5, rounds: 10,
-               no_improvement_rounds: 4, max_usd: 2.0, max_calls: null, reflect_model: 'us.amazon.nova-micro-v1:0', reflect_temperature: 1.0,
+               no_improvement_rounds: 4, max_usd: 2.0, max_calls: null, reflect_model: 'us.amazon.nova-lite-v1:0', reflect_temperature: 1.0,
                feedback: 'critic', feedback_template: 'expected: {expected}; model answered: {predicted}; metrics: {metrics}', critic_model: null,
                eval_rows: null, holdout_frac: 0.2, seed: 0 },
   mutate: null, layout: {},
@@ -65,6 +65,7 @@ function Workspace({ user, models, onKeys, onLogout }) {
   const refresh = useCallback(() => api.get('/projects').then(setProjects), [])
   useEffect(() => { refresh() }, [refresh])
   const create = async () => { const r = await api.post('/projects', { ...EMPTY, name: 'untitled' }); await refresh(); setPid(r.id) }
+  const remove = async p => { if (window.confirm(`Delete project "${p.name}" and its datasets and runs?`)) { await api.del(`/projects/${p.id}`); refresh() } }
   if (pid) return <Editor pid={pid} models={models} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
   return (
     <div className="shell">
@@ -77,6 +78,7 @@ function Workspace({ user, models, onKeys, onLogout }) {
         {projects.map(p => (
           <div className="card row" key={p.id} style={{ cursor: 'pointer' }} onClick={() => setPid(p.id)}>
             <b>{p.name}</b><span className="muted">updated {new Date(p.updated * 1000).toLocaleString()}</span>
+            <div className="grow" /><button className="small" title="Delete project" onClick={e => { e.stopPropagation(); remove(p) }}>Delete</button>
           </div>
         ))}
       </div>
@@ -94,6 +96,8 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
   const timer = useRef(null)
   const load = useCallback(async () => { const p = await api.get(`/projects/${pid}`); setSpec({ ...EMPTY, ...p.spec }); setDatasets(p.datasets) }, [pid])
   useEffect(() => { load() }, [load])
+  const opened = useRef(false)
+  useEffect(() => { if (spec && !opened.current) { opened.current = true; if (tutorialVisible(spec)) setShowTut(true) } }, [spec])
   const update = useCallback(fn => {
     setSpec(prev => {
       const next = typeof fn === 'function' ? fn(prev) : fn
@@ -113,7 +117,7 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
           {[['build', 'Build'], ['data', 'Data & validation'], ['run', 'Runs']].map(([k, l]) => <button key={k} data-tut={'tab-' + k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}
         </div>
         <button data-tut="btn-optimizer" onClick={() => setShowOpt(true)}>Optimizer ⚙</button>
-        {(showTut || tutorialVisible(spec)) && <button className={showTut ? 'primary' : ''} onClick={() => setShowTut(true)}>Tutorial</button>}
+        <button data-tut="btn-tutorial" className={showTut ? 'primary' : ''} onClick={() => setShowTut(true)}>Tutorial</button>
         <div className="grow" /><span className="muted" style={{ fontSize: 12 }}>{saved}{models.mock ? ' · mock mode' : ''}</span>
         <KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button>
       </div>
