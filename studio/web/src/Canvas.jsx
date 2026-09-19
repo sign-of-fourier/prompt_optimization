@@ -119,7 +119,7 @@ function Inner({ spec, update, models }) {
         <div className="pal" data-tut="palette-orchestrate" draggable onDragStart={e => e.dataTransfer.setData('kind', 'orchestrate')}><b>Orchestrate</b><small>a step that chooses the next step</small></div>
         <div className="help" style={{ marginTop: 10 }}>Drag onto the canvas. Connect steps by dragging from a right handle to a left handle. A step with two or more outgoing edges becomes an orchestrator: the model returns <code>next</code>.</div>
         <div className="help">Steps with no outgoing edge feed <b>Evaluate</b>. Click it to choose the scorer.</div>
-        <div className="help">The optimizer (GEPA / BO) is fixed; tweak it under <b>Optimizer ⚙</b>.</div>
+        <div className="help">The search loop is fixed; its knobs are under <b>Optimizer ⚙</b>.</div>
       </div>
       <div className="canvas" data-tut="canvas" ref={wrap} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }} onDrop={onDrop}>
         <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect}

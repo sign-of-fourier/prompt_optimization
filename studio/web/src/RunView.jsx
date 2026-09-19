@@ -129,7 +129,7 @@ function Tree({ tree, onSelect, sel }) {
         <title>{n.id} · {n.origin.op}{n.origin.params && n.origin.params.module ? ' · ' + n.origin.params.module : ''} · score {n.score === null ? '—' : n.score.toFixed(3)}{n.n ? ` (n=${n.n})` : ''}</title>
         {n.score !== null && <text y={22} textAnchor="middle" fontSize={9} fill="#9aa6c8">{n.score.toFixed(2)}{n.n && n.n < 20 ? '*' : ''}</text>}
       </g>)}
-      <text x={8} y={maxD * 70 + 62} fontSize={9} fill="#9aa6c8">* minibatch only · white ring = expanded · greener = higher</text>
+      <text x={8} y={maxD * 70 + 62} fontSize={9} fill="#9aa6c8">* check batch only · white ring = rewritten from · greener = higher</text>
     </svg></div>
   )
 }
@@ -161,7 +161,7 @@ function NodeDetail({ rid, nid, tree, spec }) {
           {changed.includes(k) && d.parent_modules ? <pre className="diff">{diffWords(d.parent_modules[k], mods[k].template).map(([t, w], i) => t === '=' ? <span key={i}>{w}</span> : t === '-' ? <del key={i}>{w}</del> : <ins key={i}>{w}</ins>)}</pre> : <pre>{mods[k].template}</pre>}
         </div>
       ))}
-      {n.origin.op === 'reflect' && <div className="help">Reflection: minibatch rows {JSON.stringify(n.origin.params.minibatch_ids)}, from node {n.origin.params.source}. Meta-prompt template in <code>origin.params.meta_prompt</code>.</div>}
+      {n.origin.op === 'reflect' && <div className="help">Rewritten from node {n.origin.params.source}, after seeing rows {JSON.stringify(n.origin.params.minibatch_ids)}.</div>}
       {ev && ev.per_example && <details><summary className="muted" style={{ cursor: 'pointer' }}>per-example results ({ev.per_example.length})</summary>
         <table><thead><tr><th>id</th><th>path</th><th>output</th><th>{key}</th><th>critic note</th></tr></thead><tbody>
           {ev.per_example.slice(0, 50).map(r => <tr key={r.example_id}><td className="mono">{r.example_id}</td><td className="mono muted">{Object.keys(r.trace || {}).filter(k => !k.startsWith('_')).join(' → ')}</td>

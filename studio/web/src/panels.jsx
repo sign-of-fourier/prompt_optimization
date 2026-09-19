@@ -136,7 +136,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
         </div>
       ))}
       <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }] })}>+ scorer</button>
-      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record prompt / output tokens (for a cost objective or Pareto view)</label>
+      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record prompt / output tokens (to trade accuracy against cost)</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}
       <div className="help">Score = Σ weight × metric. Negative weights penalize (e.g. −0.001 × prompt_tokens).</div>
@@ -152,30 +152,31 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="row"><h2 className="grow">Optimizer</h2><button className="small" onClick={onClose}>×</button></div>
-        <div className="help">The loop is fixed: pick a parent from the Pareto pool → reflect on a few of its traces → rewrite one step → the child earns a full evaluation only if it beats its parent on the same minibatch. These are its knobs.{tier && <> Tier <b>{tier.tier}</b>: up to {tier.max_concurrency} calls in flight, {tier.max_q} parents per round.</>}</div>
+        <div className="help">The loop is fixed: pick a prompt from the current best set → show a reflection model a few of its failures → rewrite one step → the rewrite earns a full evaluation only if it beats its parent on the same small batch. These are its knobs.{tier && <> Tier <b>{tier.tier}</b>: up to {tier.max_concurrency} calls in flight, {tier.max_q} parents per round.</>}</div>
         <div className="grid2">
-          <div><label>Expand seat: which parent to rewrite</label>
-            <select value={o.engine} onChange={e => set({ engine: e.target.value })}><option value="gepa">GEPA — sample from the Pareto pool</option><option value="bo">BO — q-EI over prompt embeddings</option></select></div>
-          {o.engine === 'gepa' ? <div><label>Sampling</label>
-            <select value={o.mode} onChange={e => set({ mode: e.target.value })}><option value="weighted">weighted by examples won (GEPA)</option><option value="uniform">uniform over the pool</option><option value="best">best by score</option></select></div>
-            : <div><label>Batch (q) <span className="muted">— your tier allows up to {maxQ}</span></label><select value={Math.min(o.bo.q, maxQ)} onChange={e => set({ bo: { ...o.bo, q: +e.target.value } })}>{[1, 2, 3, 4, 6, 8, 12, 16].filter(q => q <= maxQ).map(q => <option key={q} value={q}>{q}{q === 1 ? ' — independent top-1 (trails GEPA)' : q === 2 ? ' — recommended' : ''}</option>)}</select></div>}
+          <div><label>Which prompt to rewrite next</label>
+            <select value={o.engine} onChange={e => set({ engine: e.target.value })}><option value="gepa">Explore — sample from the best set</option><option value="bo">Guided — a model of past results picks</option></select>
+            <div className="help">{o.engine === 'gepa' ? 'Cheap and robust; the default. (GEPA-style Pareto sampling.)' : 'Spends more reflection calls; wins under noisy scores or a weak reflection model, no better on flat tasks. (Bayesian optimization, q-EI over prompt embeddings; see Findings.)'}</div></div>
+          {o.engine === 'gepa' ? <div><label>How to sample it</label>
+            <select value={o.mode} onChange={e => set({ mode: e.target.value })}><option value="weighted">favour prompts that win more examples</option><option value="uniform">any of the best set, equally</option><option value="best">always the top score</option></select></div>
+            : <div><label>Prompts rewritten per round <span className="muted">— your tier allows up to {maxQ}</span></label><select value={Math.min(o.bo.q, maxQ)} onChange={e => set({ bo: { ...o.bo, q: +e.target.value } })}>{[1, 2, 3, 4, 6, 8, 12, 16].filter(q => q <= maxQ).map(q => <option key={q} value={q}>{q}{q === 1 ? ' — one at a time (weakest)' : q === 2 ? ' — recommended' : ''}</option>)}</select></div>}
         </div>
         {o.engine === 'bo' && <div className="grid2">
-          <div><label>Acquisition</label><select value={o.bo.acquisition} onChange={e => set({ bo: { ...o.bo, acquisition: e.target.value } })}>
-            <option value="qei">q-EI (Monte Carlo, in-process)</option><option value="kriging">Kriging believer</option><option value="quantecarlo">Quantecarlo q-EI (hosted; lognormal improvement — a different criterion)</option></select></div>
-          <div><label>PCA dims</label><input type="number" min={2} max={16} value={o.bo.pca} onChange={e => set({ bo: { ...o.bo, pca: +e.target.value } })} /></div>
+          <div><label>How the guide scores candidates</label><select value={o.bo.acquisition} onChange={e => set({ bo: { ...o.bo, acquisition: e.target.value } })}>
+            <option value="qei">expected improvement, sampled (default)</option><option value="kriging">expected improvement, sequential</option><option value="quantecarlo">expected improvement, hosted service (different criterion)</option></select></div>
+          <div><label>Embedding dimensions</label><input type="number" min={2} max={16} value={o.bo.pca} onChange={e => set({ bo: { ...o.bo, pca: +e.target.value } })} /></div>
         </div>}
         <div className="grid3">
           <div><label>Parents per round <span className="muted">— max {maxQ}</span></label><input type="number" min={1} max={maxQ} value={o.engine === 'bo' ? Math.min(o.bo.q, maxQ) : Math.min(o.parents_per_round, maxQ)} disabled={o.engine === 'bo'} onChange={e => set({ parents_per_round: Math.min(maxQ, +e.target.value) })} /></div>
           <div><label>Children per parent</label><input type="number" min={1} max={6} value={o.children} onChange={e => set({ children: +e.target.value })} /></div>
-          <div><label>Minibatch (survive seat)</label><input type="number" min={3} max={32} value={o.minibatch} onChange={e => set({ minibatch: Math.max(3, +e.target.value) })} /><div className="help">Rows shown to the reflector and used for the gate. Floor 3; below that the gate stops working.</div></div>
+          <div><label>Check batch (rows)</label><input type="number" min={3} max={32} value={o.minibatch} onChange={e => set({ minibatch: Math.max(3, +e.target.value) })} /><div className="help">Rows the reflection model sees, and the rows a rewrite must beat its parent on before it gets a full evaluation. Floor 3.</div></div>
         </div>
         <h3 style={{ fontSize: 14, margin: '14px 0 0' }}>Reflection</h3>
         <div className="grid2">
           <div><label>Reflection model</label><select value={o.reflect_model} onChange={e => set({ reflect_model: e.target.value })}>{!models.some(m => m.id === o.reflect_model) && <option value={o.reflect_model}>{o.reflect_model} (not available on your plan)</option>}{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></div>
           <div><label>Reflection temperature</label><input type="number" step="0.1" min={0} max={1.5} value={o.reflect_temperature} onChange={e => set({ reflect_temperature: +e.target.value })} /></div>
-          <div><label>Feedback shown to the reflector</label><select value={o.feedback} onChange={e => set({ feedback: e.target.value })}>
-            <option value="critic">LLM critic (reads the trace, writes 2–4 sentences)</option><option value="templated">templated text</option><option value="plain">expected vs metrics only</option></select></div>
+          <div><label>What the reflection model is told about each failure</label><select value={o.feedback} onChange={e => set({ feedback: e.target.value })}>
+            <option value="critic">a short written critique (a model reads the trace)</option><option value="templated">a template you write</option><option value="plain">expected answer and scores only</option></select></div>
           {o.feedback === 'critic' && <div><label>Critic model</label><select value={o.critic_model || ''} onChange={e => set({ critic_model: e.target.value || null })}><option value="">same as reflection model</option>{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select></div>}
         </div>
         {o.feedback === 'templated' && <><label>Template — {'{expected} {predicted} {metrics} {inputs} {output}'}</label><input value={o.feedback_template} onChange={e => set({ feedback_template: e.target.value })} /></>}
