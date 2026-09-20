@@ -1,67 +1,66 @@
 # promptcompression.ai — full site
 
-Generated 2026-09-19. Index: https://promptcompression.ai/llms.txt
+Generated 2026-09-20. Index: https://promptcompression.ai/llms.txt
 
 
 
 ---
 
-# promptcompression.ai — prompt learning: ML-driven prompt compression and optimization
+# promptcompression.ai — the same answers from fewer tokens, measured on your data
 URL: https://promptcompression.ai/
 
-# Prompts are code.
-Optimize them like code.
+# Every token in your prompt is a recurring bill.
 
- Most teams tune prompts by hand and hope they hold. We call the alternative prompt learning: treat a prompt like a model parameter — data in, objective set, optimizer runs, held-out set decides. promptcompression.ai applies it to manage prompts for stability, quality, efficiency and performance.
+ Cut the ones that don't change the answer — measured on your data, not guessed.
 
- [See how it works](https://promptcompression.ai/how-it-works)
- [View on GitHub](https://github.com/sign-of-fourier/bpto)
+ [See it run](https://promptcompression.ai/example)
+ [The business case](https://promptcompression.ai/business-case)
+
+## Shrink the prompt. Keep the accuracy. Ship it.
+
+### Shrink
+An optimizer searches rewrites of your prompt and scores each one on your labeled examples. A 97-token extraction prompt came back as 6 tokens. [How it works →](https://promptcompression.ai/how-it-works)
+
+### Keep
+You set the accuracy floor. Every candidate is judged on a held-out set the optimizer never saw, and you read the whole tokens-vs-accuracy front, not one number. [The findings →](https://promptcompression.ai/findings)
+
+### Ship
+Every node in the tree shows each step's prompt diffed against its parent. The root is what you typed, the best node is what you ship: a plain shorter prompt, nothing extra at inference. [The example →](https://promptcompression.ai/example)
 
 ## What is prompt compression?
 
- Prompt compression is finding the shortest prompt that still does the job — measured, not guessed. You give it your prompt, a labeled dataset and an accuracy floor; an optimizer searches rewrites and hands back the tokens-vs-accuracy trade-off. It is one objective of a general prompt optimizer: the same loop also improves accuracy, format compliance and latency.
+ Finding the shortest prompt that still does the job — measured, not guessed. You give it your prompt, a labeled dataset and an accuracy floor; an optimizer searches rewrites and hands back the tokens-vs-accuracy trade-off. The result is a plain shorter prompt: nothing extra at inference time, no model in the request path.
 
-## What is prompt learning?
+ Before · 97 tokens · held-out F1 0.984
 
- Machine learning applied to prompts. A trained model has a dataset, a loss, an optimizer and a validation set. Prompt learning gives a prompt the same four things: labeled examples, an objective (accuracy, tokens, format, latency, or a combination), a search algorithm that proposes and selects rewrites, and a held-out set that decides. Prompt optimization is the search step; prompt compression is one objective. [Why the search is hard →](https://promptcompression.ai/prompt-optimization)
+```
+You are an information extraction system. Read the passage below carefully and extract the full names of every person who is mentioned. Include each person only once, preserve the order in which they first appear, and do not include organisations, places, or pronouns. Titles such as Dr. or Professor are not part of the name. If no people are mentioned, return an empty list.
 
-## Four things prompt learning delivers
+Passage:
+{text}
+```
 
- Each one is measurable. Each one is optimizable. None of them survive a model upgrade on their own.
+ After · 6 tokens · held-out F1 0.965
 
-### Stability
-Prompts drift every time a model changes. A scored dataset turns "it seems fine" into a regression test you can re-run in minutes.
+```
+Extract human names from: {text}
+```
 
-### Quality
-Accuracy, format compliance, judge scores — pick the metric that matters and let the optimizer climb it instead of guessing.
+97
 
-### Efficiency
-Shorter prompts, fewer tokens, lower latency. Compression is an objective, not an afterthought.
+6
 
-### Performance
-Trade accuracy against cost on a Pareto front and choose the operating point your product actually needs.
+ Compression v2 experiment, 12 seeds × 2,000 rollouts, Amazon Nova Micro, total cost $0.41 — [full tables and front plots](https://promptcompression.ai/findings).
 
-## The numbers
+## Why it pays
 
- Agentic systems multiply the number of prompts you run, and the number of times you run each one.
+ Prompt tokens are the part of the bill you pay on every call, forever, and agentic systems multiply the calls.
 
- 97 → 6
+ $2–4k
 
- tokens: a name-extraction prompt compressed by bpto; held-out F1 0.984 → 0.965. Across 12 seeds: 6–29 tokens, mean 12–16.
+ per month saved by trimming ~80 prompt tokens from a system that makes 10M calls a month at $2.50–$5 per million input tokens.
 
- Compression v2 experiment, Sept 2026 — [see findings](https://promptcompression.ai/findings)
-
- 40%
-
- of enterprise applications will include task-specific AI agents by the end of 2026 — up from under 5% in 2025.
-
- [Gartner](https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025)
-
- 62%
-
- of organizations are experimenting with or scaling agentic AI; 23% have a system in production.
-
- [McKinsey, State of AI](https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai)
+ 80 tokens × 10M calls = 800M tokens/month. [Do it with your numbers →](https://promptcompression.ai/business-case)
 
  35%
 
@@ -69,50 +68,31 @@ Trade accuracy against cost on a Pareto front and choose the operating point you
 
  [Deloitte 2025 AI expenditure report, via PremAI](https://www.premai.io/blog/llm-token-cost/)
 
- $2–4k
-
- per month saved by trimming ~80 prompt tokens from a system that makes 10M calls a month at $2.50–$5 per million input tokens.
-
- Worked example: 80 tokens × 10M calls = 800M tokens/month. Your numbers will differ.
-
  3–6
 
- prompts in a typical agent loop (system, planner, tool formatter, summarizer, answer). Each one is a separate optimization target.
+ prompts in a typical agent loop, each run several times per task. The summarizer runs once per tool call, so its tokens compound fastest.
 
- See [optimizing a whole system](https://promptcompression.ai/how-it-works#system)
+ See [compressing a whole system](https://promptcompression.ai/how-it-works#system)
 
 ## Two ways to run it
 
- The same optimizer, as a library today and as a point-and-click studio next.
+ The same optimizer, as a library and as a studio.
 
- Available now
+ Open source
 
-### bpto — the open-source engine
+### bpto — the engine
 
- A Python library. Define a task (root prompt, dataset, scorer, objective), compose search operators, run with a budget and checkpoints. Everything on this site was measured with it.
+ A Python library. Define a task (root prompt, dataset, scorer, objective), compose search operators, run with a budget and checkpoints. Every number on this site was measured with it. There is a [Claude Code skill](https://promptcompression.ai/claude-code) that runs it for you.
 
  [github.com/sign-of-fourier/bpto](https://github.com/sign-of-fourier/bpto)
 
- Coming
+ Studio
 
-### promptcompression.ai Studio
+### Impromptune
 
- Every step of bpto without writing code. Upload your labeled data, paste your starter prompt, pick an objective, watch the tree grow, and read the result off the Pareto front. No notebooks, no config files.
+ Every step without writing code. Draw the program, attach your labeled data, run a pilot for the cost, watch the tree grow, and read the compressed prompt off each step.
 
- [Get notified](https://promptcompression.ai/contact)
-
-## Why prompts belong in your AI strategy
-
- Agents multiply the prompt surface. A single chat assistant has one prompt. A ReAct-style agent has a system prompt, a planning prompt, a tool-call formatter, an observation summarizer and a final-answer prompt — and it runs each of them several times per task. Small inefficiencies compound per call, per step, per user.
-
- Every model upgrade silently re-tunes every prompt. Prompts written for one model are not optimal for the next. Without a scored dataset and an optimizer, "upgrading the model" means re-doing the prompt work by hand, or not at all.
-
- A measurable prompt strategy is the difference between a pilot and a product. Teams that treat prompts as versioned, evaluated, optimized artifacts ship faster and spend less. Teams that treat them as text in a config file discover regressions from customers.
-
- The optimizer is abstract: it takes a starter prompt, a dataset and an objective, and searches. Compression, accuracy, format compliance, latency — same loop, different objective.
-
- [How it works](https://promptcompression.ai/how-it-works)
- [Why prompt optimization is hard](https://promptcompression.ai/prompt-optimization)
+ [Open Impromptune](https://impromptune.com/)
 
 ## Frequently asked questions
 
@@ -120,25 +100,25 @@ Trade accuracy against cost on a Pareto front and choose the operating point you
 
  LLMLingua compresses the input of each request at inference time by dropping low-information tokens, and needs a small model in the request path. promptcompression.ai compresses the prompt template once, at optimization time, by searching over rewrites and scoring them on your data. The result is a plain shorter prompt with nothing extra at inference. The two compose: a compressed template with compressed inputs.
 
+### Does compression hurt accuracy?
+
+ It's a trade-off you control. You set the accuracy floor; the optimizer minimizes tokens subject to it and reports the whole Pareto front, so you choose the operating point. Always read the held-out number, not the training number.
+
 ### How much data do I need?
 
  Enough to detect the differences you care about. 100 training examples plus a held-out set was enough to separate search strategies in our compression runs; 30 was not. If you have production traces, you already have the data.
 
 ### Which models does it work with?
 
- Any: Anthropic models directly, and anything with an OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter, Bedrock via a proxy). The optimizer only needs a client that returns completions.
+ Any: Amazon Bedrock and Anthropic models directly, and anything with an OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter). The optimizer only needs a client that returns completions.
 
-### Does compression hurt accuracy?
+### Is compression all it does?
 
- It's a trade-off you control. You set the accuracy floor; the optimizer minimizes tokens subject to it and reports the whole Pareto front, so you choose the operating point. Always read the held-out number, not the training number.
-
-### Can I use it from Claude Code or another coding agent?
-
- Yes — there is a [step-by-step page written for agents](https://promptcompression.ai/claude-code) and an installable skill file.
+ No — it's one objective of a general prompt optimizer that also climbs accuracy, format compliance and latency, for single prompts and for multi-step agents. That larger story is on [quantecarlo.com](https://quantecarlo.com/).
 
 ### Is it open source?
 
- The engine, bpto, is open source on [GitHub](https://github.com/sign-of-fourier/bpto). The point-and-click Studio is in development.
+ The engine, bpto, is open source on [GitHub](https://github.com/sign-of-fourier/bpto). Impromptune, the studio, is a hosted product built on it.
 
 
 ---
@@ -278,10 +258,262 @@ Extract human names from: {text}
 
  Because the optimizer only ever sees (prompt, score), a module's "prompt" can be anything text-shaped: a system prompt, a few-shot block, a tool description, or the instructions inside a chain-of-thought template.
 
- Today all of this runs as the open-source [bpto](https://github.com/sign-of-fourier/bpto) library. The promptcompression.ai Studio will put the same steps — upload data, set a starter prompt and objective, search, pick from the front — behind a point-and-click interface.
+ All of this runs as the open-source [bpto](https://github.com/sign-of-fourier/bpto) library, and as [Impromptune](https://impromptune.com/), the studio that puts the same steps — draw the program, attach data, set the objective, search, pick from the front — behind a point-and-click canvas. [See a run end to end →](https://promptcompression.ai/example)
 
  [Get the code](https://github.com/sign-of-fourier/bpto)
- [Get notified about Studio](https://promptcompression.ai/contact)
+ [Open Impromptune](https://impromptune.com/)
+
+
+---
+
+# The business case for prompt compression — promptcompression.ai
+URL: https://promptcompression.ai/business-case
+
+# The business case.
+
+ Output tokens get the attention because they're expensive per token. Prompt tokens are the bigger line: they're on every call, they never change, and nobody is reading them. Here is what removing the ones that don't matter is worth.
+
+## The bill, decomposed
+
+ Every call to a model costs prompt_tokens × input_price + output_tokens × output_price. The prompt half is the template you wrote plus the per-request input. The template part is identical on every call. In a classifier, a router, an extractor or a tool-call formatter, it is most of the input — and in an agent loop it is sent once per step, several steps per task.
+
+ That makes the template the one lever that is free to pull: no model change, no architecture change, no runtime component. Change the string, and every subsequent call is cheaper and faster.
+
+ Why a shorter prompt is also a faster one. Time to first token grows with prompt length: the model has to read the whole prompt before producing anything. Trimming a template trims latency on every call it appears in.
+
+## Your numbers
+
+ Monthly savings from compressing one template. Adjust the fields; the arithmetic is tokens saved × calls per month × price per million.
+
+ Calls per month
+
+ Template tokens today
+
+ Template tokens after
+
+ Input price, $ per million
+
+ —
+saved per month
+
+ —
+saved per year
+
+ —
+prompt tokens not sent, per month
+
+ Defaults: 10M calls, 120 → 40 tokens (a 67% cut, mid-range for what the [compression runs](https://promptcompression.ai/findings) achieved on a 97-token prompt), $3 per million input tokens. Prices vary by model and cache state; use your own invoice.
+
+## What it costs to get there
+
+ Compression is a one-time search, and the search is cheap because it runs on your dataset with a small model doing the rewriting:
+
+ - The compression v2 experiment — 12 seeds × 2,000 rollouts each, two search strategies, 100 training and 200 held-out examples per seed — cost $0.41 in total on Amazon Nova Micro. One production-grade run is a fraction of that.
+
+ - A studio run on the two-step ticket-triage example: 10 rounds, 262 model calls, $0.004. The pilot tells you the projected cost before you commit anything.
+
+ - Your time: assemble 50–100 labeled examples (production traces usually are that already), paste the prompt, set the floor. No code in the studio; one script with the library.
+
+ Against the calculator above, the search pays for itself in the first hour of production traffic for any system making more than a few thousand calls a day.
+
+## Where the calls are coming from
+
+ Agentic systems multiply the number of prompts you run and the number of times you run each one.
+
+ 40%
+
+ of enterprise applications will include task-specific AI agents by the end of 2026 — up from under 5% in 2025.
+
+ [Gartner](https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025)
+
+ 62%
+
+ of organizations are experimenting with or scaling agentic AI; 23% have a system in production.
+
+ [McKinsey, State of AI](https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai)
+
+ 35%
+
+ average increase in cloud spend attributed to unmonitored token usage at enterprises using generative AI.
+
+ [Deloitte 2025 AI expenditure report, via PremAI](https://www.premai.io/blog/llm-token-cost/)
+
+## What you give up, and how you know
+
+ Nothing you didn't agree to. You set an accuracy floor; the optimizer minimizes tokens subject to it and reports the whole tokens-vs-accuracy front on a held-out set the search never saw. In the compression runs the shortest prompts sat 0.02–0.08 F1 below the 97-token original; prompts within 0.03 of it were 14–23 tokens. You choose the operating point — and the number you read is the held-out one, not the training one.
+
+ Two things compression will not do: it will not rescue a prompt that was wrong to begin with (fix accuracy first, then compress — same loop, different objective), and it will not compress the per-request input; that is what LLMLingua-style tools do, and the two compose.
+
+ [See a run end to end](https://promptcompression.ai/example)
+ [Open Impromptune](https://impromptune.com/)
+
+
+---
+
+# Example: optimizing a two-step support-ticket triage program in Impromptune — promptcompression.ai
+URL: https://promptcompression.ai/example
+
+# One run, end to end.
+
+ The studio's tutorial project: a support ticket comes in, one step summarizes it, a second step picks the queue. Fifty labeled tickets, ten rounds of optimization, and a look at what the optimizer changed. Every screenshot is from a real run.
+
+ [Run it yourself](https://impromptune.com/)
+
+ 1
+
+### Draw the program
+
+ Two modules on the canvas. summarize reads the ticket ({message}, a dataset column) and returns a field called summary. route reads that summary and returns queue. The edge between them maps summarize's output field to route's placeholder. The step with no outgoing edge feeds Evaluate, which compares queue with the label by exact match.
+
+ [figure: The Impromptune canvas: a summarize module (entry) connected to a route module, which feeds an Evaluate block set to exact_match with objective +1 accuracy.]
+ The canvas. Modules are prompt steps; words in braces are placeholders filled from the dataset or from the previous step's output fields.
+
+ summarize · starting prompt
+
+```
+Read this customer message and state in one short line what the customer wants and which product or order it concerns.
+
+Message: {message}
+```
+
+ route · starting prompt
+
+```
+Assign this support request to one queue: billing, shipping, refund, bug, account, or other.
+
+Request: {summary}
+```
+
+ 2
+
+### Attach data, validate, pilot
+
+ The sample dataset is 50 tickets with two columns, message and queue. Map {message} to the message column, choose queue as the label, and press Check data: the studio checks the graph, the placeholders, the labels and the scorer before any model is called. The studio holds out 10 rows the optimizer never sees.
+
+ Then the pilot: it evaluates the starting prompts twice with the cache bypassed to measure the model's own non-determinism, evaluates one random rewrite so a prompt that is flat under rewrites is caught early, and projects the cost of the full run. Here the projection was 216 evaluation calls and 24 reflection calls for four rounds — a fraction of a cent.
+
+ 3
+
+### Optimize
+
+ Ten rounds. Each round the optimizer picks a prompt from the current best set, shows a reflection model a few of the rows it got wrong, rewrites one step, and keeps the rewrite only if it beats its parent on the same rows. Evaluation runs on Amazon Nova Micro; reflection on Nova Lite.
+
+ [figure: A finished run: best objective on the eval set 1.000, hold-out 1.000; the best-so-far curve climbs from 0.708 to 1.000 over ten rounds; the tree shows seven nodes with two of six rewrites accepted; 262 calls, $0.004.]
+ The run view. Left: the best objective so far, with the root's sampling error (grey) and the pilot's non-determinism band (orange, here zero). Right: the tree — greener is higher, a white ring marks the node each rewrite came from, a star marks a score from the check batch only.
+
+ 0.708 → 1.000
+accuracy on the 40-row eval set, root to best
+
+ 262
+model calls, 69 seconds, $0.004
+
+ 2 / 6
+rewrites accepted: the rest lost to their parent on the check batch and were never fully evaluated
+
+ 4
+
+### Read what changed
+
+ Click any node in the tree and the studio shows every step's prompt, with the rewritten step diffed word by word against its parent, plus the per-row results and the critic's note on each miss. The root node is what you typed; the best node is what you ship.
+
+ Now look at the hold-out metrics in the summary. Accuracy 1.000 for both root and best — the routing was already right on those 10 rows. But prompt_tokens went from 102.5 to 258.3. The optimizer was told to maximize accuracy and nothing else, so it happily made the prompts two and a half times longer to win the last few training rows.
+
+ This is the whole point of putting tokens in the objective. With accuracy: 1.0 alone, longer is free. With accuracy: 1.0, prompt_tokens: −0.002, every added token has to earn its keep, and the run reports the tokens-vs-accuracy front instead of one number. Same canvas, same data, one field on the Evaluate block.
+
+ 5
+
+### Turn it into compression
+
+ Open the Evaluate block and add a weight for prompt_tokens to the objective — negative, small, in the units of your accuracy metric. The studio already records prompt_tokens, output_tokens and per-module token counts on every evaluation; adding the weight tells the optimizer they matter. Then run again from the same root, and read the compressed prompts off each step.
+
+ A compression walkthrough on this same project, with its own screenshots, is next on this page. For the measured results on a single-prompt task — 97 tokens to 6–29 across 12 seeds — see the [findings](https://promptcompression.ai/findings).
+
+ [Open Impromptune](https://impromptune.com/)
+ [What the tokens are worth](https://promptcompression.ai/business-case)
+
+
+---
+
+# Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — promptcompression.ai
+URL: https://promptcompression.ai/findings
+
+# What the measurements say.
+
+ Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how far a prompt compresses, and which search strategy gets there with fewer rollouts.
+
+## Prompt compression: 97 tokens → 6–29, GEPA vs Bayesian optimization
+
+ 12 seeds × 2,000 rollouts per arm · 100 training / 200 held-out examples per seed · task: extract people's names from a passage · model under optimization: Amazon Nova Micro; rewrites by Nova Lite · total cost $0.41 · September 2026.
+
+ Both arms use the same mutation operator (an LLM reads a minibatch of the parent's failures and rewrites), the same evaluation gate, the same budget. They differ only in which parent gets expanded and how many children are proposed and screened. The objective was constrained: minimize template tokens subject to training F1 ≥ a floor that tightened from root − 0.15 to root − 0.05 over the run.
+
+ [figure: Scatter plot of template tokens (log scale) versus train F1 for every prompt evaluated by the GEPA and Bayesian optimization arms, with each arm's Pareto front; the BO front lies to the left of GEPA's at every accuracy level. Right panel: per-seed fronts.]
+ Left: every prompt each arm fully evaluated, pooled over 12 seeds, with each arm's non-dominated front. Right: per-seed fronts. Star = the 97-token root.
+
+### Best prompt per seed (held-out F1 in parentheses; root held-out F1 0.97–0.99)
+
+ | seed | GEPA | tok | BO | tok |
+
+ | 0 | List all unique full names of people in: {text}, ignoring titles and organizations. | 19 (0.982) | Extract full names from: {text} | 6 (0.904) |
+
+ | 1 | List unique full names from this text, ignoring titles: {text} | 14 (0.907) | Extract full names from text, excluding titles: {text} | 12 (0.910) |
+
+ | 2 | Extract human names from: {text} | 6 (0.965) | Extract only personal names from this passage: {text} | 12 (0.951) |
+
+ | 3 | Extract all unique full names from: {text}, ignoring titles and organizations. | 18 (0.982) | Extract personal names from {text}, avoid titles and organizations. | 15 (0.902) |
+
+ | 4 | Extract names from: {text}. List only people, no titles or orgs. | 14 (0.880) | Extract full human names from: {text} | 8 (0.891) |
+
+ | 5 | List all names of people in this passage, excluding titles: {text} | 15 (0.994) | Extract all human names from: {text} | 8 (0.952) |
+
+ | 6 | Identify all people's full names mentioned in: {text}. List them once, in order, without titles. | 22 (0.992) | Extract only person names from: {text} | 8 (0.987) |
+
+ | 7 | Extract full names from this text, omitting titles and entities: {text} | 16 (0.990) | Identify human names in: {text}. | 6 (0.942) |
+
+ | 8 | Extract all full names of individuals from: {text} | 11 (0.916) | List all full person names from the following text.\nPassage:\n{text} | 15 (0.953) |
+
+ | 9 | Extract full names from: {text}. Ignore titles and locations. | 14 (0.916) | List names in this text, excluding titles and organizations: {text} | 15 (0.972) |
+
+ | 10 | Identify all full names of individuals in this passage, avoiding titles and organizations: {text} | 23 (0.996) | Identify and list all names of people mentioned in the text below, ignoring titles and non-person entities. Names:\n{text} | 29 (0.946) |
+
+ | 11 | Identify all full names of people in this passage and list them in order: {text} | 18 (0.897) | Extract full names from: {text}. Exclude titles. | 10 (0.987) |
+
+ Summary: GEPA 15.8 ± 1.3 tokens, held-out F1 0.951; BO 12.0 ± 1.8 tokens, held-out F1 0.941. Paired difference 3.8 ± 2.0 tokens, BO shorter on 8 of 12 seeds. At the accuracy the floor targeted (root − 0.05 to − 0.10) BO is 3–5 tokens shorter with the ±2 SE band clear of zero; at stricter bars (within 0.03 of root) GEPA's Pareto pool hedges better. BO makes ~3× the reflector calls (3 children per round vs 1); a "GEPA + 3 children, random keep-1" control is planned.
+
+ [figure: Mean shortest feasible prompt length at each accuracy gap from the root, GEPA versus BO, with standard-error bands, and the paired difference showing BO shorter by 3 to 5 tokens for gaps above 0.03.]
+ Same data averaged: at each accuracy bar (train F1 ≥ root − gap), the shortest prompt each seed found, mean ± 1 SE, and the paired GEPA − BO difference.
+
+ Source: [experiments/2026-09-12-compression-v2-gepa-vs-bo](https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-12-compression-v2-gepa-vs-bo) (NOTES.md, results.jsonl, analysis.md).
+
+## Earlier and supporting runs
+
+ | date | experiment | result |
+
+ | 2026-09-10 | Synthetic BO benchmark, 20 seeds, hash embedder + GPR + EI | BO finds the planted optimum in 1.45 rounds vs 7.35 for random selection. Synthetic landscape only. |
+
+ | 2026-09-11 | Synthetic ladder: 8 selection arms × 40 seeds × 6 landscape conditions, $0 | The Pareto pool matters, stochastic sampling does not: greedy argmax within the pool beats GEPA's sampler everywhere except a deceptive landscape (tie). BO beats GEPA's sampler under noise (0.97 vs 0.86); surrogate child pre-screening helps most with a weak mutator (0.91 vs 0.83). |
+
+ | 2026-09-11 | IFBench, Nova Micro, greedy top-k, 802 calls | Strict accuracy 0.175 → 0.250 held-out (n=40, inside noise). Best node is a depth-1 restatement. |
+
+ | 2026-09-11 | IFBench, GEPA vs BO, 1,200 rollouts each, $0.16 | Tie by construction: neither arm found a child beating the root; the rewriting model only paraphrased. IFBench is a flat landscape for every published optimizer (+1.7 to +8 points). |
+
+ | 2026-09-11 | Compression v1, 5 seeds × 600 rollouts, 30 training examples, $0.065 | 97 → 5–26 tokens within 0.05 train F1. BO shorter on average (11.4 vs 17.2) but lower held-out F1 (0.936 vs 0.958): not significant, and 30 examples rewards overfitting. Led to the v2 design above. |
+
+## Standing conclusions
+
+ - Report the front, not a number. A constrained comparison at one accuracy bar hides where each method wins.
+
+ - Selection needs decisions to make. With 30 training examples and a permissive gate, ~95% of rollouts go to full evaluations of accepted children and there are ~20 parent choices per run — too few for strategy to show. 100 examples and a 5-example gate fixed that.
+
+ - The proposer is the binding constraint live. A rewriting model that only paraphrases defeats every selector.
+
+ - GEPA's weighting works; its randomness doesn't. BO's clearest contributions are robustness to evaluation noise and child pre-screening when the mutator is weak.
+
+ - Gains on weak models don't transfer proportionally to stronger ones.
+
+ - Next for BO: a front/hypervolume-gain value instead of a threshold-tied scalar, so it stops ignoring accurate-but-not-shorter children.
+
+ Reference points from the GEPA paper (Agrawal et al. 2025), Qwen3-8B test accuracy: HotpotQA 42.3 → 62.3, IFBench 36.9 → 38.6, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9 (≤ 7k rollouts); MIPROv2: 55.3 / 36.2 / 47.3 / 81.6.
 
 
 ---
@@ -396,90 +628,6 @@ URL: https://promptcompression.ai/prompt-optimization
  - [DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines](https://arxiv.org/abs/2310.03714) — Khattab et al., 2023
 
  - [bpto — Bayesian Prompt Tree Optimization](https://github.com/sign-of-fourier/bpto) — the implementation and experiment logs behind this page
-
-
----
-
-# Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — promptcompression.ai
-URL: https://promptcompression.ai/findings
-
-# What the measurements say.
-
- Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how far a prompt compresses, and which search strategy gets there with fewer rollouts.
-
-## Prompt compression: 97 tokens → 6–29, GEPA vs Bayesian optimization
-
- 12 seeds × 2,000 rollouts per arm · 100 training / 200 held-out examples per seed · task: extract people's names from a passage · model under optimization: Amazon Nova Micro; rewrites by Nova Lite · total cost $0.41 · September 2026.
-
- Both arms use the same mutation operator (an LLM reads a minibatch of the parent's failures and rewrites), the same evaluation gate, the same budget. They differ only in which parent gets expanded and how many children are proposed and screened. The objective was constrained: minimize template tokens subject to training F1 ≥ a floor that tightened from root − 0.15 to root − 0.05 over the run.
-
- [figure: Scatter plot of template tokens (log scale) versus train F1 for every prompt evaluated by the GEPA and Bayesian optimization arms, with each arm's Pareto front; the BO front lies to the left of GEPA's at every accuracy level. Right panel: per-seed fronts.]
- Left: every prompt each arm fully evaluated, pooled over 12 seeds, with each arm's non-dominated front. Right: per-seed fronts. Star = the 97-token root.
-
-### Best prompt per seed (held-out F1 in parentheses; root held-out F1 0.97–0.99)
-
- | seed | GEPA | tok | BO | tok |
-
- | 0 | List all unique full names of people in: {text}, ignoring titles and organizations. | 19 (0.982) | Extract full names from: {text} | 6 (0.904) |
-
- | 1 | List unique full names from this text, ignoring titles: {text} | 14 (0.907) | Extract full names from text, excluding titles: {text} | 12 (0.910) |
-
- | 2 | Extract human names from: {text} | 6 (0.965) | Extract only personal names from this passage: {text} | 12 (0.951) |
-
- | 3 | Extract all unique full names from: {text}, ignoring titles and organizations. | 18 (0.982) | Extract personal names from {text}, avoid titles and organizations. | 15 (0.902) |
-
- | 4 | Extract names from: {text}. List only people, no titles or orgs. | 14 (0.880) | Extract full human names from: {text} | 8 (0.891) |
-
- | 5 | List all names of people in this passage, excluding titles: {text} | 15 (0.994) | Extract all human names from: {text} | 8 (0.952) |
-
- | 6 | Identify all people's full names mentioned in: {text}. List them once, in order, without titles. | 22 (0.992) | Extract only person names from: {text} | 8 (0.987) |
-
- | 7 | Extract full names from this text, omitting titles and entities: {text} | 16 (0.990) | Identify human names in: {text}. | 6 (0.942) |
-
- | 8 | Extract all full names of individuals from: {text} | 11 (0.916) | List all full person names from the following text.\nPassage:\n{text} | 15 (0.953) |
-
- | 9 | Extract full names from: {text}. Ignore titles and locations. | 14 (0.916) | List names in this text, excluding titles and organizations: {text} | 15 (0.972) |
-
- | 10 | Identify all full names of individuals in this passage, avoiding titles and organizations: {text} | 23 (0.996) | Identify and list all names of people mentioned in the text below, ignoring titles and non-person entities. Names:\n{text} | 29 (0.946) |
-
- | 11 | Identify all full names of people in this passage and list them in order: {text} | 18 (0.897) | Extract full names from: {text}. Exclude titles. | 10 (0.987) |
-
- Summary: GEPA 15.8 ± 1.3 tokens, held-out F1 0.951; BO 12.0 ± 1.8 tokens, held-out F1 0.941. Paired difference 3.8 ± 2.0 tokens, BO shorter on 8 of 12 seeds. At the accuracy the floor targeted (root − 0.05 to − 0.10) BO is 3–5 tokens shorter with the ±2 SE band clear of zero; at stricter bars (within 0.03 of root) GEPA's Pareto pool hedges better. BO makes ~3× the reflector calls (3 children per round vs 1); a "GEPA + 3 children, random keep-1" control is planned.
-
- [figure: Mean shortest feasible prompt length at each accuracy gap from the root, GEPA versus BO, with standard-error bands, and the paired difference showing BO shorter by 3 to 5 tokens for gaps above 0.03.]
- Same data averaged: at each accuracy bar (train F1 ≥ root − gap), the shortest prompt each seed found, mean ± 1 SE, and the paired GEPA − BO difference.
-
- Source: [experiments/2026-09-12-compression-v2-gepa-vs-bo](https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-12-compression-v2-gepa-vs-bo) (NOTES.md, results.jsonl, analysis.md).
-
-## Earlier and supporting runs
-
- | date | experiment | result |
-
- | 2026-09-10 | Synthetic BO benchmark, 20 seeds, hash embedder + GPR + EI | BO finds the planted optimum in 1.45 rounds vs 7.35 for random selection. Synthetic landscape only. |
-
- | 2026-09-11 | Synthetic ladder: 8 selection arms × 40 seeds × 6 landscape conditions, $0 | The Pareto pool matters, stochastic sampling does not: greedy argmax within the pool beats GEPA's sampler everywhere except a deceptive landscape (tie). BO beats GEPA's sampler under noise (0.97 vs 0.86); surrogate child pre-screening helps most with a weak mutator (0.91 vs 0.83). |
-
- | 2026-09-11 | IFBench, Nova Micro, greedy top-k, 802 calls | Strict accuracy 0.175 → 0.250 held-out (n=40, inside noise). Best node is a depth-1 restatement. |
-
- | 2026-09-11 | IFBench, GEPA vs BO, 1,200 rollouts each, $0.16 | Tie by construction: neither arm found a child beating the root; the rewriting model only paraphrased. IFBench is a flat landscape for every published optimizer (+1.7 to +8 points). |
-
- | 2026-09-11 | Compression v1, 5 seeds × 600 rollouts, 30 training examples, $0.065 | 97 → 5–26 tokens within 0.05 train F1. BO shorter on average (11.4 vs 17.2) but lower held-out F1 (0.936 vs 0.958): not significant, and 30 examples rewards overfitting. Led to the v2 design above. |
-
-## Standing conclusions
-
- - Report the front, not a number. A constrained comparison at one accuracy bar hides where each method wins.
-
- - Selection needs decisions to make. With 30 training examples and a permissive gate, ~95% of rollouts go to full evaluations of accepted children and there are ~20 parent choices per run — too few for strategy to show. 100 examples and a 5-example gate fixed that.
-
- - The proposer is the binding constraint live. A rewriting model that only paraphrases defeats every selector.
-
- - GEPA's weighting works; its randomness doesn't. BO's clearest contributions are robustness to evaluation noise and child pre-screening when the mutator is weak.
-
- - Gains on weak models don't transfer proportionally to stronger ones.
-
- - Next for BO: a front/hypervolume-gain value instead of a threshold-tied scalar, so it stops ignoring accurate-but-not-shorter children.
-
- Reference points from the GEPA paper (Agrawal et al. 2025), Qwen3-8B test accuracy: HotpotQA 42.3 → 62.3, IFBench 36.9 → 38.6, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9 (≤ 7k rollouts); MIPROv2: 55.3 / 36.2 / 47.3 / 81.6.
 
 
 ---
@@ -635,7 +783,7 @@ URL: https://promptcompression.ai/contact
 
 # Get in touch.
 
- Questions about the optimizer, a task you'd like to try it on, a system you want to compress — or a note saying you want early access to the Studio.
+ Questions about the optimizer, a task you'd like to try it on, a system you want to compress — or a question about the Impromptune studio.
 
 ### Email
 

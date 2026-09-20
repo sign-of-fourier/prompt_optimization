@@ -1,4 +1,5 @@
-"""FastAPI app. Mounted by nginx at /studio/api/ (routes here are unprefixed). `uvicorn app.main:app --port 8100`."""
+"""FastAPI app. Mounted by nginx at /api/ on the studio host, or /studio/api/ under a marketing site (routes here are
+unprefixed). `uvicorn app.main:app --port 8100`."""
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
 from .models import ProjectSpec, ValidationReport
+from . import brand
 from .validation import pilot as run_pilot, project_cost, validate_static
 
 DATASETS_DIR = db.DATA_DIR / "datasets"
@@ -42,7 +44,7 @@ async def lifespan(app: FastAPI):
     app.state.db.close()
 
 
-app = FastAPI(title="studio", lifespan=lifespan)
+app = FastAPI(title=brand.name(), lifespan=lifespan)
 
 
 # ---- auth -------------------------------------------------------------------------------
@@ -472,19 +474,23 @@ async def stop_run(rid: str, request: Request, user=auth.User):
     return {"stopped": request.app.state.runs.stop(rid)}
 
 
-# dev only: serve the built frontend and accept the nginx-style /studio/api prefix from the same process
+# dev only: serve the built frontend and accept the nginx-style prefixes (/studio/api, /api) from the same process
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
 if WEB.exists():
     app.mount("/studio", StaticFiles(directory=WEB, html=True), name="web")
 
 
 class _StripPrefix:
-    def __init__(self, app, prefix="/studio/api"):
-        self.app, self.prefix = app, prefix
+    def __init__(self, app, prefixes=("/studio/api", "/api")):
+        self.app, self.prefixes = app, prefixes
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "http" and scope["path"].startswith(self.prefix):
-            scope = {**scope, "path": scope["path"][len(self.prefix):] or "/", "raw_path": scope["path"][len(self.prefix):].encode() or b"/"}
+        if scope["type"] == "http":
+            for prefix in self.prefixes:
+                if scope["path"].startswith(prefix + "/") or scope["path"] == prefix:
+                    rest = scope["path"][len(prefix):] or "/"
+                    scope = {**scope, "path": rest, "raw_path": rest.encode()}
+                    break
         await self.app(scope, receive, send)
 
 

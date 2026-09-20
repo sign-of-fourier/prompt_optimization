@@ -1,0 +1,20 @@
+# Quante Carlo
+
+> Quante Carlo is an optimization company (Claverack, NY). Its engine began as a Monte Carlo accelerator in 2013 and now does prompt learning: machine learning applied to prompts (dataset, objective, optimizer, held-out set). Prompt optimization is a tree search over LLM rewrites with GEPA-style reflective proposals and Bayesian selection; it optimizes whole multi-step agent programs, not just single prompts. Open-source engine: bpto (https://github.com/sign-of-fourier/bpto). Studio: Impromptune (https://impromptune.com). Prompt compression, one objective of the optimizer, has its own site: https://promptcompression.ai.
+
+## Pages
+
+- [Home](https://quantecarlo.com/): prompt learning, what the optimizer is, measured numbers, FAQ.
+- [How it works](https://quantecarlo.com/how-it-works): labeled data → starter prompt + objective → tree search → Pareto front; optimizing every prompt in a ReAct agent.
+- [Prompt optimization](https://quantecarlo.com/prompt-optimization): why the search space is hard (zero gradient, jumps, unenumerable usable region, noisy evals); DSPy/MIPROv2, GEPA and Bayesian optimization compared.
+- [Findings](https://quantecarlo.com/findings): experiment tables and front plots — GEPA vs BO at equal rollouts, standing conclusions.
+- [About](https://quantecarlo.com/about): the company, from Monte Carlo acceleration to hyperparameter tuning to prompts; what it builds today.
+- [Claude Code](https://quantecarlo.com/claude-code): step-by-step instructions for coding agents to run the optimizer.
+- [Contact](https://quantecarlo.com/contact): info@quantecarlo.com.
+
+## Related
+
+- [promptcompression.ai](https://promptcompression.ai/llms.txt): the compression objective — business case and a worked studio example.
+- [Impromptune](https://impromptune.com/): the studio.
+- [llms-full.txt](https://quantecarlo.com/llms-full.txt): all pages as one markdown document.
+- [bpto README](https://github.com/sign-of-fourier/bpto/blob/main/README.md): full library API.

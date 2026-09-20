@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example: optimizing a two-step support-ticket triage program in Impromptune — promptcompression.ai</title>
+<meta name="description" content="A studio run end to end: draw a two-step program (summarize, route), attach 50 labeled tickets, run the pilot, optimize for ten rounds. Accuracy 0.708 to 1.000 for 262 calls and $0.004 — and what changes when tokens join the objective.">
+<link rel="canonical" href="https://promptcompression.ai/example">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="Example: optimizing a two-step support-ticket triage program in Impromptune — promptcompression.ai">
+<meta property="og:description" content="A studio run end to end: draw a two-step program (summarize, route), attach 50 labeled tickets, run the pilot, optimize for ten rounds. Accuracy 0.708 to 1.000 for 262 calls and $0.004 — and what changes when tokens join the objective.">
+<meta property="og:url" content="https://promptcompression.ai/example">
+<meta property="og:image" content="https://promptcompression.ai/img/studio-run.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Example: optimizing a two-step support-ticket triage program in Impromptune — promptcompression.ai">
+<meta name="twitter:description" content="A studio run end to end: draw a two-step program (summarize, route), attach 50 labeled tickets, run the pilot, optimize for ten rounds. Accuracy 0.708 to 1.000 for 262 calls and $0.004 — and what changes when tokens join the objective.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/studio-run.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/business-case">Business case</a></li>
+      <li><a class="active" href="/example">Example</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>One run, <em>end to end</em>.</h1>
+    <p class="lead">The studio's tutorial project: a support ticket comes in, one step summarizes it, a second step picks the queue. Fifty labeled tickets, ten rounds of optimization, and a look at what the optimizer changed. Every screenshot is from a real run.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://impromptune.com/">Run it yourself</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+
+    <div class="step">
+      <div class="n">1</div>
+      <div>
+        <h3>Draw the program</h3>
+        <p>Two modules on the canvas. <strong>summarize</strong> reads the ticket (<code>{message}</code>, a dataset column) and returns a field called <code>summary</code>. <strong>route</strong> reads that summary and returns <code>queue</code>. The edge between them maps summarize's output field to route's placeholder. The step with no outgoing edge feeds <strong>Evaluate</strong>, which compares <code>queue</code> with the label by exact match.</p>
+        <div class="fig">
+          <img src="/img/studio-canvas.png" alt="The Impromptune canvas: a summarize module (entry) connected to a route module, which feeds an Evaluate block set to exact_match with objective +1 accuracy." width="1440" height="900" loading="lazy" style="width:100%;height:auto;border-radius:10px;border:1px solid var(--line)">
+          <div class="cap">The canvas. Modules are prompt steps; words in braces are placeholders filled from the dataset or from the previous step's output fields.</div>
+        </div>
+        <div class="compare" style="margin-top:16px">
+          <div class="card"><div class="tag">summarize · starting prompt</div><pre>Read this customer message and state in one short line what the customer wants and which product or order it concerns.
+
+Message: {message}</pre></div>
+          <div class="card"><div class="tag">route · starting prompt</div><pre>Assign this support request to one queue: billing, shipping, refund, bug, account, or other.
+
+Request: {summary}</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">2</div>
+      <div>
+        <h3>Attach data, validate, pilot</h3>
+        <p>The sample dataset is 50 tickets with two columns, <code>message</code> and <code>queue</code>. Map <code>{message}</code> to the message column, choose <code>queue</code> as the label, and press <em>Check data</em>: the studio checks the graph, the placeholders, the labels and the scorer before any model is called. The studio holds out 10 rows the optimizer never sees.</p>
+        <p>Then the <strong>pilot</strong>: it evaluates the starting prompts twice with the cache bypassed to measure the model's own non-determinism, evaluates one random rewrite so a prompt that is flat under rewrites is caught early, and projects the cost of the full run. Here the projection was 216 evaluation calls and 24 reflection calls for four rounds — a fraction of a cent.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">3</div>
+      <div>
+        <h3>Optimize</h3>
+        <p>Ten rounds. Each round the optimizer picks a prompt from the current best set, shows a reflection model a few of the rows it got wrong, rewrites one step, and keeps the rewrite only if it beats its parent on the same rows. Evaluation runs on Amazon Nova Micro; reflection on Nova Lite.</p>
+        <div class="fig">
+          <img src="/img/studio-run.png" alt="A finished run: best objective on the eval set 1.000, hold-out 1.000; the best-so-far curve climbs from 0.708 to 1.000 over ten rounds; the tree shows seven nodes with two of six rewrites accepted; 262 calls, $0.004." width="1491" height="1001" loading="lazy" style="width:100%;height:auto;border-radius:10px;border:1px solid var(--line)">
+          <div class="cap">The run view. Left: the best objective so far, with the root's sampling error (grey) and the pilot's non-determinism band (orange, here zero). Right: the tree — greener is higher, a white ring marks the node each rewrite came from, a star marks a score from the check batch only.</div>
+        </div>
+        <div class="grid c3" style="margin-top:16px">
+          <div class="card stat"><div class="num">0.708 → 1.000</div><div class="label">accuracy on the 40-row eval set, root to best</div></div>
+          <div class="card stat"><div class="num alt">262</div><div class="label">model calls, 69 seconds, $0.004</div></div>
+          <div class="card stat"><div class="num">2 / 6</div><div class="label">rewrites accepted: the rest lost to their parent on the check batch and were never fully evaluated</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">4</div>
+      <div>
+        <h3>Read what changed</h3>
+        <p>Click any node in the tree and the studio shows every step's prompt, with the rewritten step diffed word by word against its parent, plus the per-row results and the critic's note on each miss. The root node is what you typed; the best node is what you ship.</p>
+        <p>Now look at the hold-out metrics in the summary. Accuracy 1.000 for both root and best — the routing was already right on those 10 rows. But <code>prompt_tokens</code> went from <strong>102.5 to 258.3</strong>. The optimizer was told to maximize accuracy and nothing else, so it happily made the prompts two and a half times longer to win the last few training rows.</p>
+        <div class="callout"><strong>This is the whole point of putting tokens in the objective.</strong> With <code>accuracy: 1.0</code> alone, longer is free. With <code>accuracy: 1.0, prompt_tokens: −0.002</code>, every added token has to earn its keep, and the run reports the tokens-vs-accuracy front instead of one number. Same canvas, same data, one field on the Evaluate block.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">5</div>
+      <div>
+        <h3>Turn it into compression</h3>
+        <p>Open the Evaluate block and add a weight for <code>prompt_tokens</code> to the objective — negative, small, in the units of your accuracy metric. The studio already records <code>prompt_tokens</code>, <code>output_tokens</code> and per-module token counts on every evaluation; adding the weight tells the optimizer they matter. Then run again from the same root, and read the compressed prompts off each step.</p>
+        <p class="m">A compression walkthrough on this same project, with its own screenshots, is next on this page. For the measured results on a single-prompt task — 97 tokens to 6–29 across 12 seeds — see the <a href="/findings">findings</a>.</p>
+        <div class="btns" style="margin-top:20px">
+          <a class="btn primary" href="https://impromptune.com/">Open Impromptune</a>
+          <a class="btn" href="/business-case">What the tokens are worth</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · a <a href="https://quantecarlo.com/">Quante Carlo</a> site · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://impromptune.com/">Impromptune</a> · <a href="https://quantecarlo.com/">Quante Carlo</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

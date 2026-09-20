@@ -3,36 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Run prompt compression from Claude Code — promptcompression.ai</title>
+<title>Run prompt compression from Claude Code — Quante Carlo</title>
 <meta name="description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
 <link rel="canonical" href="https://promptcompression.ai/claude-code">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="promptcompression.ai">
-<meta property="og:title" content="Run prompt compression from Claude Code — promptcompression.ai">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="Run prompt compression from Claude Code — Quante Carlo">
 <meta property="og:description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
-<meta property="og:url" content="https://promptcompression.ai/claude-code">
-<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta property="og:url" content="https://quantecarlo.com/claude-code">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Run prompt compression from Claude Code — promptcompression.ai">
+<meta name="twitter:title" content="Run prompt compression from Claude Code — Quante Carlo">
 <meta name="twitter:description" content="Step-by-step instructions for AI coding agents (Claude Code, Cursor, Codex) to compress a prompt with bpto: install, data format, command, outputs. Includes an installable Claude Code skill.">
-<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
 <link rel="stylesheet" href="/style.css">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "Compress a prompt with Claude Code and bpto", "tool": [{"@type": "HowToTool", "name": "Claude Code"}, {"@type": "HowToTool", "name": "bpto"}], "step": [{"@type": "HowToStep", "name": "Install bpto", "text": "git clone https://github.com/sign-of-fourier/bpto && pip install -e bpto"}, {"@type": "HowToStep", "name": "Prepare data", "text": "Write a JSONL file with inputs and answer fields."}, {"@type": "HowToStep", "name": "Run", "text": "python -m tasks.compression.run --data train.jsonl --rounds 4"}, {"@type": "HowToStep", "name": "Read the report", "text": "Open runs/compression/report.txt for the Pareto table and best prompt."}]}</script>
 </head>
 <body>
 <nav>
   <div class="wrap">
-    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
     <ul>
       <li><a href="/">Home</a></li>
       <li><a href="/how-it-works">How it works</a></li>
-      <li><a href="/business-case">Business case</a></li>
-      <li><a href="/example">Example</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
       <li><a href="/findings">Findings</a></li>
       <li><a class="active" href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
       <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
       <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
     </ul>
   </div>
@@ -159,8 +160,8 @@ print(tree.pareto({"judge": True, "template_tokens": False}))</code></pre>
 
 <footer>
   <div class="wrap">
-    <div>promptcompression.ai · a <a href="https://quantecarlo.com/">Quante Carlo</a> site · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
-    <div><a href="https://impromptune.com/">Impromptune</a> · <a href="https://quantecarlo.com/">Quante Carlo</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
   </div>
 </footer>
 </body>

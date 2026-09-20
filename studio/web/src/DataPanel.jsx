@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
+import { API } from './brand.js'
 import { placeholders } from './Canvas.jsx'
 
 export default function DataPanel({ pid, spec, update, datasets, reload, mock }) {
@@ -64,7 +65,7 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock })
           <div className="row"><select className="grow" value={did || ''} onChange={e => setDid(e.target.value)}><option value="">— choose —</option>{datasets.map(d => <option key={d.id} value={d.id}>{d.name} ({d.n_rows} rows)</option>)}</select>
             <label className="row" style={{ margin: 0 }}><input type="file" accept=".jsonl,.json,.csv,.tsv" onChange={upload} style={{ width: 'auto' }} /></label></div>
           <div className="help">JSONL, JSON, CSV or TSV. One row per example: input columns plus a label column. bpto-style rows ({'{"inputs": {...}, "answer": ...}'}) are flattened.
-            {' '}No data yet? <a href="/studio/api/sample/tickets.jsonl" download>Download the sample</a> (50 support tickets, columns <code>message</code>, <code>queue</code>) and upload it, or <a href="#" onClick={async e => { e.preventDefault(); setBusy('sample'); const r = await api.post(`/projects/${pid}/datasets/sample`); await reload(); setDid(r.id); setBusy('') }}>load it directly</a>.</div>
+            {' '}No data yet? <a href={API + "/sample/tickets.jsonl"} download>Download the sample</a> (50 support tickets, columns <code>message</code>, <code>queue</code>) and upload it, or <a href="#" onClick={async e => { e.preventDefault(); setBusy('sample'); const r = await api.post(`/projects/${pid}/datasets/sample`); await reload(); setDid(r.id); setBusy('') }}>load it directly</a>.</div>
           {ds && <>
             <label>Map placeholders to columns</label>
             {allPh.length === 0 && <div className="muted">No placeholders in any prompt yet.</div>}

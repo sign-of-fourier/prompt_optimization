@@ -1,0 +1,737 @@
+# Quante Carlo — full site
+
+Generated 2026-09-20. Index: https://quantecarlo.com/llms.txt
+
+
+
+---
+
+# Quante Carlo — prompt optimization and Bayesian optimization for agentic systems
+URL: https://quantecarlo.com/
+
+# Prompts are code.
+Optimize them like code.
+
+ Data in, objective set, optimizer runs, held-out set decides. No hand-tuning, no hoping.
+
+ [Open Impromptune](https://impromptune.com/)
+ [Read the findings](https://quantecarlo.com/findings)
+
+## What is prompt learning?
+
+ Machine learning applied to prompts. A trained model has a dataset, a loss, an optimizer and a validation set. Prompt learning gives a prompt the same four things: labeled examples, an objective (accuracy, format, latency, tokens, or a combination), a search algorithm that proposes and selects rewrites, and a held-out set that decides. [Why the search is hard →](https://quantecarlo.com/prompt-optimization)
+
+## Four things prompt learning delivers
+
+ Each one is measurable. Each one is optimizable. None of them survive a model upgrade on their own.
+
+### Stability
+Prompts drift every time a model changes. A scored dataset turns "it seems fine" into a regression test you can re-run in minutes.
+
+### Quality
+Accuracy, format compliance, judge scores — pick the metric that matters and let the optimizer climb it instead of guessing.
+
+### Efficiency
+Shorter prompts, fewer tokens, lower latency. [Compression](https://promptcompression.ai/) is an objective, not an afterthought.
+
+### Performance
+Trade accuracy against cost on a Pareto front and choose the operating point your product actually needs.
+
+## What the optimizer is
+
+ A tree search over prompt rewrites, with two pluggable ideas from two different fields.
+
+### Reflective proposals (GEPA)
+An LLM reads the prompt, the examples it failed and why, and rewrites. Text feedback carries far more information per rollout than a score does.
+
+### Bayesian selection
+A surrogate over prompt embeddings predicts where the good children are, so full evaluations go where they are most informative — and it knows a lucky score on a small sample might be luck.
+
+### Whole programs, not one prompt
+An agent is several prompts wired into a graph, some of them choosing the next step. The optimizer runs the graph, scores the end result and the trace, and rewrites one step at a time.
+
+ The two families are not rivals: bpto runs GEPA-style and BO selection as peers on the same tree, and the best configuration we have found uses both. [How they compare →](https://quantecarlo.com/prompt-optimization#approaches)
+
+## The numbers
+
+ From logged experiments, and from the people counting agents.
+
+ 0.708 → 1.000
+
+ accuracy on a two-step ticket-triage program (summarize → route) after ten rounds in Impromptune: 262 model calls, $0.004.
+
+ Studio tutorial run, Sept 2026 — [see the walkthrough](https://promptcompression.ai/example)
+
+ 97 → 6
+
+ tokens: an extraction prompt compressed by bpto; held-out F1 0.984 → 0.965. Across 12 seeds: 6–29 tokens.
+
+ Compression v2 experiment, Sept 2026 — [see findings](https://quantecarlo.com/findings)
+
+ 0.97 vs 0.86
+
+ Bayesian selection vs GEPA's sampler under evaluation noise on synthetic landscapes (8 arms × 40 seeds).
+
+ [Synthetic ladder, Sept 2026](https://quantecarlo.com/findings)
+
+ 40%
+
+ of enterprise applications will include task-specific AI agents by the end of 2026 — up from under 5% in 2025.
+
+ [Gartner](https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025)
+
+ 62%
+
+ of organizations are experimenting with or scaling agentic AI; 23% have a system in production.
+
+ [McKinsey, State of AI](https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai)
+
+ 3–6
+
+ prompts in a typical agent loop (system, planner, tool formatter, summarizer, answer). Each one is a separate optimization target.
+
+ See [optimizing a whole system](https://quantecarlo.com/how-it-works#system)
+
+## Two ways to run it
+
+ The same optimizer, as a library and as a studio.
+
+ Open source
+
+### bpto — the engine
+
+ A Python library. Define a task (root prompt or program, dataset, scorer, objective), compose search operators, run with a budget and checkpoints. Everything on this site was measured with it.
+
+ [github.com/sign-of-fourier/bpto](https://github.com/sign-of-fourier/bpto)
+
+ Studio
+
+### Impromptune
+
+ Every step of bpto without writing code. Draw the program on a canvas, attach labelled data, validate, run a pilot for the cost, watch the tree grow, and read the optimized prompts off each step.
+
+ [Open Impromptune](https://impromptune.com/)
+
+## Why prompts belong in your AI strategy
+
+ Agents multiply the prompt surface. A single chat assistant has one prompt. A ReAct-style agent has a system prompt, a planning prompt, a tool-call formatter, an observation summarizer and a final-answer prompt — and it runs each of them several times per task. Small inefficiencies compound per call, per step, per user.
+
+ Every model upgrade silently re-tunes every prompt. Prompts written for one model are not optimal for the next. Without a scored dataset and an optimizer, "upgrading the model" means re-doing the prompt work by hand, or not at all.
+
+ A measurable prompt strategy is the difference between a pilot and a product. Teams that treat prompts as versioned, evaluated, optimized artifacts ship faster and spend less. Teams that treat them as text in a config file discover regressions from customers.
+
+ The optimizer is abstract: it takes a starter program, a dataset and an objective, and searches. Accuracy, format compliance, latency, compression — same loop, different objective.
+
+ [How it works](https://quantecarlo.com/how-it-works)
+ [Why prompt optimization is hard](https://quantecarlo.com/prompt-optimization)
+
+## Frequently asked questions
+
+### How much data do I need?
+
+ Enough to detect the differences you care about. 100 training examples plus a held-out set was enough to separate search strategies in our runs; 30 was not. If you have production traces, you already have the data.
+
+### Which models does it work with?
+
+ Any: Amazon Bedrock and Anthropic models directly, and anything with an OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter). The optimizer only needs a client that returns completions.
+
+### Does it handle multi-step agents?
+
+ Yes. A program is a graph of prompt steps; a step with several outgoing edges chooses the next one. The optimizer runs the whole graph per example and rewrites one step at a time, holding the others fixed — coordinate ascent for prompts.
+
+### What about prompt compression?
+
+ Compression is one objective of this optimizer — minimize tokens subject to an accuracy floor — and it has its own site: [promptcompression.ai](https://promptcompression.ai/) covers the business case and a worked example.
+
+### Can I use it from Claude Code or another coding agent?
+
+ Yes — there is a [step-by-step page written for agents](https://quantecarlo.com/claude-code) and an installable skill file.
+
+### Is it open source?
+
+ The engine, bpto, is open source on [GitHub](https://github.com/sign-of-fourier/bpto). Impromptune, the studio, is a hosted product built on it.
+
+### Who is Quante Carlo?
+
+ A small optimization company in Claverack, New York, with a Monte Carlo accelerator at its root. [About us →](https://quantecarlo.com/about)
+
+
+---
+
+# How prompt optimization works: data in, better prompt out — Quante Carlo
+URL: https://quantecarlo.com/how-it-works
+
+# Data in. Better prompt out.
+
+ This is the prompt-learning loop: dataset → objective → optimizer → validation. It needs three things from you — labeled examples, a starter prompt and an objective. The worked example below uses compression, because a token count is the easiest objective to see move; the same loop optimizes anything you can score. [The full compression story is on promptcompression.ai →](https://promptcompression.ai/)
+
+ 1
+
+### Start with labeled data
+
+ A dataset is a list of inputs with known answers. Here is a name-extraction set: passages of text and the people mentioned in them.
+
+ | inputs.text | answer |
+
+ | "After the merger, Priya Natarajan moved the Denver office to a four-day week; Marcus Hale objected in the March board meeting." | ["Priya Natarajan", "Marcus Hale"] |
+
+ | "Rainfall in Portland exceeded the September average, the National Weather Service reported." | [] |
+
+ | "Dr. Elena Vasquez will present the findings; Tuesday's session is chaired by Tom Bright of Unilever." | ["Elena Vasquez", "Tom Bright"] |
+
+ | "The Lakers signed Charles Okafor to a two-year deal, sources told Reuters." | ["Charles Okafor"] |
+
+ Run a prompt over the dataset and score each output against the answer. Now every prompt has a number — or a vector of numbers. That's what the optimizer sees. It never needs to understand the task; it only needs (prompt, score) pairs.
+
+ | prompt | f1 | template_tokens |
+
+ | Extract the full names of all people mentioned in the text below. Return only real people (not places, companies, months …). Output JSON: {"names": [...]} | 0.97 | 97 |
+
+ | List every person's full name in the text as JSON {"names": [...]}. Skip organizations and places. | 0.96 | 31 |
+
+ | People named, JSON {"names":[]} | 0.93 | 9 |
+
+ | Names: | 0.61 | 2 |
+
+ 2
+
+### Give it a starter prompt and an objective
+
+ The starter prompt is the root of the search tree — usually whatever you have in production today. The objective says what "better" means. Scores are vectors; the objective is a small function that turns a vector into a scalar, so it's cheap to swap.
+
+### Prompt compression
+Maximize accuracy minus a per-token penalty, or hold accuracy above a floor and minimize tokens. f1 − 0.001·template_tokens, or a token budget that tightens each round.
+
+### Accuracy
+Exact match, set-F1, or an LLM judge asked "is this equivalent to the reference?" Pure quality, no cost term.
+
+### Format & reliability
+Fraction of outputs that parse as valid JSON, follow a schema, or stay within a length limit. Great for tool-call formatters.
+
+### Latency & cost
+Output tokens, prompt tokens, wall time. Combine with a quality metric to trade them off explicitly.
+
+```
+from bpto import AnthropicClient, Dataset, LinearObjective, Task, combine, template_tokens, token_count
+from tasks.compression import Entities, set_f1
+
+task = Task(
+ root=open("prompt.txt").read(), # your current prompt, with {text} placeholder
+ description="extracts the names of all people mentioned in a passage",
+ dataset=Dataset.from_jsonl("train.jsonl"), # {"inputs": {"text": ...}, "answer": [...]}
+ schema=Entities,
+ scorer=combine(set_f1(), template_tokens(), token_count()),
+ objective=LinearObjective(f1=1.0, template_tokens=-0.002),
+ client=AnthropicClient("claude-opus-5"),
+)
+```
+
+ 3
+
+### Search
+
+ The optimizer grows a tree. An LLM proposes rewrites of a node (random variants, or directed: "make it shorter", "be more precise", or a reflection on the examples the parent got wrong). Each child is evaluated on the dataset. A selector decides which node to expand next — greedy, a Pareto pool, or a Bayesian surrogate over prompt embeddings that predicts where the good children are.
+
+ A prompt tree. Nodes are prompts scored on the dataset; edges are LLM rewrites. The selector picks which node to expand next — that choice is where the sample efficiency comes from. [Why that's hard →](https://quantecarlo.com/prompt-optimization)
+
+ 4
+
+### Read the result off the Pareto front
+
+ For a two-objective problem like compression, the answer isn't one prompt — it's a front. bpto keeps every non-dominated (tokens, accuracy) pair so you can choose the operating point your product needs.
+
+ Before · 97 tokens · held-out F1 0.97
+
+```
+You are an information extraction system. Read the passage below carefully and extract the full names of every person who is mentioned. Include each person only once, preserve the order in which they first appear, and do not include organisations, places, or pronouns. Titles such as Dr. or Professor are not part of the name. If no people are mentioned, return an empty list.
+
+Passage:
+{text}
+```
+
+ After · 6 tokens · held-out F1 0.965
+
+```
+Extract human names from: {text}
+```
+
+97
+
+6
+
+ Measured, not assumed. In the compression v2 run (12 seeds × 2,000 rollouts, 100 training / 200 held-out examples) both search strategies compressed the 97-token root to 6–29 tokens; the best seed reached 6 tokens at held-out F1 0.965 vs 0.984 for the original. Full tables and front plots on the [findings page](https://quantecarlo.com/findings). (Table prompts above are illustrative; the before/after pair is real.)
+
+## It's not just compression
+
+ Nothing above was specific to shortening prompts. The optimizer sees a root, a dataset, a scorer and an objective. Change the objective and the same tree search does something else:
+
+ - Accuracy — objective is the judge score; directives like "be more precise" instead of "be shorter".
+
+ - Migration — you upgraded models and the old prompt regressed; the old prompt is the root, the objective is accuracy on the new model.
+
+ - Reliability — objective is the fraction of outputs that parse; the dataset is real production traces.
+
+ - Constrained — maximize accuracy subject to a token budget, or minimize tokens subject to an accuracy floor. bpto supports both weighted-sum and constrained objectives, and objectives that tighten with tree depth.
+
+ Completions are cached on (prompt, config, schema), so re-scoring the whole tree under a new objective costs nothing.
+
+## Prompt learning for a whole system
+
+ Real products aren't one prompt. A ReAct-style agent is a loop of several prompts, each with its own job, each run several times per task. Every box below is a prompt you can optimize — with its own objective — using the same loop.
+
+ A ReAct loop. Five prompts, five objectives, one end-to-end metric. The summarizer is the compression target — it runs once per tool call, so its tokens compound fastest.
+
+### How you optimize it
+
+ - Collect traces. Run the agent on labeled tasks and log every module's inputs and outputs. Each module now has its own dataset — for free.
+
+ - Give each module an objective. The formatter wants valid JSON; the summarizer wants fewer tokens with no lost facts; the final answer wants judge score. Plus one end-to-end metric (did the task succeed?).
+
+ - Optimize one module at a time, holding the others fixed — the prompt-learning analogue of training a multi-component model with coordinate ascent. Round-robin through them. Re-collect traces when an upstream module changes, because its outputs are the downstream module's inputs.
+
+ - Check the end-to-end metric. A module that got "better" on its local objective but hurt task success is rejected. That's what the labeled tasks are for.
+
+ Because the optimizer only ever sees (prompt, score), a module's "prompt" can be anything text-shaped: a system prompt, a few-shot block, a tool description, or the instructions inside a chain-of-thought template.
+
+ All of this runs as the open-source [bpto](https://github.com/sign-of-fourier/bpto) library, and as [Impromptune](https://impromptune.com/), the studio that puts the same steps — draw the program, attach data, set the objective, search, pick from the front — behind a point-and-click canvas.
+
+ [Get the code](https://github.com/sign-of-fourier/bpto)
+ [Open Impromptune](https://impromptune.com/)
+
+
+---
+
+# Prompt optimization: why it's a hard search problem (DSPy, GEPA, Bayesian optimization) — Quante Carlo
+URL: https://quantecarlo.com/prompt-optimization
+
+# Prompt optimization is a strange search problem.
+
+ The objective is flat almost everywhere, jumps when it moves, and lives on a thin slice of the space that nobody can write down. Here's what that means and how the current methods deal with it.
+
+## Prompt learning, and where optimization sits in it
+
+ Prompt learning is machine learning applied to prompts. The analogy is exact enough to be useful:
+
+ | training a model | prompt learning |
+
+ | weights | the prompt text |
+
+ | training set | labeled (input, answer) examples |
+
+ | loss function | the objective: accuracy, tokens, format, latency, or a weighted / constrained combination |
+
+ | optimizer (SGD, Adam) | prompt optimization: an LLM proposes rewrites, a selector decides which to evaluate and expand |
+
+ | validation set | a held-out set the optimizer never sees |
+
+ | overfitting | a prompt that wins on 30 examples and loses on the next 30 |
+
+ Where the analogy breaks is the optimizer row, and that break is the subject of this page. Weights are continuous and the loss is differentiable; prompts are discrete text and the objective has no gradient. Everything else transfers — which is why the discipline that comes with it (held-out sets, budgets, reporting fronts instead of single numbers) transfers too.
+
+ Not to be confused with prompt tuning (Lester et al. 2021) or prefix tuning, which learn continuous "soft prompt" vectors by gradient descent. Prompt learning in the sense used here keeps the model frozen and the prompt human-readable; the output is a string you can paste into a config file.
+
+## The problem
+
+ Prompt optimization means: given a task and a scoring function, find the string that scores best. The space is every possible string. The score is what an LLM does when you feed it that string, averaged over a dataset. That's a well-posed optimization problem — and almost none of the usual machinery applies.
+
+### 1. The derivative is zero almost everywhere
+
+ Change one word and the score usually doesn't move at all. The model reads "Extract the names" and "Extract all the names" the same way. Gradient descent has nothing to follow: the surface is piecewise flat, and the pieces are wide. The only way to learn anything is to make a real edit and pay for a full evaluation.
+
+### 2. When it does move, it jumps
+
+ Drop the word "only" and precision collapses. Add "as JSON" and format compliance goes from 60% to 99%. The landscape is a plateau riddled with cliffs and thousands of tiny basins. Local search gets stuck in the first basin it finds; every basin looks like an optimum from inside.
+
+ A one-dimensional caricature of the prompt landscape. Flat almost everywhere, discontinuous where it moves, many small local optima, and a usable region whose edges you can't compute in advance.
+
+### 3. Only a sliver of the space is usable — and you can't enumerate it
+
+ Almost every string is a useless prompt. The good ones live on a thin manifold of fluent, task-relevant text — and there is no formula for its boundary. You can't grid-search it, you can't sample it uniformly, and you can't project onto it. The only thing that reliably stays on the manifold is another language model generating text. So every practical method has the same shape: an LLM proposes candidates, a scorer evaluates them, and a selector decides where to look next. The differences are all in the proposer and the selector.
+
+### 4. Evaluations are expensive and noisy
+
+ Every point on the landscape costs one LLM call per dataset example. Scores carry sampling noise. Small datasets overfit: a prompt that wins on 30 examples may lose on the next 30. So the budget is measured in rollouts — unique (prompt, example) calls — and the question every method has to answer is: what do I evaluate next, given what I've already paid for?
+
+## The approaches
+
+ Three families, each getting one thing right.
+
+### DSPy and MIPROv2 — prompts as programs, search as hyperparameter tuning
+
+ [DSPy](https://github.com/stanfordnlp/dspy) separates the program (a pipeline of typed modules) from the prompt text each module ends up using. Its optimizers then fill in the text. MIPROv2 proposes a pool of candidate instructions and bootstrapped few-shot demonstrations for each module, then runs Bayesian optimization over the discrete choice of which instruction and which demos to combine — a surrogate model predicts which combinations will score well, so the expensive full evaluations go where they're most informative.
+
+ - What it gets right: treating multi-module systems as first-class, and casting prompt search as a well-understood hyperparameter problem with a surrogate.
+
+ - Where it's limited: the search space is a fixed pool of pre-generated candidates. It can pick the best of what it proposed; it can't discover what it didn't propose.
+
+### GEPA — reflective evolution with a Pareto pool
+
+ [GEPA](https://arxiv.org/abs/2507.19457) (Agrawal et al., 2025) treats optimization as evolution, with two ideas that matter. First, the mutation operator is reflective: an LLM reads the parent prompt, the examples it failed on and textual feedback about why, then rewrites. A scalar reward says "0.7"; text feedback says "you extracted the company name as a person" — far more information per rollout. Second, the parent pool is a per-example Pareto front: a candidate stays alive if it's the best on any single training example, and parents are sampled in proportion to how many examples they win. That preserves diversity — a prompt that's mediocre on average but nails a hard case is kept around to breed from.
+
+ Reference numbers from the paper on Qwen3-8B (test accuracy, %): HotpotQA 42.3 → 62.3, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9, IFBench 36.9 → 38.6, within ~7k rollouts — beating MIPROv2 and GRPO-style RL at a fraction of the rollouts.
+
+ - What it gets right: the proposer. Reflection on failures is the richest signal available, and the Pareto pool keeps the search from collapsing into one basin.
+
+ - Where it's limited: parent selection is stochastic sampling from the pool; nothing predicts which parent is worth expanding before paying for its children.
+
+### Bayesian optimization — learn where the good prompts are
+
+ Bayesian optimization is the standard answer to "expensive, noisy, black-box objective". Embed each evaluated prompt as a vector, fit a Gaussian process from embedding → score, and use an acquisition function (expected improvement, UCB, Thompson sampling) to choose the next candidate: the one with the best combination of predicted score and uncertainty. The GP handles noise natively — it knows a single high score on a small sample might be luck.
+
+ Applied to a prompt tree, BO answers two questions: which node should I expand next? (fit the surrogate to a node's descendants' value, so it learns which regions breed good children) and which of these freshly-proposed children are worth a full evaluation? (pre-screen by predicted score, evaluate only the top ones).
+
+ - What it gets right: sample efficiency and robustness to evaluation noise; it's the only one of the three with a principled model of uncertainty.
+
+ - Where it's limited: it needs an embedding in which "nearby" means "scores similarly" — not guaranteed for text — and a scalar value; a threshold-tied scalar leaves the rest of a Pareto front to chance.
+
+## What we learned running them side by side
+
+ bpto implements GEPA-style selection and BO selection as peers on the same tree, with the same mutation operators, cache and budget, so they can be compared at equal rollouts with one ingredient swapped at a time. The [experiment log](https://github.com/sign-of-fourier/bpto/tree/main/experiments) is in the repo; the standing conclusions so far:
+
+ - The Pareto pool is what works in GEPA; its randomness isn't. On synthetic landscapes (8 arms × 40 seeds × 6 conditions), greedy argmax within the pool beat GEPA's weighted sampler everywhere except a deliberately deceptive landscape, where they tied.
+
+ - BO's edge is noise and weak mutators. Under evaluation noise BO beat GEPA's sampler (0.97 vs 0.86); surrogate pre-screening of children helped most when the proposer was weak (0.91 vs 0.83). On clean additive landscapes nothing beat greedy.
+
+ - Live, the proposer is the binding constraint. If the rewriting model only paraphrases, no selection strategy can help — there are no substantive children to select among. Get the mutator making real edits before comparing selectors.
+
+ - Report the front, not a number. On a real compression task (12 seeds, 2,000 rollouts each), BO's pooled (tokens, F1) front lay left of GEPA's at every accuracy level; at the targeted accuracy BO was ~3.5 tokens shorter. At stricter accuracy bars GEPA's pool hedged better, because BO's scalar value ignored accurate-but-not-shorter children. A single-row comparison would have hidden that.
+
+ - Flat benchmarks can't tell methods apart. IFBench moves by 1–2 points under every published optimizer; with a few hundred rows that's undetectable. Use it as a plumbing test, not a decider.
+
+ - Gains on weak models don't transfer proportionally. A restatement that fixes a small model's "cheap" failures does nothing for a model that has already absorbed them.
+
+ The framing that made the comparison possible: proposals are operators on a tree, selection is a pluggable strategy, and the tree never knows which one is running. GEPA's reflective proposer and BO's acquisition-based selector are not rivals — the current best configuration uses both.
+
+## Further reading
+
+ - [GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning](https://arxiv.org/abs/2507.19457) — Agrawal et al., 2025 · [code](https://github.com/gepa-ai/gepa)
+
+ - [Optimizing Instructions and Demonstrations for Multi-Stage Language Model Programs](https://arxiv.org/abs/2406.11695) (MIPROv2) — Opsahl-Ong et al., 2024
+
+ - [DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines](https://arxiv.org/abs/2310.03714) — Khattab et al., 2023
+
+ - [bpto — Bayesian Prompt Tree Optimization](https://github.com/sign-of-fourier/bpto) — the implementation and experiment logs behind this page
+
+
+---
+
+# Findings: prompt compression benchmarks, GEPA vs Bayesian optimization — Quante Carlo
+URL: https://quantecarlo.com/findings
+
+# What the measurements say.
+
+ Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how far a prompt compresses, and which search strategy gets there with fewer rollouts.
+
+## Prompt compression: 97 tokens → 6–29, GEPA vs Bayesian optimization
+
+ 12 seeds × 2,000 rollouts per arm · 100 training / 200 held-out examples per seed · task: extract people's names from a passage · model under optimization: Amazon Nova Micro; rewrites by Nova Lite · total cost $0.41 · September 2026.
+
+ Both arms use the same mutation operator (an LLM reads a minibatch of the parent's failures and rewrites), the same evaluation gate, the same budget. They differ only in which parent gets expanded and how many children are proposed and screened. The objective was constrained: minimize template tokens subject to training F1 ≥ a floor that tightened from root − 0.15 to root − 0.05 over the run.
+
+ [figure: Scatter plot of template tokens (log scale) versus train F1 for every prompt evaluated by the GEPA and Bayesian optimization arms, with each arm's Pareto front; the BO front lies to the left of GEPA's at every accuracy level. Right panel: per-seed fronts.]
+ Left: every prompt each arm fully evaluated, pooled over 12 seeds, with each arm's non-dominated front. Right: per-seed fronts. Star = the 97-token root.
+
+### Best prompt per seed (held-out F1 in parentheses; root held-out F1 0.97–0.99)
+
+ | seed | GEPA | tok | BO | tok |
+
+ | 0 | List all unique full names of people in: {text}, ignoring titles and organizations. | 19 (0.982) | Extract full names from: {text} | 6 (0.904) |
+
+ | 1 | List unique full names from this text, ignoring titles: {text} | 14 (0.907) | Extract full names from text, excluding titles: {text} | 12 (0.910) |
+
+ | 2 | Extract human names from: {text} | 6 (0.965) | Extract only personal names from this passage: {text} | 12 (0.951) |
+
+ | 3 | Extract all unique full names from: {text}, ignoring titles and organizations. | 18 (0.982) | Extract personal names from {text}, avoid titles and organizations. | 15 (0.902) |
+
+ | 4 | Extract names from: {text}. List only people, no titles or orgs. | 14 (0.880) | Extract full human names from: {text} | 8 (0.891) |
+
+ | 5 | List all names of people in this passage, excluding titles: {text} | 15 (0.994) | Extract all human names from: {text} | 8 (0.952) |
+
+ | 6 | Identify all people's full names mentioned in: {text}. List them once, in order, without titles. | 22 (0.992) | Extract only person names from: {text} | 8 (0.987) |
+
+ | 7 | Extract full names from this text, omitting titles and entities: {text} | 16 (0.990) | Identify human names in: {text}. | 6 (0.942) |
+
+ | 8 | Extract all full names of individuals from: {text} | 11 (0.916) | List all full person names from the following text.\nPassage:\n{text} | 15 (0.953) |
+
+ | 9 | Extract full names from: {text}. Ignore titles and locations. | 14 (0.916) | List names in this text, excluding titles and organizations: {text} | 15 (0.972) |
+
+ | 10 | Identify all full names of individuals in this passage, avoiding titles and organizations: {text} | 23 (0.996) | Identify and list all names of people mentioned in the text below, ignoring titles and non-person entities. Names:\n{text} | 29 (0.946) |
+
+ | 11 | Identify all full names of people in this passage and list them in order: {text} | 18 (0.897) | Extract full names from: {text}. Exclude titles. | 10 (0.987) |
+
+ Summary: GEPA 15.8 ± 1.3 tokens, held-out F1 0.951; BO 12.0 ± 1.8 tokens, held-out F1 0.941. Paired difference 3.8 ± 2.0 tokens, BO shorter on 8 of 12 seeds. At the accuracy the floor targeted (root − 0.05 to − 0.10) BO is 3–5 tokens shorter with the ±2 SE band clear of zero; at stricter bars (within 0.03 of root) GEPA's Pareto pool hedges better. BO makes ~3× the reflector calls (3 children per round vs 1); a "GEPA + 3 children, random keep-1" control is planned.
+
+ [figure: Mean shortest feasible prompt length at each accuracy gap from the root, GEPA versus BO, with standard-error bands, and the paired difference showing BO shorter by 3 to 5 tokens for gaps above 0.03.]
+ Same data averaged: at each accuracy bar (train F1 ≥ root − gap), the shortest prompt each seed found, mean ± 1 SE, and the paired GEPA − BO difference.
+
+ Source: [experiments/2026-09-12-compression-v2-gepa-vs-bo](https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-12-compression-v2-gepa-vs-bo) (NOTES.md, results.jsonl, analysis.md).
+
+## Earlier and supporting runs
+
+ | date | experiment | result |
+
+ | 2026-09-10 | Synthetic BO benchmark, 20 seeds, hash embedder + GPR + EI | BO finds the planted optimum in 1.45 rounds vs 7.35 for random selection. Synthetic landscape only. |
+
+ | 2026-09-11 | Synthetic ladder: 8 selection arms × 40 seeds × 6 landscape conditions, $0 | The Pareto pool matters, stochastic sampling does not: greedy argmax within the pool beats GEPA's sampler everywhere except a deceptive landscape (tie). BO beats GEPA's sampler under noise (0.97 vs 0.86); surrogate child pre-screening helps most with a weak mutator (0.91 vs 0.83). |
+
+ | 2026-09-11 | IFBench, Nova Micro, greedy top-k, 802 calls | Strict accuracy 0.175 → 0.250 held-out (n=40, inside noise). Best node is a depth-1 restatement. |
+
+ | 2026-09-11 | IFBench, GEPA vs BO, 1,200 rollouts each, $0.16 | Tie by construction: neither arm found a child beating the root; the rewriting model only paraphrased. IFBench is a flat landscape for every published optimizer (+1.7 to +8 points). |
+
+ | 2026-09-11 | Compression v1, 5 seeds × 600 rollouts, 30 training examples, $0.065 | 97 → 5–26 tokens within 0.05 train F1. BO shorter on average (11.4 vs 17.2) but lower held-out F1 (0.936 vs 0.958): not significant, and 30 examples rewards overfitting. Led to the v2 design above. |
+
+## Standing conclusions
+
+ - Report the front, not a number. A constrained comparison at one accuracy bar hides where each method wins.
+
+ - Selection needs decisions to make. With 30 training examples and a permissive gate, ~95% of rollouts go to full evaluations of accepted children and there are ~20 parent choices per run — too few for strategy to show. 100 examples and a 5-example gate fixed that.
+
+ - The proposer is the binding constraint live. A rewriting model that only paraphrases defeats every selector.
+
+ - GEPA's weighting works; its randomness doesn't. BO's clearest contributions are robustness to evaluation noise and child pre-screening when the mutator is weak.
+
+ - Gains on weak models don't transfer proportionally to stronger ones.
+
+ - Next for BO: a front/hypervolume-gain value instead of a threshold-tied scalar, so it stops ignoring accurate-but-not-shorter children.
+
+ Reference points from the GEPA paper (Agrawal et al. 2025), Qwen3-8B test accuracy: HotpotQA 42.3 → 62.3, IFBench 36.9 → 38.6, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9 (≤ 7k rollouts); MIPROv2: 55.3 / 36.2 / 47.3 / 81.6.
+
+
+---
+
+# About Quante Carlo — optimization, from Monte Carlo acceleration to prompts
+URL: https://quantecarlo.com/about
+
+# Faster search. Better answers.
+
+ Quante Carlo is an optimization company. The name is the method: a Monte Carlo accelerator, built in 2013 for a search problem in astronomy, that turned out to be a general way of finding good points in expensive spaces. Hyperparameters first. Then prompts. Then whole agents.
+
+## One idea, applied three times
+
+ Every problem we have worked on has the same shape: a function that is expensive to evaluate, no gradient to follow, and a budget. The answer is always to spend each evaluation where it teaches you the most — a surrogate model of what you have already measured, an acquisition rule for what to try next, and enough sampling to know a lucky result from a real one. That is Bayesian optimization, and the accelerator is what makes it fast enough to use.
+
+### 2013 · Monte Carlo acceleration
+The original engine: sampling that converges in a fraction of the draws, first used in planetary-discovery research where each evaluation was a simulation.
+
+### Hyperparameter tuning
+The same engine pointed at model training. In our benchmarks it reached the optimum thousands of times faster than the next-best method and cut training time by about 80%.
+
+### Prompt learning and agents
+The current work. Prompts are discrete, the objective has no gradient, evaluations are noisy and cost money: the problem the accelerator was built for. [Why it's hard →](https://quantecarlo.com/prompt-optimization)
+
+## What we build today
+
+ Three things, one optimizer underneath.
+
+ Open source
+### bpto
+Bayesian Prompt Tree Optimization: the library. Tree search over prompt rewrites with GEPA-style reflective proposals and Bayesian selection as peers, whole-program execution, budgets, caches and logged experiments.
+[GitHub →](https://github.com/sign-of-fourier/bpto)
+
+ Studio
+### Impromptune
+The point-and-click front end: draw a program of prompt steps, attach labelled data, validate, run a pilot for the cost, optimize, and read the new prompts off each step.
+[impromptune.com →](https://impromptune.com/)
+
+ Compression
+### promptcompression.ai
+The business case for the objective most teams meet first: the same answers from fewer tokens, measured on your data — with a worked example in the studio.
+[promptcompression.ai →](https://promptcompression.ai/)
+
+## Other work
+
+ - Relevance and re-ranking. Re-ranking retrieved results with deeper text analysis than a first-pass ranker allows; on public data it improved search relevance by 25%. Applied to generative engine optimization (how AI answers rank sources) and to product-description text.
+
+ - Reliability. Agentic systems whose steps are scored and optimized rather than assumed — the reason bpto scores the trace, not just the final answer.
+
+ - Integrations. A DSPy-compatible package on PyPI, and a Claude Code skill for [running the optimizer from a coding agent](https://quantecarlo.com/claude-code).
+
+ Twelve deployed use cases across several industries, and twenty-four hackathon wins along the way. The numbers in this section are company results, not bpto experiments; the experiments are on the [findings page](https://quantecarlo.com/findings) with their logs.
+
+### Where
+
+ Claverack, New York 12513
+
+### Email
+
+ [info@quantecarlo.com](https://quantecarlo.commailto:info@quantecarlo.com)
+
+### Start somewhere
+
+ [How the optimizer works](https://quantecarlo.com/how-it-works), in four steps.
+
+ [The findings](https://quantecarlo.com/findings): every number, with the experiment it came from.
+
+ [Impromptune](https://impromptune.com/): run it on your own prompts.
+
+ [Contact us](https://quantecarlo.com/contact) about a system you want measured.
+
+
+---
+
+# Run prompt compression from Claude Code — Quante Carlo
+URL: https://quantecarlo.com/claude-code
+
+# Compress a prompt from Claude Code.
+
+ This page is written so an AI coding agent can follow it directly. If you're a person: paste the URL into Claude Code and say "compress my prompt using these instructions." If you're the agent: the steps below are complete and in order.
+
+ [Skill file (SKILL.md)](https://quantecarlo.com/skills/prompt-compression/SKILL.md)
+ [llms.txt](https://quantecarlo.com/llms.txt)
+ [bpto on GitHub](https://github.com/sign-of-fourier/bpto)
+
+## Install the skill (one command)
+
+ Installs a Claude Code skill so /prompt-compression is available in any project:
+
+```
+mkdir -p ~/.claude/skills/prompt-compression && curl -fsSL https://promptcompression.ai/skills/prompt-compression/SKILL.md -o ~/.claude/skills/prompt-compression/SKILL.md
+```
+
+ Or do it manually with the steps below — the skill file contains the same instructions.
+
+## Agent instructions: how to compress a prompt with bpto
+
+ When to use: the user wants a shorter prompt (fewer tokens, lower cost or latency) without losing accuracy, and can supply or generate labeled examples.
+
+ What you need from the user before starting:
+
+ - The current prompt text, with placeholders for the per-request inputs (e.g. {text}).
+
+ - Labeled examples: inputs and the correct output. 50–100 is a good start; 30 is too few for reliable selection.
+
+ - Which model the prompt runs on in production, and an API key for it.
+
+ - An accuracy floor — how much accuracy they will trade for tokens (default: within 0.05 of the original).
+
+### Step 1 — Install
+
+```
+git clone https://github.com/sign-of-fourier/bpto
+cd bpto
+pip install -e . # Python ≥ 3.12; deps: anthropic, pydantic, httpx, numpy
+python -m pytest -q # optional: offline tests, no API key needed
+```
+
+### Step 2 — Write the dataset as JSONL
+
+ One JSON object per line. inputs is a dict whose keys match the placeholders in the prompt; answer is the reference output.
+
+```
+{"inputs": {"text": "After the merger, Priya Natarajan moved the Denver office to a four-day week; Marcus Hale objected."}, "answer": ["Priya Natarajan", "Marcus Hale"]}
+{"inputs": {"text": "Rainfall in Portland exceeded the September average, the National Weather Service reported."}, "answer": []}
+{"inputs": {"text": "The Lakers signed Charles Okafor to a two-year deal, sources told Reuters."}, "answer": ["Charles Okafor"]}
+```
+
+ Keep a held-out split (e.g. 2:1) that the optimizer never sees; report the held-out score to the user, not the training score.
+
+### Step 3 — Run a smoke test offline (no API key)
+
+```
+python -m tasks.compression.run --mock --rounds 2
+```
+
+ Confirms the install. Outputs go to runs/compression/.
+
+### Step 4 — Run for real
+
+```
+# Anthropic
+ANTHROPIC_API_KEY=... python -m tasks.compression.run --data train.jsonl --rounds 4 --model claude-opus-5
+
+# Any OpenAI-compatible endpoint (OpenAI, vLLM, Ollama, OpenRouter)
+OPENAI_API_KEY=... python -m tasks.compression.run --data train.jsonl --rounds 4 \
+ --provider openai --base-url https://api.openai.com/v1 --model gpt-5
+
+# Constrained mode: shrink the token budget each round instead of a weighted sum
+python -m tasks.compression.run --data train.jsonl --rounds 6 --constrained --start-tokens 80 --shrink 10
+
+# Continue a checkpointed run
+python -m tasks.compression.run --data train.jsonl --rounds 8 --resume
+```
+
+ Useful flags: --n-random / --n-guided (children per expansion, default 3 / 2), --expand-k (leaves expanded per round, default 3), --cheap-n (examples in the first successive-halving rung, default 12), --token-weight (per-token penalty for the weighted objective, default 0.002), --concurrency (default 8), --out (default runs/compression).
+
+### Step 5 — Read the outputs
+
+ | file | what it is |
+
+ | runs/compression/report.txt | Pareto table (template_tokens vs f1 for every non-dominated prompt) and the best prompt under the objective. Show this table to the user. |
+
+ | runs/compression/pareto.png | The same front as a plot. |
+
+ | runs/compression/tree.json | Checkpoint of the whole search tree; needed for --resume. |
+
+ | runs/compression/cache.jsonl | Completion cache keyed on (prompt, config, schema). Re-scoring under a new objective is free. |
+
+ Report to the user: the original prompt's tokens and held-out score, the row on the front that meets their accuracy floor, and its prompt text. Offer 2–3 points on the front (shortest feasible, safest, in between) rather than one.
+
+### Step 6 — Adapting to a task that is not name extraction
+
+ The tasks/compression runner is wired for a list-of-names schema and set-F1. For another task, write a small task module: a Pydantic schema for the output, a scorer returning a dict of metrics per example, and use combine(scorer, template_tokens(), token_count()) with a LinearObjective or ConstrainedObjective. The bpto README's question-answering example (LLM judge + token count) is the template. The tree, operators and search loop are unchanged.
+
+```
+from bpto import (AnthropicClient, ConstrainedObjective, Dataset, LinearObjective, Task, Tree,
+ combine, evaluate, guided, llm_judge, random, select, template_tokens, token_count)
+
+task = Task(
+ root=open("prompt.txt").read(),
+ description="one line describing what the prompt does",
+ dataset=Dataset.from_jsonl("train.jsonl"),
+ schema=YourPydanticModel,
+ scorer=combine(llm_judge("Is the answer equivalent to the reference?", client=AnthropicClient("claude-opus-5")),
+ template_tokens(), token_count()),
+ objective=ConstrainedObjective(LinearObjective(judge=1.0), metric="template_tokens", bound=lambda ctx: 40, penalty=0.01),
+ client=AnthropicClient("claude-opus-5", max_concurrency=16),
+)
+tree = Tree(task)
+await tree.apply(random(n=4), select=select.leaves)
+await tree.apply(guided("make it as short as possible without losing precision", n=3), select=select.leaves)
+await tree.apply(evaluate(), select=select.unevaluated)
+print(tree.best().prompt)
+print(tree.pareto({"judge": True, "template_tokens": False}))
+```
+
+### Things that go wrong
+
+ - Every child scores the same as the root. The rewriting model is paraphrasing instead of editing. Use a stronger model for proposals, or a more forceful directive ("remove every sentence that is not necessary").
+
+ - Training score is high, held-out is low. Overfitting a small dataset. Add examples or raise the floor.
+
+ - Output doesn't parse. The schema is enforced client-side; some small models echo the schema. Check cache.jsonl for raw completions.
+
+ - Budget. A 4-round run on 100 examples is a few hundred to a few thousand model calls. Set --concurrency to respect rate limits; use --resume after a crash.
+
+## Machine-readable resources
+
+ - [/llms.txt](https://quantecarlo.com/llms.txt) — site index for LLMs
+
+ - [/llms-full.txt](https://quantecarlo.com/llms-full.txt) — every page of this site as one markdown document
+
+ - [/skills/prompt-compression/SKILL.md](https://quantecarlo.com/skills/prompt-compression/SKILL.md) — the Claude Code skill
+
+ - [bpto README](https://github.com/sign-of-fourier/bpto/blob/main/README.md) — full library API
+
+
+---
+
+# Contact — Quante Carlo
+URL: https://quantecarlo.com/contact
+
+# Get in touch.
+
+ Questions about the optimizer, a task you'd like to try it on, an agentic system you want measured — or anything about Quante Carlo.
+
+### Email
+
+ The fastest way to reach us.
+
+ [markshipman4273@gmail.com](https://quantecarlo.commailto:markshipman4273@gmail.com)
+
+### GitHub
+
+ Bugs, feature requests and experiment questions belong in [the issue tracker](https://github.com/sign-of-fourier/bpto/issues).
+
+### Or send a message
+
+ Send

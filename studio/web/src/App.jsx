@@ -6,6 +6,7 @@ import { OptimizerPanel } from './panels.jsx'
 import RunView from './RunView.jsx'
 import KeysPanel from './KeysPanel.jsx'
 import Tutorial, { tutorialVisible } from './Tutorial.jsx'
+import { NAME, SITE_URL, COMPANY_URL } from './brand.js'
 
 const EMPTY = {
   name: 'untitled', modules: [], edges: [], entry: null, max_steps: 8, eval_model: 'us.amazon.nova-micro-v1:0',
@@ -43,7 +44,7 @@ function Login({ onUser }) {
   }
   return (
     <div className="login card">
-      <h1><span style={{ color: 'var(--accent)' }}>Studio</span> · promptcompression.ai</h1>
+      <h1><span style={{ color: 'var(--accent)' }}>{NAME}</span></h1>
       <p className="muted" style={{ margin: '0 0 14px' }}>{mode === 'login' ? 'Sign in to your projects.' : 'Create an account.'}</p>
       <form onSubmit={submit}>
         <label>Email</label><input value={email} onChange={e => setEmail(e.target.value)} autoFocus />
@@ -54,7 +55,7 @@ function Login({ onUser }) {
           <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>{mode === 'login' ? 'Create account' : 'Have an account? Sign in'}</button>
         </div>
       </form>
-      <p className="muted" style={{ marginTop: 18, fontSize: 12.5 }}><a href="/">← back to the site</a></p>
+      <p className="muted" style={{ marginTop: 18, fontSize: 12.5 }}><a href={SITE_URL}>Why compress prompts</a> · <a href={COMPANY_URL}>About Quante Carlo</a></p>
     </div>
   )
 }
@@ -69,7 +70,7 @@ function Workspace({ user, models, onKeys, onLogout }) {
   if (pid) return <Editor pid={pid} models={models} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
   return (
     <div className="shell">
-      <div className="top"><div className="brand"><a href="/" style={{ color: 'inherit' }}>prompt<span>compression</span>.ai</a> / studio</div>
+      <div className="top"><div className="brand"><span>{NAME}</span></div><a className="muted" style={{ fontSize: 12.5 }} href={SITE_URL}>Why compress</a><a className="muted" style={{ fontSize: 12.5 }} href={COMPANY_URL}>About</a>
         <div className="grow" /><KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button></div>
       <div className="page">
         {!models.house_keys && models.models.length === 0 && <div className="card" style={{ borderColor: 'var(--accent2)' }}><b>Add an endpoint to run anything.</b> Your account runs on your own model credentials. <a href="#" onClick={e => { e.preventDefault(); onKeys() }}>Add one under Endpoints &amp; keys</a>.</div>}
@@ -111,7 +112,7 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
   return (
     <div className="shell">
       <div className="top">
-        <div className="brand"><a href="#" onClick={e => { e.preventDefault(); onBack() }} style={{ color: 'inherit' }}>studio</a> /</div>
+        <div className="brand"><a href="#" onClick={e => { e.preventDefault(); onBack() }} style={{ color: 'inherit' }}>{NAME}</a> /</div>
         <input value={spec.name} onChange={e => update({ ...spec, name: e.target.value })} style={{ width: 160 }} />
         <div className="tabs">
           {[['build', 'Build'], ['data', 'Data & validation'], ['run', 'Runs']].map(([k, l]) => <button key={k} data-tut={'tab-' + k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}

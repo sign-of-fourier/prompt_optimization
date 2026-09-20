@@ -1,13 +1,20 @@
-# prompt_optimization — promptcompression.ai
+# prompt_optimization — quantecarlo.com · promptcompression.ai · impromptune.com
 
 Downstream of **bpto** (https://github.com/sign-of-fourier/bpto), consumed strictly as a pinned git dependency.
-Two deliverables live here:
+Three hosts, one repo, one box:
 
-- `compression/` — the static site served at `promptcompression.ai` (nginx web root). Plain HTML/CSS, no build
-  step. `python gen-llms.py` (run from inside `compression/`) regenerates `llms-full.txt` and sitemap `lastmod`
-  after editing any page. `skills/prompt-compression/SKILL.md` is the installable Claude Code skill the site advertises.
-- `studio/` — its own git repo: FastAPI backend (`app/`) + React/React Flow canvas (`web/`), served at
-  `promptcompression.ai/studio/`. See `studio/README.md` for layout, run-locally steps and invariants.
+- `quantecarlo/` — static site at `quantecarlo.com`: the optimizer and the company (prompt learning, GEPA vs BO,
+  findings, About). Its nav links promptcompression.ai and Impromptune.
+- `compression/` — static site at `promptcompression.ai`: content marketing for the compression objective
+  (business case, worked studio example). Its nav links Impromptune. `skills/prompt-compression/SKILL.md` is the
+  installable Claude Code skill. `style.css`, `favicon.svg`, `img/` are shared: `quantecarlo/` symlinks to them.
+- `studio/` — **Impromptune**, at `impromptune.com`: FastAPI backend (`app/`) + React/React Flow canvas (`web/`).
+  See `studio/README.md` for layout, run-locally steps and invariants. The studio's name and public URL are
+  placeholders (`STUDIO_NAME`, `STUDIO_PUBLIC_URL`, `VITE_STUDIO_NAME`): never inline them.
+
+Marketing sites are plain HTML/CSS, no build step. `python gen-site.py all` (repo root) regenerates each site's
+`llms-full.txt` and `sitemap.xml` after editing any page; `llms.txt` is hand-written per site. `deploy/` holds
+the nginx config for all three hosts and the studio's systemd unit.
 
 `.env` files (root and `studio/`) hold API keys and are gitignored; never print or commit them.
 
@@ -38,14 +45,15 @@ To bump the pin: change the sha in `studio/pyproject.toml`, `pip install -e stud
 ```bash
 # studio
 cd studio && pip install -e .[dev] && python -m pytest -q        # offline: every test uses bpto's MockClient
-(cd studio/web && npm install && npm run build)                   # -> web/dist, served by nginx
-cd studio && STUDIO_MOCK=1 STUDIO_INSECURE_COOKIE=1 uvicorn app.main:app --port 8100   # http://localhost:8100/studio/
-# site
-cd compression && python gen-llms.py                              # after editing any page
+(cd studio/web && npm install && VITE_STUDIO_BASE=/ npm run build)  # -> web/dist for impromptune.com (default base is /studio/, used by dev mode)
+cd studio && STUDIO_MOCK=1 STUDIO_INSECURE_COOKIE=1 uvicorn app.main:app --port 8100   # http://localhost:8100/studio/ (build without VITE_STUDIO_BASE for this)
+# sites
+python gen-site.py all                                            # after editing any page
 ```
 
-Deploy: `studio/deploy/nginx-studio.conf` (location blocks + web root) and `studio/deploy/studio.service`
-(systemd unit running uvicorn on 127.0.0.1:8100). The studio's code, sqlite db and keys live outside the web root.
+Deploy: `deploy/nginx.conf` (three server blocks; `/studio/` on promptcompression.ai redirects to impromptune.com),
+`deploy/snippets-marketing.conf` (shared static-site snippet) and `deploy/studio.service` (uvicorn on
+127.0.0.1:8100). The studio's code, sqlite db and keys live outside every web root.
 
 ## Conventions
 
@@ -58,4 +66,6 @@ Deploy: `studio/deploy/nginx-studio.conf` (location blocks + web root) and `stud
   them — nothing is scalarized inside a scorer.
 - The canvas spec (`app/models.py`, `ProjectSpec`) is plain JSON and the contract between `web/` and `app/`; change
   both sides together, and `app/compile.py` is the only place that turns a spec into bpto objects.
-- Site copy that states a number or finding must trace to a bpto `experiments/*/NOTES.md` on GitHub.
+- Site copy that states a number or finding must trace to a bpto `experiments/*/NOTES.md` on GitHub, or to a
+  studio run whose screenshot is on the page. The About page's company history numbers are Quante Carlo's own
+  claims and are labelled as such there; don't repeat them on the technical pages.

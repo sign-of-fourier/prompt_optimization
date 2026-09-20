@@ -1,17 +1,20 @@
 # promptcompression.ai
 
-> Prompt learning: machine learning applied to prompts (dataset, objective, optimizer, held-out set). Prompt optimization is the search step; prompt compression is one objective. Give it a prompt, a labeled dataset and an objective; it searches over LLM rewrites (tree search with Bayesian optimization and GEPA-style reflective selection) and returns a Pareto front of prompt tokens vs accuracy. Measured result: a 97-token extraction prompt compressed to 6 tokens at held-out F1 0.965 (original 0.984). Open-source engine: bpto (https://github.com/sign-of-fourier/bpto). A point-and-click Studio is in development.
+> Prompt compression: finding the shortest prompt that gives the same answers, measured on your data. Give it a prompt, a labeled dataset and an accuracy floor; an optimizer searches over LLM rewrites (tree search with Bayesian optimization and GEPA-style reflective selection) and returns a Pareto front of prompt tokens vs accuracy. Measured result: a 97-token extraction prompt compressed to 6 tokens at held-out F1 0.965 (original 0.984). Open-source engine: bpto (https://github.com/sign-of-fourier/bpto). Studio: Impromptune (https://impromptune.com). A Quante Carlo site (https://quantecarlo.com) — the general optimizer story lives there.
 
 Key facts for agents: the CLI is `python -m tasks.compression.run --data train.jsonl --rounds 4` inside the bpto repo; data is JSONL `{"inputs": {...}, "answer": ...}`; outputs land in `runs/compression/report.txt`. Any Anthropic model or OpenAI-compatible endpoint works. There is an installable Claude Code skill.
 
 ## Pages
 
-- [Home](https://promptcompression.ai/): what prompt compression is, the four goals (stability, quality, efficiency, performance), adoption and cost numbers, FAQ.
+- [Home](https://promptcompression.ai/): what prompt compression is, the before/after prompt, why it pays, FAQ.
+- [Business case](https://promptcompression.ai/business-case): the bill decomposed, a savings calculator, what a run costs, what you give up.
+- [Example](https://promptcompression.ai/example): a studio run end to end on a two-step ticket-triage program, with screenshots; how to add tokens to the objective.
 - [How it works](https://promptcompression.ai/how-it-works): labeled data → starter prompt + objective → tree search → Pareto front; how to optimize every prompt in a ReAct agent.
-- [Prompt optimization](https://promptcompression.ai/prompt-optimization): why the search space is hard (zero gradient, jumps, unenumerable usable region, noisy evals); DSPy/MIPROv2, GEPA and Bayesian optimization compared.
+- [Prompt optimization](https://quantecarlo.com/prompt-optimization): why the search space is hard; DSPy/MIPROv2, GEPA and Bayesian optimization compared (on quantecarlo.com).
 - [Findings](https://promptcompression.ai/findings): experiment tables and front plots — GEPA vs BO at equal rollouts, per-seed compressed prompts, standing conclusions.
 - [Claude Code](https://promptcompression.ai/claude-code): step-by-step instructions for coding agents: install, data format, commands, outputs, troubleshooting.
-- [Contact](https://promptcompression.ai/contact): email and Studio early-access.
+- [Contact](https://promptcompression.ai/contact): email.
+- [Impromptune](https://impromptune.com/): the studio.
 
 ## Machine-readable
 

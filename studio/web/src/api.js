@@ -1,4 +1,4 @@
-const BASE = '/studio/api'
+import { API as BASE } from './brand.js'
 
 async function req(method, path, body, isForm) {
   const opts = { method, credentials: 'include', headers: {} }

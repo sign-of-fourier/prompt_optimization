@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About Quante Carlo — optimization, from Monte Carlo acceleration to prompts</title>
+<meta name="description" content="Quante Carlo is an optimization company in Claverack, New York. A Monte Carlo accelerator built in 2013 became hyperparameter tuning, then prompt optimization and agentic reasoning. Today: bpto, promptcompression.ai and the Impromptune studio.">
+<link rel="canonical" href="https://quantecarlo.com/about">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="About Quante Carlo">
+<meta property="og:description" content="An optimization company: a Monte Carlo accelerator built in 2013 became hyperparameter tuning, then prompt optimization and agentic reasoning.">
+<meta property="og:url" content="https://quantecarlo.com/about">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="About Quante Carlo">
+<meta name="twitter:description" content="An optimization company: a Monte Carlo accelerator built in 2013 became hyperparameter tuning, then prompt optimization and agentic reasoning.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "AboutPage", "url": "https://quantecarlo.com/about", "mainEntity": {"@type": "Organization", "name": "Quante Carlo", "url": "https://quantecarlo.com", "email": "info@quantecarlo.com", "foundingDate": "2013", "address": {"@type": "PostalAddress", "addressLocality": "Claverack", "addressRegion": "NY", "postalCode": "12513", "addressCountry": "US"}}}</script>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a class="active" href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Faster search. <em>Better</em> answers.</h1>
+    <p class="lead">Quante Carlo is an optimization company. The name is the method: a Monte Carlo accelerator, built in 2013 for a search problem in astronomy, that turned out to be a general way of finding good points in expensive spaces. Hyperparameters first. Then prompts. Then whole agents.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>One idea, applied three times</h2>
+    <p>Every problem we have worked on has the same shape: a function that is expensive to evaluate, no gradient to follow, and a budget. The answer is always to spend each evaluation where it teaches you the most — a surrogate model of what you have already measured, an acquisition rule for what to try next, and enough sampling to know a lucky result from a real one. That is Bayesian optimization, and the accelerator is what makes it fast enough to use.</p>
+    <div class="grid c3">
+      <div class="card"><h3>2013 · Monte Carlo acceleration</h3><p>The original engine: sampling that converges in a fraction of the draws, first used in planetary-discovery research where each evaluation was a simulation.</p></div>
+      <div class="card"><h3>Hyperparameter tuning</h3><p>The same engine pointed at model training. In our benchmarks it reached the optimum thousands of times faster than the next-best method and cut training time by about 80%.</p></div>
+      <div class="card"><h3>Prompt learning and agents</h3><p>The current work. Prompts are discrete, the objective has no gradient, evaluations are noisy and cost money: the problem the accelerator was built for. <a href="/prompt-optimization">Why it's hard →</a></p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What we build today</h2>
+    <p class="sub">Three things, one optimizer underneath.</p>
+    <div class="grid c3">
+      <div class="card"><span class="pill">Open source</span><h3 style="margin-top:12px">bpto</h3><p>Bayesian Prompt Tree Optimization: the library. Tree search over prompt rewrites with GEPA-style reflective proposals and Bayesian selection as peers, whole-program execution, budgets, caches and logged experiments.</p><p style="margin-top:12px"><a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub →</a></p></div>
+      <div class="card"><span class="pill">Studio</span><h3 style="margin-top:12px">Impromptune</h3><p>The point-and-click front end: draw a program of prompt steps, attach labelled data, validate, run a pilot for the cost, optimize, and read the new prompts off each step.</p><p style="margin-top:12px"><a href="https://impromptune.com/">impromptune.com →</a></p></div>
+      <div class="card"><span class="pill">Compression</span><h3 style="margin-top:12px">promptcompression.ai</h3><p>The business case for the objective most teams meet first: the same answers from fewer tokens, measured on your data — with a worked example in the studio.</p><p style="margin-top:12px"><a href="https://promptcompression.ai/">promptcompression.ai →</a></p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Other work</h2>
+    <ul>
+      <li><strong>Relevance and re-ranking.</strong> Re-ranking retrieved results with deeper text analysis than a first-pass ranker allows; on public data it improved search relevance by 25%. Applied to generative engine optimization (how AI answers rank sources) and to product-description text.</li>
+      <li><strong>Reliability.</strong> Agentic systems whose steps are scored and optimized rather than assumed — the reason bpto scores the trace, not just the final answer.</li>
+      <li><strong>Integrations.</strong> A DSPy-compatible package on PyPI, and a Claude Code skill for <a href="/claude-code">running the optimizer from a coding agent</a>.</li>
+    </ul>
+    <p class="m">Twelve deployed use cases across several industries, and twenty-four hackathon wins along the way. The numbers in this section are company results, not bpto experiments; the experiments are on the <a href="/findings">findings page</a> with their logs.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="grid c2">
+      <div class="card contact-card">
+        <h3>Where</h3>
+        <p>Claverack, New York 12513</p>
+        <h3 style="margin-top:22px">Email</h3>
+        <a class="big-email" href="mailto:info@quantecarlo.com">info@quantecarlo.com</a>
+      </div>
+      <div class="card contact-card">
+        <h3>Start somewhere</h3>
+        <p><a href="/how-it-works">How the optimizer works</a>, in four steps.</p>
+        <p><a href="/findings">The findings</a>: every number, with the experiment it came from.</p>
+        <p><a href="https://impromptune.com/">Impromptune</a>: run it on your own prompts.</p>
+        <p><a href="/contact">Contact us</a> about a system you want measured.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

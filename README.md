@@ -5,7 +5,7 @@ Optimization), which is consumed as a pinned git dependency.
 
 | host | directory | what it is |
 |---|---|---|
-| [quantecarlo.com](https://quantecarlo.com) | `quantecarlo/` *(coming)* | the optimizer and the company: prompt learning, GEPA vs. Bayesian optimization, findings, About |
+| [quantecarlo.com](https://quantecarlo.com) | `quantecarlo/` | the optimizer and the company: prompt learning, GEPA vs. Bayesian optimization, findings, About |
 | [promptcompression.ai](https://promptcompression.ai) | `compression/` | content marketing for prompt compression: how it works, the business case, a worked example |
 | [impromptune.com](https://impromptune.com) | `studio/` | **Impromptune**, the studio: draw a program of prompt steps, attach labelled data, optimize, deploy |
 
@@ -37,11 +37,11 @@ See [`studio/README.md`](studio/README.md) for the layout, the invariants carrie
 ```bash
 # studio (offline: every test uses bpto's MockClient)
 cd studio && pip install -e .[dev] && python -m pytest -q
-(cd web && npm install && npm run build)
+(cd web && npm install && npm run build)                                  # dev build, served under /studio/
 STUDIO_MOCK=1 STUDIO_INSECURE_COOKIE=1 uvicorn app.main:app --port 8100    # http://localhost:8100/studio/
 
-# marketing sites: edit the HTML, then regenerate llms-full.txt and the sitemap
-cd compression && python gen-llms.py
+# marketing sites: edit the HTML, then regenerate each site's llms-full.txt and sitemap
+python gen-site.py all
 ```
 
 `STUDIO_MOCK=1` routes every model call to a schema-generic mock — no keys, no spend. Live runs read provider keys
@@ -49,9 +49,10 @@ from `.env` (gitignored).
 
 ## Deploy
 
-nginx serves each site from its directory and proxies the studio's `/api/` to uvicorn on `127.0.0.1:8100`
-(`studio/deploy/nginx-studio.conf`, `studio/deploy/studio.service`). The studio's code, sqlite database and keys
-live outside every web root.
+nginx serves each marketing site from its directory and the studio from `studio/web/dist` (built with
+`VITE_STUDIO_BASE=/`), proxying `/api/` to uvicorn on `127.0.0.1:8100`. See `deploy/nginx.conf`,
+`deploy/snippets-marketing.conf` and `deploy/studio.service`. The studio's code, sqlite database and keys live
+outside every web root. The studio's name is configuration (`STUDIO_NAME` / `VITE_STUDIO_NAME`), not code.
 
 ## bpto
 

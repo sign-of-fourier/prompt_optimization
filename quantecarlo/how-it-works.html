@@ -3,37 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How prompt compression works — promptcompression.ai</title>
+<title>How prompt optimization works: data in, better prompt out — Quante Carlo</title>
 <meta name="description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
-<link rel="canonical" href="https://promptcompression.ai/how-it-works">
+<link rel="canonical" href="https://quantecarlo.com/how-it-works">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="promptcompression.ai">
-<meta property="og:title" content="How prompt compression works — promptcompression.ai">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How prompt optimization works: data in, better prompt out — Quante Carlo">
 <meta property="og:description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
-<meta property="og:url" content="https://promptcompression.ai/how-it-works">
-<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta property="og:url" content="https://quantecarlo.com/how-it-works">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="How prompt compression works — promptcompression.ai">
+<meta name="twitter:title" content="How prompt optimization works: data in, better prompt out — Quante Carlo">
 <meta name="twitter:description" content="How to compress a prompt with machine learning: labeled data, a starter prompt, an objective, tree search, and a Pareto front of tokens vs accuracy. Works for whole agent systems.">
-<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
 <link rel="stylesheet" href="/style.css">
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "How to compress a prompt with promptcompression.ai", "step": [{"@type": "HowToStep", "name": "Start with labeled data", "text": "Collect a JSONL dataset of inputs and known answers."}, {"@type": "HowToStep", "name": "Give it a starter prompt and an objective", "text": "Use your production prompt as the root and choose an objective such as F1 minus a per-token penalty."}, {"@type": "HowToStep", "name": "Search", "text": "The optimizer grows a tree of LLM rewrites, evaluates each on the dataset, and selects where to expand next."}, {"@type": "HowToStep", "name": "Read the result off the Pareto front", "text": "Pick the operating point of tokens versus accuracy that your product needs."}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "How to optimize a prompt with bpto", "step": [{"@type": "HowToStep", "name": "Start with labeled data", "text": "Collect a JSONL dataset of inputs and known answers."}, {"@type": "HowToStep", "name": "Give it a starter prompt and an objective", "text": "Use your production prompt as the root and choose an objective such as F1 minus a per-token penalty."}, {"@type": "HowToStep", "name": "Search", "text": "The optimizer grows a tree of LLM rewrites, evaluates each on the dataset, and selects where to expand next."}, {"@type": "HowToStep", "name": "Read the result off the Pareto front", "text": "Pick the operating point of tokens versus accuracy that your product needs."}]}</script>
 </head>
 <body>
 
 <nav>
   <div class="wrap">
-    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
     <ul>
       <li><a href="/">Home</a></li>
       <li><a class="active" href="/how-it-works">How it works</a></li>
-      <li><a href="/business-case">Business case</a></li>
-      <li><a href="/example">Example</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
       <li><a href="/findings">Findings</a></li>
       <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
       <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
       <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
     </ul>
   </div>
@@ -42,7 +43,7 @@
 <header class="hero">
   <div class="wrap">
     <h1>Data in. <em>Better prompt</em> out.</h1>
-    <p class="lead">This is the prompt-learning loop: <strong>dataset → objective → optimizer → validation</strong>. It needs three things from you — labeled examples, a starter prompt and an objective. We'll walk through prompt compression, but the same loop optimizes anything you can score.</p>
+    <p class="lead">This is the prompt-learning loop: <strong>dataset → objective → optimizer → validation</strong>. It needs three things from you — labeled examples, a starter prompt and an objective. The worked example below uses compression, because a token count is the easiest objective to see move; the same loop optimizes anything you can score. <a href="https://promptcompression.ai/">The full compression story is on promptcompression.ai →</a></p>
   </div>
 </header>
 
@@ -235,7 +236,7 @@ Passage:
       <li><strong>Check the end-to-end metric.</strong> A module that got "better" on its local objective but hurt task success is rejected. That's what the labeled tasks are for.</li>
     </ul>
     <p class="m">Because the optimizer only ever sees (prompt, score), a module's "prompt" can be anything text-shaped: a system prompt, a few-shot block, a tool description, or the instructions inside a chain-of-thought template.</p>
-    <p class="m" style="margin-top:20px">All of this runs as the open-source <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> library, and as <a href="https://impromptune.com/">Impromptune</a>, the studio that puts the same steps — draw the program, attach data, set the objective, search, pick from the front — behind a point-and-click canvas. <a href="/example">See a run end to end →</a></p>
+    <p class="m" style="margin-top:20px">All of this runs as the open-source <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> library, and as <a href="https://impromptune.com/">Impromptune</a>, the studio that puts the same steps — draw the program, attach data, set the objective, search, pick from the front — behind a point-and-click canvas.</p>
     <div class="btns" style="margin-top:24px">
       <a class="btn primary" href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">Get the code</a>
       <a class="btn" href="https://impromptune.com/">Open Impromptune</a>
@@ -245,8 +246,8 @@ Passage:
 
 <footer>
   <div class="wrap">
-    <div>promptcompression.ai · a <a href="https://quantecarlo.com/">Quante Carlo</a> site · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
-    <div><a href="https://impromptune.com/">Impromptune</a> · <a href="https://quantecarlo.com/">Quante Carlo</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
   </div>
 </footer>
 

@@ -1,6 +1,6 @@
 # sudo cp deploy/studio.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now studio
 [Unit]
-Description=promptcompression.ai studio API (FastAPI + bpto)
+Description=Impromptune studio API (FastAPI + bpto)
 After=network.target
 
 [Service]
@@ -10,6 +10,7 @@ Environment=PATH=/home/ubuntu/miniconda3/bin:/usr/bin:/bin
 Environment=AWS_REGION=us-east-1
 # API keys go in /home/ubuntu/projects/prompt_optimization/studio/.env (KEY=value lines; gitignored):
 #   AWS_BEARER_TOKEN_BEDROCK=...   ANTHROPIC_API_KEY=...   OPENAI_API_KEY=...
+#   STUDIO_NAME=Impromptune   STUDIO_PUBLIC_URL=https://impromptune.com
 ExecStart=/home/ubuntu/miniconda3/bin/uvicorn app.main:app --host 127.0.0.1 --port 8100
 Restart=on-failure
 RestartSec=3

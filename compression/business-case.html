@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The business case for prompt compression — promptcompression.ai</title>
+<meta name="description" content="Prompt tokens are the part of an LLM bill you pay on every call. What compression saves, what it costs to run, and a calculator for your own call volume and prices.">
+<link rel="canonical" href="https://promptcompression.ai/business-case">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="promptcompression.ai">
+<meta property="og:title" content="The business case for prompt compression — promptcompression.ai">
+<meta property="og:description" content="Prompt tokens are the part of an LLM bill you pay on every call. What compression saves, what it costs to run, and a calculator for your own call volume and prices.">
+<meta property="og:url" content="https://promptcompression.ai/business-case">
+<meta property="og:image" content="https://promptcompression.ai/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The business case for prompt compression — promptcompression.ai">
+<meta name="twitter:description" content="Prompt tokens are the part of an LLM bill you pay on every call. What compression saves, what it costs to run, and a calculator for your own call volume and prices.">
+<meta name="twitter:image" content="https://promptcompression.ai/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<style>#calc label{display:block;font-size:13px;color:var(--muted)}#calc input{width:100%;box-sizing:border-box;margin-top:6px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:16px}</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">promptcompression<span>.ai</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a class="active" href="/business-case">Business case</a></li>
+      <li><a href="/example">Example</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>The <em>business case</em>.</h1>
+    <p class="lead">Output tokens get the attention because they're expensive per token. Prompt tokens are the bigger line: they're on every call, they never change, and nobody is reading them. Here is what removing the ones that don't matter is worth.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The bill, decomposed</h2>
+    <p>Every call to a model costs <code>prompt_tokens × input_price + output_tokens × output_price</code>. The prompt half is the template you wrote plus the per-request input. The template part is identical on every call. In a classifier, a router, an extractor or a tool-call formatter, it is most of the input — and in an agent loop it is sent once per step, several steps per task.</p>
+    <p>That makes the template the one lever that is <em>free to pull</em>: no model change, no architecture change, no runtime component. Change the string, and every subsequent call is cheaper and faster.</p>
+    <div class="callout"><strong>Why a shorter prompt is also a faster one.</strong> Time to first token grows with prompt length: the model has to read the whole prompt before producing anything. Trimming a template trims latency on every call it appears in.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Your numbers</h2>
+    <p class="sub">Monthly savings from compressing one template. Adjust the fields; the arithmetic is <code>tokens saved × calls per month × price per million</code>.</p>
+    <div class="card" id="calc">
+      <div class="grid c4" style="gap:14px">
+        <label>Calls per month<br><input id="c-calls" type="number" value="10000000" min="0" step="100000"></label>
+        <label>Template tokens today<br><input id="c-before" type="number" value="120" min="1"></label>
+        <label>Template tokens after<br><input id="c-after" type="number" value="40" min="0"></label>
+        <label>Input price, $ per million<br><input id="c-price" type="number" value="3" min="0" step="0.05"></label>
+      </div>
+      <div class="grid c3" style="margin-top:18px">
+        <div class="stat"><div class="num" id="c-month">—</div><div class="label">saved per month</div></div>
+        <div class="stat"><div class="num alt" id="c-year">—</div><div class="label">saved per year</div></div>
+        <div class="stat"><div class="num" id="c-tokens">—</div><div class="label">prompt tokens not sent, per month</div></div>
+      </div>
+      <p class="m" style="margin-top:12px">Defaults: 10M calls, 120 → 40 tokens (a 67% cut, mid-range for what the <a href="/findings">compression runs</a> achieved on a 97-token prompt), $3 per million input tokens. Prices vary by model and cache state; use your own invoice.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>What it costs to get there</h2>
+    <p>Compression is a one-time search, and the search is cheap because it runs on your dataset with a small model doing the rewriting:</p>
+    <ul>
+      <li><strong>The compression v2 experiment</strong> — 12 seeds × 2,000 rollouts each, two search strategies, 100 training and 200 held-out examples per seed — cost <strong>$0.41 in total</strong> on Amazon Nova Micro. One production-grade run is a fraction of that.</li>
+      <li><strong>A studio run</strong> on the two-step ticket-triage example: 10 rounds, 262 model calls, <strong>$0.004</strong>. The pilot tells you the projected cost before you commit anything.</li>
+      <li><strong>Your time:</strong> assemble 50–100 labeled examples (production traces usually are that already), paste the prompt, set the floor. No code in the studio; one script with the library.</li>
+    </ul>
+    <p>Against the calculator above, the search pays for itself in the first hour of production traffic for any system making more than a few thousand calls a day.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where the calls are coming from</h2>
+    <p class="sub">Agentic systems multiply the number of prompts you run and the number of times you run each one.</p>
+    <div class="grid c3">
+      <div class="card stat">
+        <div class="num alt">40%</div>
+        <div class="label">of enterprise applications will include task-specific AI agents by the end of 2026 — up from under 5% in 2025.</div>
+        <div class="src"><a href="https://www.gartner.com/en/newsroom/press-releases/2025-08-26-gartner-predicts-40-percent-of-enterprise-apps-will-feature-task-specific-ai-agents-by-2026-up-from-less-than-5-percent-in-2025" target="_blank" rel="noopener">Gartner</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num">62%</div>
+        <div class="label">of organizations are experimenting with or scaling agentic AI; 23% have a system in production.</div>
+        <div class="src"><a href="https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai" target="_blank" rel="noopener">McKinsey, State of AI</a></div>
+      </div>
+      <div class="card stat">
+        <div class="num alt">35%</div>
+        <div class="label">average increase in cloud spend attributed to unmonitored token usage at enterprises using generative AI.</div>
+        <div class="src"><a href="https://www.premai.io/blog/llm-token-cost/" target="_blank" rel="noopener">Deloitte 2025 AI expenditure report, via PremAI</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>What you give up, and how you know</h2>
+    <p>Nothing you didn't agree to. You set an accuracy floor; the optimizer minimizes tokens subject to it and reports the whole tokens-vs-accuracy front on a held-out set the search never saw. In the compression runs the shortest prompts sat 0.02–0.08 F1 below the 97-token original; prompts within 0.03 of it were 14–23 tokens. You choose the operating point — and the number you read is the held-out one, not the training one.</p>
+    <p>Two things compression will not do: it will not rescue a prompt that was wrong to begin with (fix accuracy first, then compress — same loop, different objective), and it will not compress the per-request <em>input</em>; that is what LLMLingua-style tools do, and the two compose.</p>
+    <div class="btns" style="margin-top:24px">
+      <a class="btn primary" href="/example">See a run end to end</a>
+      <a class="btn" href="https://impromptune.com/">Open Impromptune</a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  var ids=['c-calls','c-before','c-after','c-price'], els=ids.map(function(i){return document.getElementById(i)});
+  function fmt(n){return n>=1e6?'$'+(n/1e6).toFixed(2)+'M':n>=1e3?'$'+(n/1e3).toFixed(1)+'k':'$'+n.toFixed(0)}
+  function tok(n){return n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(0)+'M':n>=1e3?(n/1e3).toFixed(0)+'k':String(n)}
+  function calc(){
+    var calls=+els[0].value||0, before=+els[1].value||0, after=+els[2].value||0, price=+els[3].value||0;
+    var saved=Math.max(0,before-after)*calls, usd=saved/1e6*price;
+    document.getElementById('c-month').textContent=fmt(usd);
+    document.getElementById('c-year').textContent=fmt(usd*12);
+    document.getElementById('c-tokens').textContent=tok(saved);
+  }
+  els.forEach(function(e){e.addEventListener('input',calc)}); calc();
+})();
+</script>
+
+<footer>
+  <div class="wrap">
+    <div>promptcompression.ai · a <a href="https://quantecarlo.com/">Quante Carlo</a> site · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://impromptune.com/">Impromptune</a> · <a href="https://quantecarlo.com/">Quante Carlo</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
