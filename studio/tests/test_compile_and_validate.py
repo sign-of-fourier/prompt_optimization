@@ -177,3 +177,37 @@ def test_dataset_parsing_and_mapping():
 def test_minibatch_floor():
     with pytest.raises(ValueError):
         OptimizerSpec(minibatch=2)
+
+
+def test_compress_goal_swaps_reflection_and_records_template_tokens():
+    s = spec(optimizer=OptimizerSpec(goal="compress", rounds=1, minibatch=3, feedback="critic", reflect_model="mock-reflect",
+                                     no_improvement_rounds=None),
+             evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer")],
+                                   objective={"accuracy": 1.0, "template_tokens": -0.002}))
+    task, client = make_task_and_client(s)
+    schedule, stop = build_schedule(s, task)
+    tree = Tree(task)
+    asyncio.run(run(tree, schedule, stop=stop))
+    m = tree.root.evaluation.metrics
+    # every step's template counted (mock tokenizer: chars/4), so more than the entry template alone
+    assert m["template_tokens"] > len("Extract the key fact from: ") / 4 and m["template_tokens"] == round(m["template_tokens"])
+    metas = [p for p in client._mock.calls if "<prompt>" in p and "Feedback:" in p]
+    assert metas and all("SHORTER prompt template" in p and "template tokens:" in p for p in metas)
+    assert all("add concrete rules" not in p for p in metas)
+    critics = [p for p in client._mock.calls if "SHORTER without losing accuracy" in p]
+    assert critics
+    # correct rows count as successes even though the token penalty keeps every row's objective below 1
+    from app.compile import correct_rows_pass
+    passed = correct_rows_pass(s.evaluate.objective)
+    ok = [r for r in tree.root.evaluation.per_example if r.metrics["accuracy"] >= 1.0]
+    assert ok and all(passed(None, r) for r in ok)
+
+
+def test_compress_goal_validation_warns_without_token_penalty():
+    s = spec(optimizer=OptimizerSpec(goal="compress", rounds=1, minibatch=3, reflect_model="mock-reflect"))
+    rep = validate_static(s, ROWS, INPUT_MAP)
+    assert any(i.stage == "optimizer" and "template_tokens" in i.message for i in rep.issues)
+    s = spec(optimizer=OptimizerSpec(goal="compress", rounds=1, minibatch=3, reflect_model="mock-reflect"),
+             evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer")], objective={"accuracy": 1.0, "template_tokens": -0.002}))
+    rep = validate_static(s, ROWS, INPUT_MAP)
+    assert rep.ok and not any(i.stage == "optimizer" for i in rep.issues)

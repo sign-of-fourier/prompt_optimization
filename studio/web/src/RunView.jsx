@@ -22,7 +22,7 @@ export default function RunView({ pid, spec, datasets, mock }) {
       <div className="card">
         <h3>Start a run</h3>
         <div className="row"><select value={did || ''} onChange={e => setDid(e.target.value)} style={{ width: 300 }}><option value="">— dataset —</option>{datasets.map(d => <option key={d.id} value={d.id}>{d.name} ({d.n_rows} rows)</option>)}</select>
-          <button className="primary" disabled={!did} onClick={start}>Run {spec.optimizer.engine.toUpperCase()} · {spec.optimizer.rounds} rounds{mock ? ' (mock)' : ''}</button></div>
+          <button className="primary" disabled={!did} onClick={start}>Run {spec.optimizer.goal === 'compress' ? 'compression' : spec.optimizer.engine.toUpperCase()} · {spec.optimizer.rounds} rounds{mock ? ' (mock)' : ''}</button></div>
         {err && <div className="err">{err}</div>}
         <div className="help">Static validation runs again on start; run the pilot on the Data tab first for a cost projection with measured token counts.</div>
         {cost && <Cost cost={cost} />}
@@ -77,10 +77,56 @@ function Run({ rid, spec, onBack }) {
         <div className="card"><h3>Best so far</h3><Curve hist={hist} band={band} se={rootSE} root={tree.nodes.find(n => n.id === tree.root)} /></div>
         <div className="card"><h3>Tree</h3><Tree tree={tree} onSelect={setSel} sel={sel} /></div>
       </div>
+      {spec.optimizer.goal === 'compress' && <div className="card"><h3>The front: accuracy against template tokens</h3>
+        <Front tree={tree} spec={spec} rows={live.train_rows} onSelect={setSel} sel={sel} /></div>}
       {sel && <NodeDetail rid={rid} nid={sel} tree={tree} spec={spec} />}
       {st.summary && <div className="card"><h3>Summary</h3><div className="kv"><b>stopped</b><span>{st.summary.stopped_because}</span><b>rounds</b><span>{st.summary.rounds}</span><b>seconds</b><span>{Math.round(st.summary.seconds)}</span>
-        {st.summary.holdout && <><b>hold-out metrics (best)</b><span className="mono">{JSON.stringify(st.summary.holdout.best)}</span><b>hold-out metrics (root)</b><span className="mono">{JSON.stringify(st.summary.holdout.root)}</span></>}</div></div>}
+        </div>
+        {st.summary.holdout && <HoldoutTable h={st.summary.holdout} />}</div>}
     </div>
+  )
+}
+
+function HoldoutTable({ h }) {
+  const keys = Object.keys(h.best).filter(k => !k.startsWith('parse_fail.') || h.best[k] || h.root[k])
+  const fmt = v => v == null ? '—' : Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(3)
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="help">Hold-out metrics: the rows the search never saw, root prompt vs best. Objective root {fmt(h.root_score)} → best {fmt(h.best_score)}.</div>
+      <table style={{ marginTop: 4 }}><thead><tr><th>metric</th><th>root</th><th>best</th><th>Δ</th></tr></thead><tbody>
+        {keys.map(k => <tr key={k}><td><code>{k}</code></td><td>{fmt(h.root[k])}</td><td>{fmt(h.best[k])}</td><td className="muted">{h.root[k] == null || h.best[k] == null ? '—' : (h.best[k] - h.root[k] >= 0 ? '+' : '') + fmt(h.best[k] - h.root[k])}</td></tr>)}
+      </tbody></table>
+    </div>
+  )
+}
+
+// Every fully evaluated prompt on the accuracy / template-token plane, root starred, the non-dominated ones joined:
+// the weighted objective picks one point on this line, the exchange rate you set decides which (see Findings).
+function Front({ tree, spec, rows, onSelect, sel }) {
+  const acc = Object.keys(spec.evaluate.objective).find(k => spec.evaluate.objective[k] > 0) || 'accuracy'
+  const pts = tree.nodes.filter(n => n.metrics && n.metrics.template_tokens != null && n.metrics[acc] != null && (!rows || !n.n || n.n >= rows))
+  if (pts.length < 2) return <div className="muted">appears once a rewrite has been fully evaluated</div>
+  const W = 1000, H = 240, P = 36
+  const xsAll = pts.map(p => p.metrics.template_tokens), ysAll = pts.map(p => p.metrics[acc])
+  const xlo = 0, xhi = Math.max(...xsAll) * 1.05, ylo = Math.max(0, Math.min(...ysAll) - 0.05), yhi = Math.min(1.02, Math.max(...ysAll) + 0.03)
+  const xv = t => P + ((t - xlo) / Math.max(1e-9, xhi - xlo)) * (W - 2 * P)
+  const yv = a => H - P - ((a - ylo) / Math.max(1e-9, yhi - ylo)) * (H - 2 * P)
+  const dominated = p => pts.some(q => q !== p && q.metrics.template_tokens <= p.metrics.template_tokens && q.metrics[acc] >= p.metrics[acc] && (q.metrics.template_tokens < p.metrics.template_tokens || q.metrics[acc] > p.metrics[acc]))
+  const front = pts.filter(p => !dominated(p)).sort((a, b) => a.metrics.template_tokens - b.metrics.template_tokens)
+  const path = front.map((p, i) => `${i ? 'L' : 'M'}${xv(p.metrics.template_tokens)},${yv(p.metrics[acc])}`).join(' ')
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => xlo + f * (xhi - xlo))
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', background: '#0a0f1e', borderRadius: 8 }}>
+      {ticks.map(t => <g key={t}><line x1={xv(t)} x2={xv(t)} y1={P} y2={H - P} stroke="#1a2340" /><text x={xv(t)} y={H - P + 14} fill="#9aa6c8" fontSize={10} textAnchor="middle">{Math.round(t)}</text></g>)}
+      {[ylo, yhi].map(a => <text key={a} x={P - 4} y={yv(a) + 3} fill="#9aa6c8" fontSize={10} textAnchor="end">{a.toFixed(2)}</text>)}
+      <path d={path} fill="none" stroke="#5ee3c8" strokeWidth={1.5} strokeDasharray="5 3" />
+      {pts.map(p => <g key={p.id} style={{ cursor: 'pointer' }} onClick={() => onSelect(p.id)}>
+        <circle cx={xv(p.metrics.template_tokens)} cy={yv(p.metrics[acc])} r={sel === p.id ? 7 : 5} fill={dominated(p) ? '#3b4a7a' : '#5ee3c8'} stroke={sel === p.id ? '#e8ecf7' : 'none'} strokeWidth={1.5} />
+        {p.id === tree.root && <text x={xv(p.metrics.template_tokens)} y={yv(p.metrics[acc]) - 9} fill="#ffb454" fontSize={14} textAnchor="middle">★</text>}
+        <title>{p.id}{p.id === tree.root ? ' (root)' : ''} · {acc} {p.metrics[acc].toFixed(3)} · {Math.round(p.metrics.template_tokens)} template tokens</title>
+      </g>)}
+      <text x={W - P} y={12} fill="#9aa6c8" fontSize={10} textAnchor="end">★ root · teal: on the front · grey: a shorter or more accurate prompt exists · template tokens →</text>
+    </svg>
   )
 }
 

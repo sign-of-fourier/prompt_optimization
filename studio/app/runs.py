@@ -82,19 +82,27 @@ class RunManager:
                            "tier": access.tier if access else None, "max_concurrency": client._sem._value})
             flush()
 
+            train_ids = {ex.id for ex in train}
+
+            def best_full(t):
+                """Top score among nodes evaluated on the whole training set. `Tree.best()` also ranks children scored on the
+                check batch only, and five rows can outscore forty; the star in the tree marks those, the headline must not."""
+                full = [n for n in t.evaluated_nodes() if n.evaluation.feasible and set(n.evaluation.dataset_ids) >= train_ids]
+                return max(full, key=lambda n: n.score) if full else None
+
             def on_step(t, r, st):
-                best = t.best()
+                best = best_full(t)
                 status.update({"round": r, "step": st.name, "usage": client.usage.model_dump(), "spent_usd": budget.spent_usd,
                                "best": node_summary(best) if best else None, "nodes": len(t)})
                 proposed = sum(1 for n in t if n.origin.op == "reflect")
-                accepted = sum(1 for n in t if n.origin.op == "reflect" and n.evaluation and set(n.evaluation.dataset_ids) >= {ex.id for ex in train})
+                accepted = sum(1 for n in t if n.origin.op == "reflect" and n.evaluation and set(n.evaluation.dataset_ids) >= train_ids)
                 status["accepted"], status["proposed"] = accepted, proposed
                 status["history"].append({"round": r, "step": st.name, "best": best.score if best else None, "calls": client.usage.calls,
                                           "usd": budget.spent_usd, "nodes": len(t)})
                 flush()
 
             res = await run(tree, schedule, stop=stop, checkpoint=ckpt, on_step=on_step)
-            best = tree.best()
+            best = best_full(tree)
             summary = {"stopped_because": res.stopped_because, "rounds": res.rounds, "seconds": res.seconds, "nodes": len(tree),
                        "best": node_summary(best) if best else None, "root_score": tree.root.score, "usage": client.usage.model_dump(),
                        "spent_usd": budget.spent_usd, "accepted": status.get("accepted"), "proposed": status.get("proposed")}

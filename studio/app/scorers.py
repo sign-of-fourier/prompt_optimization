@@ -7,7 +7,7 @@ import string
 from collections import Counter
 from typing import Any
 
-from bpto import ModelClient, ModelConfig, llm_judge
+from bpto import ModelClient, ModelConfig, Program, llm_judge
 from bpto.scoring import JudgeVerdict
 
 from .models import ScorerSpec
@@ -105,3 +105,23 @@ def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_confi
 def needs_label(spec: ScorerSpec) -> bool:
     """Reference-free scorers: the judge without a reference, and a regex used for presence only."""
     return spec.type != "llm_judge_free" and not (spec.type == "regex" and spec.field is None)
+
+
+def program_template_tokens(name: str = "template_tokens"):
+    """Tokens of the prompt templates themselves (placeholders blanked), summed over every step of a program: the
+    thing compression shrinks, independent of the example. bpto's `template_tokens` counts only the entry template.
+    Counted once per program via the client's tokenizer."""
+    cache: dict[str, int] = {}
+
+    async def _score(prompt, example, completion, ctx):
+        key = prompt.hash
+        if key not in cache:
+            mods = prompt.modules if isinstance(prompt, Program) else {None: prompt}
+            cfgs = ctx.task.config
+            total = 0
+            for mid, p in mods.items():
+                cfg = cfgs.get(mid) if isinstance(cfgs, dict) else cfgs
+                total += await ctx.client.count_tokens(p.template.format(**{ph: "" for ph in p.placeholders}), cfg)
+            cache[key] = total
+        return {name: float(cache[key])}
+    return _score

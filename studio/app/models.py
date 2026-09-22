@@ -65,6 +65,9 @@ class BOSpec(BaseModel):
 
 
 class OptimizerSpec(BaseModel):
+    # "accuracy": GEPA's reflection (add rules that fix the shown failures). "compress": the rewrite is asked for a
+    # SHORTER prompt that keeps the rule preventing the shown failures; pair it with a negative template_tokens weight.
+    goal: Literal["accuracy", "compress"] = "accuracy"
     engine: Literal["gepa", "bo"] = "gepa"
     mode: Literal["weighted", "uniform", "best"] = "weighted"   # expand seat (gepa)
     bo: BOSpec = Field(default_factory=BOSpec)                   # expand seat (bo)

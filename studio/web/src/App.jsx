@@ -12,7 +12,7 @@ const EMPTY = {
   name: 'untitled', modules: [], edges: [], entry: null, max_steps: 8, eval_model: 'us.amazon.nova-micro-v1:0',
   evaluate: { label_column: 'answer', scorers: [{ type: 'exact_match', name: '', field: null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }],
               token_count: true, objective: { accuracy: 1.0 }, pareto: {} },
-  optimizer: { engine: 'gepa', mode: 'weighted', bo: { q: 2, pca: 4, acquisition: 'qei' }, parents_per_round: 1, children: 1, minibatch: 5, rounds: 10,
+  optimizer: { goal: 'accuracy', engine: 'gepa', mode: 'weighted', bo: { q: 2, pca: 4, acquisition: 'qei' }, parents_per_round: 1, children: 1, minibatch: 5, rounds: 10,
                no_improvement_rounds: 4, max_usd: 2.0, max_calls: null, reflect_model: 'us.amazon.nova-lite-v1:0', reflect_temperature: 1.0,
                feedback: 'critic', feedback_template: 'expected: {expected}; model answered: {predicted}; metrics: {metrics}', critic_model: null,
                eval_rows: null, holdout_frac: 0.2, seed: 0 },

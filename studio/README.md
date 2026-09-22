@@ -37,5 +37,11 @@ Live runs read keys from `.env` (`AWS_BEARER_TOKEN_BEDROCK`, `ANTHROPIC_API_KEY`
 - The survive seat (minibatch gate) is shown (accepted / proposed) but not configurable beyond minibatch size (floor 3).
 - Executor metrics (`steps`, `tokens_per_module.*`, `parse_fail.*`) join the metric vector; the objective weighs them.
 - Every run has its own `CompletionCache`, `tree.json` checkpoint, `events.jsonl`, and a `Budget(max_usd)`.
+- The optimizer's goal (`optimizer.goal`) picks the reflection prompt: `accuracy` is bpto's REFLECT_PROMPT (add rules that
+  fix the shown failures; it only ever lengthens a prompt), `compress` is the studio's shorten-and-keep-what-works prompt
+  modelled on bpto `tasks/compression`, with correct rows shown as successes and the template token count in the feedback.
+  `template_tokens` (templates only, summed over every step) is the metric to penalize; a weight alone changes nothing.
+- The run's headline "best" is the top score among nodes evaluated on the whole training set; children scored only on the
+  check batch are starred in the tree and never the headline.
 - The pilot re-evaluates the root with the cache bypassed to measure the non-determinism band, and evaluates one
   random rewrite so a prompt that is flat under rewrites is caught before spend.

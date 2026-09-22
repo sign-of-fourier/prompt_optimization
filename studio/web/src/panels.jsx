@@ -115,7 +115,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
   const term = spec.modules.find(m => !spec.edges.some(e => e.source === m.id))
   const fields = term ? term.schema_fields.map(f => f.name) : []
   const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge' })[sc.type]
-  const metrics = [...ev.scorers.map(metricName), ...(ev.token_count ? ['prompt_tokens', 'output_tokens'] : []), 'steps']
+  const metrics = [...ev.scorers.map(metricName), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
   return (
     <div>
       <div className="row"><h3 className="grow">Evaluate</h3><button className="small" onClick={onClose}>×</button></div>
@@ -136,10 +136,10 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
         </div>
       ))}
       <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }] })}>+ scorer</button>
-      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record prompt / output tokens (to trade accuracy against cost)</label>
+      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over steps), prompt (rendered, with the data) and output</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}
-      <div className="help">Score = Σ weight × metric. Negative weights penalize (e.g. −0.001 × prompt_tokens).</div>
+      <div className="help">Score = Σ weight × metric. A negative weight is an exchange rate: <code>template_tokens</code> −0.002 says 100 tokens are worth 0.2 of accuracy, and the search will make that trade if the rewriter offers it; −0.0005 says 100 tokens are worth 5 points. Pair it with the Optimizer's goal set to Compress (a penalty alone only rejects rewrites; the goal changes what the rewriter is asked for) and read the front on the run page, not just the best score.</div>
     </div>
   )
 }
@@ -154,6 +154,11 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
         <div className="row"><h2 className="grow">Optimizer</h2><button className="small" onClick={onClose}>×</button></div>
         <div className="help">The loop is fixed: pick a prompt from the current best set → show a reflection model a few of its failures → rewrite one step → the rewrite earns a full evaluation only if it beats its parent on the same small batch. These are its knobs.{tier && <> Tier <b>{tier.tier}</b>: up to {tier.max_concurrency} calls in flight, {tier.max_q} parents per round.</>}</div>
         <div className="grid2">
+          <div><label>Goal</label>
+            <select value={o.goal || 'accuracy'} onChange={e => { const goal = e.target.value; update(s => ({ ...s, optimizer: { ...s.optimizer, goal },
+              evaluate: goal === 'compress' && !(s.evaluate.objective.template_tokens < 0) ? { ...s.evaluate, token_count: true, objective: { ...s.evaluate.objective, template_tokens: -0.002 } } : s.evaluate })) }}>
+              <option value="accuracy">Improve accuracy — the rewriter adds rules that fix the failures it is shown</option><option value="compress">Compress — the rewriter is asked for a shorter prompt that keeps the same accuracy</option></select>
+            <div className="help">{(o.goal || 'accuracy') === 'compress' ? 'Reflection keeps whatever rule prevents the shown failures and cuts the rest; correct rows are shown as successes. Needs a negative template_tokens weight on the Evaluate block (set to −0.002 when you picked this; adjust there).' : 'The GEPA loop: each rewrite fixes the failures the reflection model saw.'}</div></div>
           <div><label>Which prompt to rewrite next</label>
             <select value={o.engine} onChange={e => set({ engine: e.target.value })}><option value="gepa">Explore — sample from the best set</option><option value="bo">Guided — a model of past results picks</option></select>
             <div className="help">{o.engine === 'gepa' ? 'Cheap and robust; the default. (GEPA-style Pareto sampling.)' : 'Spends more reflection calls; wins under noisy scores or a weak reflection model, no better on flat tasks. (Bayesian optimization, q-EI over prompt embeddings; see Findings.)'}</div></div>

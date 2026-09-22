@@ -213,9 +213,15 @@ def check_labels(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[
         if sc.type in ("exact_match", "contains", "json_field", "token_f1") and not sc.field and spec.module(_terminal(spec)).schema_fields:
             rep.add("warn", "scorer", f"the terminal module returns structured fields but the scorer compares the whole output; pick a field (e.g. {spec.module(_terminal(spec)).schema_fields[0].name!r})")
     for k in spec.evaluate.objective:
-        known = {S.DEFAULT_NAMES[s.type] if not s.name else s.name for s in spec.evaluate.scorers} | {"prompt_tokens", "output_tokens", "steps", "capped"}
+        known = {S.DEFAULT_NAMES[s.type] if not s.name else s.name for s in spec.evaluate.scorers} | {"prompt_tokens", "output_tokens", "template_tokens", "steps", "capped"}
         if k not in known and not k.startswith(("tokens_per_module.", "parse_fail.")):
             rep.add("error", "scorer", f"objective weighs metric {k!r} which no scorer produces (available: {sorted(known)})")
+    if spec.optimizer.goal == "compress":
+        if not spec.evaluate.token_count:
+            rep.add("error", "optimizer", "goal is compression but token counting is off (Evaluate block)")
+        elif not any(k == "template_tokens" and w < 0 for k, w in spec.evaluate.objective.items()):
+            rep.add("warn", "optimizer", "goal is compression but the objective does not penalize template_tokens; a shorter prompt "
+                                         "cannot win the check batch. Set e.g. template_tokens = -0.002 on the Evaluate block")
     return info
 
 
