@@ -1,6 +1,6 @@
 # promptcompression.ai — full site
 
-Generated 2026-09-20. Index: https://promptcompression.ai/llms.txt
+Generated 2026-09-22. Index: https://promptcompression.ai/llms.txt
 
 
 
@@ -418,15 +418,38 @@ rewrites accepted: the rest lost to their parent on the check batch and were nev
 
  Now look at the hold-out metrics in the summary. Accuracy 1.000 for both root and best — the routing was already right on those 10 rows. But prompt_tokens went from 102.5 to 258.3. The optimizer was told to maximize accuracy and nothing else, so it happily made the prompts two and a half times longer to win the last few training rows.
 
- This is the whole point of putting tokens in the objective. With accuracy: 1.0 alone, longer is free. With accuracy: 1.0, prompt_tokens: −0.002, every added token has to earn its keep, and the run reports the tokens-vs-accuracy front instead of one number. Same canvas, same data, one field on the Evaluate block.
+ This is the whole point of putting tokens in the objective. With accuracy: 1.0 alone, longer is free. With accuracy: 1.0, template_tokens: −0.002, every added token has to earn its keep, and the run reports the tokens-vs-accuracy front instead of one number. Same canvas, same data — and one more switch, because a penalty alone is not enough. Step 5.
 
  5
 
 ### Turn it into compression
 
- Open the Evaluate block and add a weight for prompt_tokens to the objective — negative, small, in the units of your accuracy metric. The studio already records prompt_tokens, output_tokens and per-module token counts on every evaluation; adding the weight tells the optimizer they matter. Then run again from the same root, and read the compressed prompts off each step.
+ Two changes on the same canvas. On the Evaluate block, give template_tokens — the tokens of the prompt templates themselves, summed over both steps, with the ticket text excluded — a weight of −0.002. And under Optimizer ⚙, set the goal to Compress.
 
- A compression walkthrough on this same project, with its own screenshots, is next on this page. For the measured results on a single-prompt task — 97 tokens to 6–29 across 12 seeds — see the [findings](https://promptcompression.ai/findings).
+ The second change matters more than it sounds. The rewriter in the accuracy loop is asked to add rules, strategies and examples that fix the failures it is shown; it only ever makes a prompt longer, and a token penalty on its own just rejects everything it proposes (we tried: three rewrites, none accepted, flat line). With the goal set to Compress it is asked for a shorter prompt that keeps whatever rule prevents the failures shown and cuts the rest, it sees each prompt's token count in the feedback, and correct rows are shown to it as successes rather than as "scored below 1".
+
+ The starting point here is the 276-token pair of prompts the accuracy run produced in step 3 — the bloated winner. Ten rounds, same models, same 40/10 split.
+
+ [figure: A finished compression run: best objective 0.663 on the eval set, hold-out 0.688 against a root of 0.448; the best-so-far curve steps up from 0.37 to 0.66 over ten rounds; the tree shows ten nodes with five of nine rewrites accepted; 470 calls, $0.005.]
+ The compression run. Five of nine rewrites accepted; each accepted node is shorter than its parent.
+
+ 276 → 56
+template tokens, root to best (−80%); rendered prompt tokens per ticket 260 → 109
+
+ 470
+model calls, 104 seconds, $0.005
+
+ 0.925 → 0.775
+accuracy on the 40-row eval set, root to best; hold-out 1.0 → 0.8 on 10 rows
+
+ Read the third number. The run bought 220 tokens with 15 points of training accuracy, and that is the deal we asked for: at −0.002 a token, 100 tokens are worth 0.2 of accuracy, so a much shorter and somewhat worse prompt scores higher than the root. The weight is an exchange rate, not a hint. summarize went from 47 words to "Summarize the request in one line, including urgency and nature if applicable."; route from a seven-rule list to one sentence.
+
+ [figure: The front plot: accuracy against template tokens for every fully evaluated prompt. The 276-token root at 0.925 is starred; a 244-token prompt at 0.9 and the 56-token best at 0.775 are joined as the non-dominated front; three dominated prompts sit below it in grey. Beneath, the hold-out table: accuracy 1.000 to 0.800, template tokens 276 to 56, prompt tokens 259.9 to 108.9.]
+ The front and the hold-out table. Every fully evaluated prompt on the accuracy / tokens plane: ★ the root, teal the non-dominated ones, grey the prompts some other node beats on both axes. The weighted objective picks one point on this line; the weight decides which.
+
+ Report the front, not a number. An earlier run of the same project, same weight, landed on a 106-token prompt at 0.975 — better than the root on both axes — and then kept trading. Which point you get from a scalar objective depends on what the rewriter happens to propose; the front shows every deal the run found, and a gentler rate (−0.0005: 100 tokens for 5 points) keeps the search near the root's accuracy. The [findings](https://promptcompression.ai/findings) page draws the same conclusion from 12 seeds on a single-prompt task.
+
+ Every number above is read from this run's status.json and tree; the screenshots are of the run itself.
 
  [Open Impromptune](https://impromptune.com/)
  [What the tokens are worth](https://promptcompression.ai/business-case)
