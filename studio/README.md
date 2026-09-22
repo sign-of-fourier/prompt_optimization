@@ -16,8 +16,16 @@ app/          FastAPI backend (routes are unprefixed; nginx mounts them at /api/
   datasets.py runs.py auth.py db.py main.py
 web/          React + React Flow canvas (vite); `VITE_STUDIO_BASE=/ npm run build` -> web/dist, served by nginx at impromptune.com
               (default base /studio/ is what `uvicorn app.main:app` serves in dev). Brand strings live in src/brand.js.
+  bundles.py  project bundles: one JSON = spec + dataset + blurb; the examples library, export and import share it
+examples/     the library: checked-in bundles (`GET /examples`, `POST /examples/{slug}/clone`); rows come from sample/
+sample/       the tutorial dataset
 tests/        offline (bpto MockClient), incl. an end-to-end API flow
 ```
+
+To add a library entry: build the project in the studio, Export it, drop the file in `examples/` with a `blurb` and an
+`order`, and replace inline `rows` with `"sample": "<file in sample/>"` if it uses a checked-in dataset. Runs are never
+bundled; "the optimized prompts" is a spec whose templates are them (`GET /projects/{pid}/bundle?run_id=` does that).
+Inline rows are capped at 2 MB; larger datasets export without rows until datasets move to S3.
 
 ## Run locally
 

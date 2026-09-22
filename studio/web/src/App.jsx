@@ -65,8 +65,18 @@ function Workspace({ user, models, onKeys, onLogout }) {
   const [pid, setPid] = useState(null)
   const refresh = useCallback(() => api.get('/projects').then(setProjects), [])
   useEffect(() => { refresh() }, [refresh])
+  const [examples, setExamples] = useState([])
+  const [err, setErr] = useState('')
+  const fileRef = useRef(null)
+  useEffect(() => { api.get('/examples').then(setExamples).catch(() => {}) }, [])
   const create = async () => { const r = await api.post('/projects', { ...EMPTY, name: 'untitled' }); await refresh(); setPid(r.id) }
   const remove = async p => { if (window.confirm(`Delete project "${p.name}" and its datasets and runs?`)) { await api.del(`/projects/${p.id}`); refresh() } }
+  const clone = async ex => { setErr(''); try { const r = await api.post(`/examples/${ex.slug}/clone`); await refresh(); setPid(r.id) } catch (e) { setErr(e.message) } }
+  const importFile = async file => {
+    setErr('')
+    try { const b = JSON.parse(await file.text()); const r = await api.post('/projects/import', b); await refresh(); setPid(r.id) }
+    catch (e) { setErr('import failed: ' + e.message) }
+  }
   if (pid) return <Editor pid={pid} models={models} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
   return (
     <div className="shell">
@@ -74,14 +84,31 @@ function Workspace({ user, models, onKeys, onLogout }) {
         <div className="grow" /><KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button></div>
       <div className="page">
         {!models.house_keys && models.models.length === 0 && <div className="card" style={{ borderColor: 'var(--accent2)' }}><b>Add an endpoint to run anything.</b> Your account runs on your own model credentials. <a href="#" onClick={e => { e.preventDefault(); onKeys() }}>Add one under Endpoints &amp; keys</a>.</div>}
-        <div className="row" style={{ marginBottom: 14 }}><h2 style={{ margin: 0 }}>Projects</h2><div className="grow" /><button className="primary" onClick={create}>New project</button></div>
-        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompt modules), a dataset, and the runs that optimized it.</p>}
+        <div className="row" style={{ marginBottom: 14 }}><h2 style={{ margin: 0 }}>Projects</h2><div className="grow" />
+          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = '' }} />
+          <button title="A project file exported from the studio: program, settings and dataset" onClick={() => fileRef.current.click()}>Import</button>
+          <button className="primary" onClick={create}>New project</button></div>
+        {err && <div className="err">{err}</div>}
+        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompt modules), a dataset, and the runs that optimized it. Start from an example below, or from an empty canvas with the tutorial.</p>}
         {projects.map(p => (
           <div className="card row" key={p.id} style={{ cursor: 'pointer' }} onClick={() => setPid(p.id)}>
             <b>{p.name}</b><span className="muted">updated {new Date(p.updated * 1000).toLocaleString()}</span>
             <div className="grow" /><button className="small" title="Delete project" onClick={e => { e.stopPropagation(); remove(p) }}>Delete</button>
           </div>
         ))}
+        {examples.length > 0 && <>
+          <h3 style={{ margin: '26px 0 4px' }}>Examples</h3>
+          <p className="muted" style={{ margin: '0 0 12px' }}>Ready-made projects, dataset included. Adding one copies it into your projects; edit and run it like your own.</p>
+          <div className="grid2">
+            {examples.map(ex => (
+              <div className="card" key={ex.slug}>
+                <div className="row"><b>{ex.name}</b><span className="pill">{ex.goal === 'compress' ? 'compression' : 'accuracy'}</span></div>
+                <p className="muted" style={{ margin: '6px 0 10px', fontSize: 13 }}>{ex.blurb}</p>
+                <div className="row"><span className="muted" style={{ fontSize: 12 }}>{ex.steps} steps · {ex.rows} rows{ex.dataset ? ` · ${ex.dataset}` : ''}</span><div className="grow" /><button className="small primary" onClick={() => clone(ex)}>Add to my projects</button></div>
+              </div>
+            ))}
+          </div>
+        </>}
       </div>
     </div>
   )
@@ -119,6 +146,11 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
         </div>
         <button data-tut="btn-optimizer" onClick={() => setShowOpt(true)}>Optimizer ⚙</button>
         <button data-tut="btn-tutorial" className={showTut ? 'primary' : ''} onClick={() => setShowTut(true)}>Tutorial</button>
+        <button title="Download this project as a file: the program, its settings and the dataset. Import it on the projects page, here or in another account." onClick={async () => {
+          const b = await api.get(`/projects/${pid}/bundle`)
+          const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(b, null, 1)], { type: 'application/json' }))
+          a.download = (spec.name || 'project').replace(/[^\w.-]+/g, '-') + '.json'; a.click(); URL.revokeObjectURL(a.href)
+        }}>Export</button>
         <div className="grow" /><span className="muted" style={{ fontSize: 12 }}>{saved}{models.mock ? ' · mock mode' : ''}</span>
         <KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button>
       </div>

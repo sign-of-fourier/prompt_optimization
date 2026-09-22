@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, credentials as C, db, runs as R, tiers
+from . import auth, bundles as B, credentials as C, db, runs as R, tiers
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -222,6 +222,50 @@ def delete_project(pid: str, request: Request, user=auth.User):
         con.execute(f"delete from {t} where project_id=?", (pid,))
     con.execute("delete from projects where id=?", (pid,)); con.commit()
     return {"ok": True}
+
+
+# ---- bundles: the examples library, export, import ----------------------------------------
+
+@app.get("/examples")
+def list_examples(user=auth.User):
+    return B.list_examples()
+
+
+@app.post("/examples/{slug}/clone")
+def clone_example(slug: str, request: Request, user=auth.User):
+    b = B.load_example(slug)
+    if b is None:
+        raise HTTPException(404, "no such example")
+    access = _access(request, user)
+    return B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
+                           coerce_models=lambda spec: _coerce_models(spec, access))
+
+
+@app.get("/projects/{pid}/bundle")
+def export_project(pid: str, request: Request, dataset_id: str | None = None, run_id: str | None = None, user=auth.User):
+    """The project as a bundle. `run_id`: use that run's best prompts as the templates. `dataset_id`: which dataset to
+    include (default: the newest)."""
+    p = _project(request, pid, user)
+    con = request.app.state.db
+    d = _dataset(request, dataset_id, user) if dataset_id else db.row(con.execute("select * from datasets where project_id=? order by created desc limit 1", (pid,)).fetchone())
+    templates = None
+    if run_id:
+        r = _run(request, run_id, user)
+        if r["project_id"] != pid or not r.get("summary") or not r["summary"].get("best"):
+            raise HTTPException(400, "that run has no best node for this project")
+        templates = r["summary"]["best"]["modules"]
+    return B.export_bundle(con, p, d, templates=templates).model_dump()
+
+
+@app.post("/projects/import")
+def import_project(b: B.Bundle, request: Request, user=auth.User):
+    if b.bundle > B.FORMAT:
+        raise HTTPException(400, f"bundle format {b.bundle} is newer than this studio understands ({B.FORMAT})")
+    if b.dataset and b.dataset.sample:
+        raise HTTPException(400, "imported bundles must inline their rows")
+    access = _access(request, user)
+    return B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
+                           coerce_models=lambda spec: _coerce_models(spec, access))
 
 
 # ---- datasets ---------------------------------------------------------------------------

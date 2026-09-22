@@ -1,0 +1,125 @@
+{
+ "bundle": 1,
+ "name": "Ticket triage",
+ "blurb": "The tutorial, already built: a message is summarized in one step and routed to a queue in the next; 50 labelled tickets; optimize for accuracy. Ten rounds cost about half a cent on Nova Micro.",
+ "order": 1,
+ "spec": {
+  "name": "Ticket triage",
+  "modules": [
+   {
+    "id": "summarize",
+    "template": "Read this customer message and state in one short line what the customer wants and which product or order it concerns.\n\nMessage: {message}",
+    "description": "summarizes what a customer wants in one line",
+    "schema_fields": [
+     {
+      "name": "summary",
+      "type": "string",
+      "description": "one line",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 512
+   },
+   {
+    "id": "route",
+    "template": "Assign this support request to one queue: billing, shipping, refund, bug, account, or other.\n\nRequest: {summary}",
+    "description": "assigns a support request to a queue",
+    "schema_fields": [
+     {
+      "name": "queue",
+      "type": "string",
+      "description": "",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 256
+   }
+  ],
+  "edges": [
+   {
+    "source": "summarize",
+    "target": "route",
+    "name": "",
+    "mapping": {
+     "summary": "summary"
+    },
+    "default": false
+   }
+  ],
+  "entry": null,
+  "max_steps": 8,
+  "eval_model": "us.amazon.nova-micro-v1:0",
+  "evaluate": {
+   "label_column": "answer",
+   "scorers": [
+    {
+     "type": "exact_match",
+     "name": "",
+     "field": "queue",
+     "normalize": true,
+     "pattern": null,
+     "tolerance": 0.0,
+     "rubric": "",
+     "judge_model": null
+    }
+   ],
+   "token_count": true,
+   "objective": {
+    "accuracy": 1.0
+   },
+   "pareto": {}
+  },
+  "optimizer": {
+   "goal": "accuracy",
+   "engine": "gepa",
+   "mode": "weighted",
+   "bo": {
+    "q": 2,
+    "pca": 4,
+    "acquisition": "qei"
+   },
+   "parents_per_round": 1,
+   "children": 1,
+   "minibatch": 5,
+   "rounds": 10,
+   "no_improvement_rounds": 4,
+   "max_usd": 2.0,
+   "max_calls": null,
+   "reflect_model": "us.amazon.nova-lite-v1:0",
+   "reflect_temperature": 1.0,
+   "feedback": "critic",
+   "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
+   "critic_model": null,
+   "eval_rows": null,
+   "holdout_frac": 0.2,
+   "seed": 0
+  },
+  "mutate": null,
+  "layout": {
+   "step": {
+    "x": 180.25,
+    "y": 253.5
+   },
+   "summarize": {
+    "x": 180.25,
+    "y": 253.5
+   },
+   "route": {
+    "x": 400,
+    "y": 160
+   }
+  }
+ },
+ "dataset": {
+  "name": "tickets.jsonl (sample)",
+  "rows": null,
+  "sample": "tickets.jsonl",
+  "input_map": {
+   "message": "message"
+  },
+  "label_column": "queue",
+  "omitted": null
+ }
+}

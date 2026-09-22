@@ -10,7 +10,7 @@ export const EXAMPLE = {
 // Each step: anchor = data-tut selector to spotlight; tab = tab to switch to; check(spec, ctx) -> done (action steps);
 // action = { label, run(ctx) } does the step for the user. Steps without check are informational.
 export const STEPS = [
-  { title: 'Welcome to the studio', body: 'You will build a small program of prompt steps, attach a labelled dataset, and let the optimizer rewrite the prompts until they score better. The example is support-ticket triage: a message comes in, one step summarizes it, a second step picks the queue. Twelve short steps; skip any time.' },
+  { title: 'Welcome to the studio', body: 'You will build a small program of prompt steps, attach a labelled dataset, and let the optimizer rewrite the prompts until they score better. The example is support-ticket triage: a message comes in, one step summarizes it, a second step picks the queue. Twelve short steps; skip any time. (Prefer to start from the finished thing? The projects page has it under Examples.)' },
   { title: 'Drag a Module onto the canvas', anchor: 'palette-module', tab: 'build',
     body: 'A Module is one prompt step. Press on it in the palette and drop it anywhere on the canvas.',
     check: s => s.modules.length >= 1, action: { label: 'Add it for me', run: ctx => ctx.addModule('summarize', EXAMPLE.summarize, 'summary', 'summarizes what a customer wants in one line') } },

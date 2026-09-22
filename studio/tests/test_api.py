@@ -59,6 +59,25 @@ async def _flow():
             ev = (await c.get(f"/runs/{rid}/events")).json(); assert ev["next"] > 0
             nid = tr["nodes"][-1]["id"]; nd = (await c.get(f"/runs/{rid}/nodes/{nid}")).json(); assert "node" in nd
             r = await c.get(f"/projects/{pid}/cost", params={"dataset_id": did}); assert r.json()["assumptions"]["full_rows"] == 12
+            # bundles: the library lists the checked-in examples; a clone is an ordinary project with its dataset attached
+            ex = (await c.get("/examples")).json()
+            assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress"] and ex[0]["rows"] == 50 and ex[1]["goal"] == "compress"
+            r = await c.post("/examples/ticket-triage/clone"); assert r.status_code == 200, r.text
+            cl = r.json(); assert cl["dataset"]["n_rows"] == 50
+            cp = (await c.get(f"/projects/{cl['id']}")).json()
+            assert cp["name"] == "Ticket triage" and cp["spec"]["layout"]["tutorial"]["dismissed"] and cp["datasets"][0]["label_column"] == "queue"
+            r = await c.post(f"/projects/{cl['id']}/validate", json={"dataset_id": cp["datasets"][0]["id"]}); assert r.json()["ok"], r.json()
+            assert (await c.post("/examples/nope/clone")).status_code == 404
+            r = await c.post("/examples/ticket-triage/clone"); assert r.json()["name"] == "Ticket triage 2"
+            # export with a run's best prompts as the templates, then import: the round trip is a new project with the same rows
+            b = (await c.get(f"/projects/{pid}/bundle", params={"run_id": rid})).json()
+            best = st["summary"]["best"]["modules"]
+            assert {m["id"]: m["template"] for m in b["spec"]["modules"]} == best and len(b["dataset"]["rows"]) == 16 and b["dataset"]["label_column"] == "answer"
+            r = await c.post("/projects/import", json=b); assert r.status_code == 200, r.text
+            ip = (await c.get(f"/projects/{r.json()['id']}")).json()
+            assert ip["name"] == SPEC["name"] + " 2" and ip["datasets"][0]["n_rows"] == 16 and ip["datasets"][0]["input_map"] == b["dataset"]["input_map"]
+            assert (await c.post("/projects/import", json={**b, "bundle": 99})).status_code == 400
+            assert (await c.post("/projects/import", json={**b, "dataset": {**b["dataset"], "rows": None, "sample": "tickets.jsonl"}})).status_code == 400
             # endpoints & keys: a custom OpenAI-compatible endpoint shows its models in the catalog and routes to itself
             os.environ.setdefault("AWS_BEARER_TOKEN_BEDROCK", "test-token")  # house Bedrock key present
             r = await c.get("/models"); assert r.json()["house_keys"] is True and all(m["source"] == "house" for m in r.json()["models"])
