@@ -36,6 +36,18 @@ class EdgeSpec(BaseModel):
     default: bool = False
 
 
+class StepSpec(BaseModel):
+    """An external step on the canvas: not part of the program, never rewritten by the optimizer, declared by a
+    manifest in `studio/steps/`. Its outputs reach prompts as `{<id>_<field>}` placeholders."""
+    id: str
+    manifest: str                  # "records@1.0.0"
+    manifest_sha: str = ""         # filled when a version is published: the pin is the declaration, not the name
+    inputs: dict[str, str] = Field(default_factory=dict)   # step input name -> dataset column
+    credential_id: str | None = None
+    tunables: dict[str, Any] = Field(default_factory=dict)  # declared by the manifest, passed through, not optimized
+    enabled: bool = True
+
+
 ScorerType = Literal["exact_match", "contains", "token_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free"]
 
 
@@ -100,6 +112,7 @@ class OptimizerSpec(BaseModel):
 class ProjectSpec(BaseModel):
     name: str = "untitled"
     modules: list[ModuleSpec]
+    steps: list[StepSpec] = Field(default_factory=list)   # external steps: environment, not program
     edges: list[EdgeSpec] = Field(default_factory=list)
     entry: str | None = None       # None -> first module
     max_steps: int = 8

@@ -157,8 +157,8 @@ function Editor({ pid, models, features, user, onBack, onKeys, onLogout }) {
         <KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button>
       </div>
       <div className="main">
-        {tab === 'build' && <Canvas spec={spec} update={update} models={models.models} />}
-        {tab === 'data' && <DataPanel pid={pid} spec={spec} update={update} datasets={datasets} reload={load} mock={models.mock} />}
+        {tab === 'build' && <Canvas spec={spec} update={update} models={models.models} features={features} datasets={datasets} pid={pid} />}
+        {tab === 'data' && <DataPanel pid={pid} spec={spec} update={update} datasets={datasets} reload={load} mock={models.mock} features={features} />}
         {tab === 'run' && <RunView pid={pid} spec={spec} datasets={datasets} mock={models.mock} features={features} />}
         {tab === 'serve' && <Serving pid={pid} reload={load} />}
       </div>

@@ -62,7 +62,8 @@ async def _flow():
             r = await c.get(f"/projects/{pid}/cost", params={"dataset_id": did}); assert r.json()["assumptions"]["full_rows"] == 12
             # bundles: the library lists the checked-in examples; a clone is an ordinary project with its dataset attached
             ex = (await c.get("/examples")).json()
-            assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress"] and ex[0]["rows"] == 50 and ex[1]["goal"] == "compress"
+            assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement"]
+            assert ex[0]["rows"] == 50 and ex[1]["goal"] == "compress" and ex[2]["rows"] == 120 and ex[2]["steps"] == 1
             r = await c.post("/examples/ticket-triage/clone"); assert r.status_code == 200, r.text
             cl = r.json(); assert cl["dataset"]["n_rows"] == 50
             cp = (await c.get(f"/projects/{cl['id']}")).json()

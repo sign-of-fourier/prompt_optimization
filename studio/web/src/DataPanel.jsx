@@ -3,7 +3,7 @@ import { api } from './api.js'
 import { API } from './brand.js'
 import { placeholders } from './Canvas.jsx'
 
-export default function DataPanel({ pid, spec, update, datasets, reload, mock }) {
+export default function DataPanel({ pid, spec, update, datasets, reload, mock, features = {} }) {
   const [did, setDid] = useState(datasets[0] && datasets[0].id)
   const [ds, setDs] = useState(null)
   const [map, setMap] = useState({})
@@ -73,6 +73,7 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock })
               <div className="row" key={ph} style={{ marginBottom: 4 }}><code style={{ width: 130 }}>{'{' + ph + '}'}</code>
                 <select className="grow" value={map[ph] || ''} onChange={e => setMap({ ...map, [ph]: e.target.value })}><option value="">{seeded ? '— written by an edge (needs a first-visit column)' : '— not mapped'}</option>{ds.columns.map(c => <option key={c}>{c}</option>)}</select></div>
             ))}
+            {features.v0 && (spec.steps || []).filter(x => x.enabled).map(st => <Freeze key={st.id} st={st} ds={ds} did={did} reload={reload} setDid={setDid} />)}
             <label>Label column</label>
             <select value={label || ''} onChange={e => setLabel(e.target.value || null)}><option value="">none (reference-free judge only)</option>{ds.columns.map(c => <option key={c}>{c}</option>)}</select>
             <div className="row" style={{ marginTop: 12 }}>
@@ -92,6 +93,31 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock })
       </div>
       {report && <Report report={report} />}
       {pilot && <Pilot pilot={pilot} cost={cost} spec={spec} />}
+    </div>
+  )
+}
+
+// Evaluation reads a frozen snapshot, so the data has to be fetched onto the rows once. A new dataset, not an edit:
+// the old one is what earlier runs and versions were scored against.
+function Freeze({ st, ds, did, reload, setDid }) {
+  const [busy, setBusy] = useState(false)
+  const [rep, setRep] = useState(null)
+  const [err, setErr] = useState('')
+  const have = ds && ds.columns.some(c => c.startsWith(st.id + '_'))
+  const go = async () => {
+    setBusy(true); setErr(''); setRep(null)
+    try { const d = await api.post(`/datasets/${did}/enrich`, { step_id: st.id }); setRep(d.report); await reload(); setDid(d.id) }
+    catch (e) { setErr(e.message) } finally { setBusy(false) }
+  }
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="row"><b style={{ fontSize: 13 }}>{st.id}</b>
+        {have ? <span className="pill">frozen onto this dataset</span> : <span className="muted" style={{ fontSize: 12 }}>not fetched yet</span>}
+        <div className="grow" /><button className="small" disabled={busy || !did} onClick={go}>{busy ? 'fetching…' : have ? 'Fetch again (new dataset)' : 'Fetch and freeze'}</button></div>
+      {err && <div className="err">{err}</div>}
+      {rep && <div className="help">{rep.calls} calls for {rep.rows} rows ({rep.cached} served from cache) · coverage {Math.round(rep.coverage * 100)}%
+        {rep.missing ? ` · ${rep.missing} with no record` : ''}{rep.failed ? ` · ${rep.failed} failed` : ''} · ${rep.usd.toFixed(4)}
+        {rep.errors && rep.errors.length ? ` · ${rep.errors[0]}` : ''}</div>}
     </div>
   )
 }

@@ -27,12 +27,21 @@ create index if not exists traces_version on traces (version_id, created);
 create table if not exists outcomes (id text primary key, trace_id text not null, project_id text not null, user_id text not null,
     kind text not null, label text, value real, source text not null, note text, created real not null);
 create index if not exists outcomes_trace on outcomes (trace_id, created);
+create table if not exists step_credentials (id text primary key, user_id text not null, label text not null,
+    secret text not null, created real not null);
 """
-JSON_COLS = {"spec", "source", "metrics", "holdout", "inputs", "parsed", "path"}
+# `create table if not exists` cannot add a column to a table that already exists on a running box.
+MIGRATIONS = ["alter table traces add column steps text"]
+JSON_COLS = {"spec", "source", "metrics", "holdout", "inputs", "parsed", "path", "steps"}
 
 
 def init(con) -> None:
     con.executescript(SCHEMA)
+    for m in MIGRATIONS:
+        try:
+            con.execute(m)
+        except Exception:
+            pass  # already applied
     con.commit()
 
 
@@ -119,11 +128,15 @@ def delete_api_key(con, user_id: str, kid: str) -> None:
 def create_trace(con, *, version_id: str, project_id: str, user_id: str, inputs: dict, output: str | None = None,
                  parsed: Any = None, path: list[str] | None = None, metrics: dict | None = None,
                  input_tokens: int | None = None, output_tokens: int | None = None, usd: float | None = None,
-                 latency_s: float | None = None, error: str | None = None) -> str:
+                 latency_s: float | None = None, error: str | None = None, steps: dict | None = None) -> str:
+    """`steps` is what each external step returned for this request. Production calls those live, so without it the
+    answer cannot be explained afterwards: the data that produced it has moved on."""
     tid = db.new_id()
-    con.execute("insert into traces values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    con.execute("insert into traces (id, version_id, project_id, user_id, inputs, output, parsed, path, metrics,"
+                " input_tokens, output_tokens, usd, latency_s, error, created, steps) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (tid, version_id, project_id, user_id, json.dumps(inputs, default=str), output, json.dumps(parsed, default=str),
-                 json.dumps(path or []), json.dumps(metrics or {}), input_tokens, output_tokens, usd, latency_s, error, db.now()))
+                 json.dumps(path or []), json.dumps(metrics or {}), input_tokens, output_tokens, usd, latency_s, error, db.now(),
+                 json.dumps(steps or {}, default=str)))
     con.commit()
     return tid
 
@@ -170,3 +183,29 @@ def labelled_traces(con, project_id: str, user_id: str, *, version_id: str | Non
          + (" and t.version_id=?" if version_id else "") + " order by o.created")
     args = [project_id, user_id, kind] + ([version_id] if version_id else [])
     return [_row(r) for r in con.execute(q, args)]
+
+
+# ---- step credentials ------------------------------------------------------------------------
+# A step credential is a label and a secret - a different shape from a model credential (provider, config, model
+# list), so it gets its own table rather than bending `credentials.py`. The Fernet key is that module's.
+
+def create_step_credential(con, *, user_id: str, label: str, secret: str) -> dict:
+    cid = db.new_id()
+    con.execute("insert into step_credentials values (?,?,?,?,?)", (cid, user_id, label, secret, db.now()))
+    con.commit()
+    return {"id": cid, "label": label, "created": db.now()}
+
+
+def list_step_credentials(con, user_id: str) -> list[dict]:
+    return [{"id": r["id"], "label": r["label"], "created": r["created"]}
+            for r in con.execute("select id, label, created from step_credentials where user_id=? order by created", (user_id,))]
+
+
+def step_secret(con, user_id: str, cid: str) -> str | None:
+    r = con.execute("select secret from step_credentials where id=? and user_id=?", (cid, user_id)).fetchone()
+    return r["secret"] if r else None
+
+
+def delete_step_credential(con, user_id: str, cid: str) -> None:
+    con.execute("delete from step_credentials where id=? and user_id=?", (cid, user_id))
+    con.commit()

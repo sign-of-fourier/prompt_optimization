@@ -1,0 +1,562 @@
+{
+ "C1000": {
+  "customer_id": "C1000",
+  "plan": "pro",
+  "tenure_days": 1016,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 109
+ },
+ "C1001": {
+  "customer_id": "C1001",
+  "plan": "free",
+  "tenure_days": 144,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1002": {
+  "customer_id": "C1002",
+  "plan": "enterprise",
+  "tenure_days": 2122,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 253
+ },
+ "C1003": {
+  "customer_id": "C1003",
+  "plan": "pro",
+  "tenure_days": 261,
+  "open_tickets": 4,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1004": {
+  "customer_id": "C1004",
+  "plan": "enterprise",
+  "tenure_days": 137,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 193
+ },
+ "C1005": {
+  "customer_id": "C1005",
+  "plan": "pro",
+  "tenure_days": 789,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1006": {
+  "customer_id": "C1006",
+  "plan": "pro",
+  "tenure_days": 1372,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 218
+ },
+ "C1007": {
+  "customer_id": "C1007",
+  "plan": "pro",
+  "tenure_days": 457,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1008": {
+  "customer_id": "C1008",
+  "plan": "pro",
+  "tenure_days": 246,
+  "open_tickets": 3,
+  "contract": true,
+  "renewal_days": 80
+ },
+ "C1009": {
+  "customer_id": "C1009",
+  "plan": "enterprise",
+  "tenure_days": 721,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 266
+ },
+ "C1010": {
+  "customer_id": "C1010",
+  "plan": "enterprise",
+  "tenure_days": 317,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 129
+ },
+ "C1011": {
+  "customer_id": "C1011",
+  "plan": "pro",
+  "tenure_days": 996,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 212
+ },
+ "C1012": {
+  "customer_id": "C1012",
+  "plan": "free",
+  "tenure_days": 1028,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1013": {
+  "customer_id": "C1013",
+  "plan": "enterprise",
+  "tenure_days": 2198,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 170
+ },
+ "C1014": {
+  "customer_id": "C1014",
+  "plan": "enterprise",
+  "tenure_days": 1220,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 296
+ },
+ "C1015": {
+  "customer_id": "C1015",
+  "plan": "enterprise",
+  "tenure_days": 70,
+  "open_tickets": 3,
+  "contract": true,
+  "renewal_days": 308
+ },
+ "C1016": {
+  "customer_id": "C1016",
+  "plan": "enterprise",
+  "tenure_days": 254,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 137
+ },
+ "C1017": {
+  "customer_id": "C1017",
+  "plan": "enterprise",
+  "tenure_days": 1746,
+  "open_tickets": 4,
+  "contract": true,
+  "renewal_days": 304
+ },
+ "C1018": {
+  "customer_id": "C1018",
+  "plan": "pro",
+  "tenure_days": 181,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1019": {
+  "customer_id": "C1019",
+  "plan": "enterprise",
+  "tenure_days": 314,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 66
+ },
+ "C1020": {
+  "customer_id": "C1020",
+  "plan": "enterprise",
+  "tenure_days": 1184,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 242
+ },
+ "C1021": {
+  "customer_id": "C1021",
+  "plan": "pro",
+  "tenure_days": 748,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 135
+ },
+ "C1022": {
+  "customer_id": "C1022",
+  "plan": "enterprise",
+  "tenure_days": 1953,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 261
+ },
+ "C1023": {
+  "customer_id": "C1023",
+  "plan": "free",
+  "tenure_days": 1442,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1024": {
+  "customer_id": "C1024",
+  "plan": "free",
+  "tenure_days": 1667,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1025": {
+  "customer_id": "C1025",
+  "plan": "free",
+  "tenure_days": 587,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1026": {
+  "customer_id": "C1026",
+  "plan": "pro",
+  "tenure_days": 120,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 149
+ },
+ "C1027": {
+  "customer_id": "C1027",
+  "plan": "pro",
+  "tenure_days": 1762,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1028": {
+  "customer_id": "C1028",
+  "plan": "free",
+  "tenure_days": 1436,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1029": {
+  "customer_id": "C1029",
+  "plan": "pro",
+  "tenure_days": 1429,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 293
+ },
+ "C1030": {
+  "customer_id": "C1030",
+  "plan": "pro",
+  "tenure_days": 707,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 53
+ },
+ "C1031": {
+  "customer_id": "C1031",
+  "plan": "enterprise",
+  "tenure_days": 1668,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 265
+ },
+ "C1032": {
+  "customer_id": "C1032",
+  "plan": "free",
+  "tenure_days": 942,
+  "open_tickets": 3,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1033": {
+  "customer_id": "C1033",
+  "plan": "free",
+  "tenure_days": 115,
+  "open_tickets": 4,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1034": {
+  "customer_id": "C1034",
+  "plan": "free",
+  "tenure_days": 1725,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1035": {
+  "customer_id": "C1035",
+  "plan": "enterprise",
+  "tenure_days": 1330,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 49
+ },
+ "C1036": {
+  "customer_id": "C1036",
+  "plan": "pro",
+  "tenure_days": 1776,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1037": {
+  "customer_id": "C1037",
+  "plan": "pro",
+  "tenure_days": 956,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1038": {
+  "customer_id": "C1038",
+  "plan": "free",
+  "tenure_days": 281,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1039": {
+  "customer_id": "C1039",
+  "plan": "free",
+  "tenure_days": 1417,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1040": {
+  "customer_id": "C1040",
+  "plan": "free",
+  "tenure_days": 573,
+  "open_tickets": 1,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1041": {
+  "customer_id": "C1041",
+  "plan": "enterprise",
+  "tenure_days": 1235,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 266
+ },
+ "C1042": {
+  "customer_id": "C1042",
+  "plan": "enterprise",
+  "tenure_days": 1413,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 249
+ },
+ "C1043": {
+  "customer_id": "C1043",
+  "plan": "free",
+  "tenure_days": 1975,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1044": {
+  "customer_id": "C1044",
+  "plan": "enterprise",
+  "tenure_days": 1218,
+  "open_tickets": 3,
+  "contract": true,
+  "renewal_days": 76
+ },
+ "C1045": {
+  "customer_id": "C1045",
+  "plan": "enterprise",
+  "tenure_days": 1286,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 280
+ },
+ "C1046": {
+  "customer_id": "C1046",
+  "plan": "pro",
+  "tenure_days": 1444,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1047": {
+  "customer_id": "C1047",
+  "plan": "free",
+  "tenure_days": 1575,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1048": {
+  "customer_id": "C1048",
+  "plan": "pro",
+  "tenure_days": 1864,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 330
+ },
+ "C1049": {
+  "customer_id": "C1049",
+  "plan": "free",
+  "tenure_days": 1152,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1050": {
+  "customer_id": "C1050",
+  "plan": "pro",
+  "tenure_days": 1110,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 233
+ },
+ "C1051": {
+  "customer_id": "C1051",
+  "plan": "pro",
+  "tenure_days": 900,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 213
+ },
+ "C1052": {
+  "customer_id": "C1052",
+  "plan": "free",
+  "tenure_days": 742,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1053": {
+  "customer_id": "C1053",
+  "plan": "free",
+  "tenure_days": 997,
+  "open_tickets": 2,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1054": {
+  "customer_id": "C1054",
+  "plan": "free",
+  "tenure_days": 1118,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1055": {
+  "customer_id": "C1055",
+  "plan": "pro",
+  "tenure_days": 592,
+  "open_tickets": 4,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1056": {
+  "customer_id": "C1056",
+  "plan": "pro",
+  "tenure_days": 1253,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1057": {
+  "customer_id": "C1057",
+  "plan": "enterprise",
+  "tenure_days": 917,
+  "open_tickets": 1,
+  "contract": true,
+  "renewal_days": 275
+ },
+ "C1058": {
+  "customer_id": "C1058",
+  "plan": "pro",
+  "tenure_days": 1372,
+  "open_tickets": 4,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1059": {
+  "customer_id": "C1059",
+  "plan": "pro",
+  "tenure_days": 283,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 265
+ },
+ "C1060": {
+  "customer_id": "C1060",
+  "plan": "free",
+  "tenure_days": 1971,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1061": {
+  "customer_id": "C1061",
+  "plan": "free",
+  "tenure_days": 682,
+  "open_tickets": 4,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1062": {
+  "customer_id": "C1062",
+  "plan": "free",
+  "tenure_days": 2116,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1063": {
+  "customer_id": "C1063",
+  "plan": "enterprise",
+  "tenure_days": 1791,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 46
+ },
+ "C1064": {
+  "customer_id": "C1064",
+  "plan": "enterprise",
+  "tenure_days": 1656,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 116
+ },
+ "C1065": {
+  "customer_id": "C1065",
+  "plan": "enterprise",
+  "tenure_days": 855,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 154
+ },
+ "C1066": {
+  "customer_id": "C1066",
+  "plan": "free",
+  "tenure_days": 450,
+  "open_tickets": 0,
+  "contract": false,
+  "renewal_days": 0
+ },
+ "C1067": {
+  "customer_id": "C1067",
+  "plan": "pro",
+  "tenure_days": 812,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 52
+ },
+ "C1068": {
+  "customer_id": "C1068",
+  "plan": "enterprise",
+  "tenure_days": 1426,
+  "open_tickets": 0,
+  "contract": true,
+  "renewal_days": 330
+ },
+ "C1069": {
+  "customer_id": "C1069",
+  "plan": "pro",
+  "tenure_days": 237,
+  "open_tickets": 2,
+  "contract": true,
+  "renewal_days": 124
+ }
+}

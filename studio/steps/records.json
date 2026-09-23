@@ -1,0 +1,26 @@
+{
+  "step": 1,
+  "id": "records",
+  "version": "1.0.0",
+  "name": "Customer records",
+  "blurb": "Look a customer up by id: plan, tenure, open tickets, contract status and days to renewal.",
+  "transport": { "kind": "http", "method": "POST", "url": "http://127.0.0.1:8200/records", "timeout_s": 5.0, "retries": 1 },
+  "auth": { "kind": "bearer" },
+  "missing": { "status": 404, "means": "no record for that id" },
+  "inputs": [
+    { "name": "customer_id", "type": "string", "required": true, "description": "the customer's id on the ticket" }
+  ],
+  "outputs": [
+    { "name": "plan", "type": "string", "enum": ["free", "pro", "enterprise"] },
+    { "name": "tenure_days", "type": "number" },
+    { "name": "open_tickets", "type": "number" },
+    { "name": "contract", "type": "boolean" },
+    { "name": "renewal_days", "type": "number" }
+  ],
+  "cacheable": true,
+  "cache_key": ["customer_id"],
+  "price_usd_per_call": 0.0002,
+  "tunables": [
+    { "name": "include_history", "type": "boolean", "default": false, "description": "declared, not optimized in v0" }
+  ]
+}

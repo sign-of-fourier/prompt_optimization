@@ -249,6 +249,35 @@ The generic step API from the strategy doc, and the abstraction discussed for RA
 - **Done when:** an external step runs inside a scored pipeline, its metrics appear in the metric vector, its
   results cache, and a deliberate failure marks one row bad without ending the run.
 
+**Result (2026-09-23).** Built, same flag, 20 tests. `app/steps.py` is the manifest, the transport and enrichment;
+`app/step_validation.py` is the four-tier check; `steps/records/` is the demo endpoint, in its own process on its
+own port with its own key. A step is declared in `ProjectSpec.steps`, pinned by `manifest_sha` in a version, and
+`versions.BEHAVIOUR` picks it up so the fingerprint moves when a step changes - the free extension Piece 1
+predicted.
+
+**The run loop needed no changes at all**, which is the payoff of freezing: enrichment materialises onto the dataset
+as ordinary columns, so evaluation is exactly what it was. Serving calls the step live and records what it returned
+on the trace. `bpto` needed no changes either - pre-program placement never touches its executor.
+
+Two things worth keeping:
+
+- **A marginal signal test is not enough, and the entitlement case proved it.** Written one field at a time, the
+  check reported "rec_plan does not predict the label better than chance (p=0.47)" - about the field the whole case
+  depends on. The label is a function of the ticket text *and* the record together, and a single-field test cannot
+  see an interaction. The fix is a joint test over the step's fields (45% against a 17% baseline, p=0.005) with the
+  per-field result demoted to `info`. A check that confidently says "delete this" about the load-bearing field is
+  worse than no check.
+- **Enrichment is single-flight.** Rows are fetched concurrently, so the cache has to hold a promise per key, not a
+  result; otherwise a hundred tickets from twenty customers make a hundred calls. 120 rows, 60 distinct customers,
+  60 calls.
+
+The demo dataset states its own headline: **accuracy ceiling without the record is 83%, with it 100%**, computed
+from the labelling rule rather than asserted. The run that measures whether optimization reaches it is the one real
+spend, about three cents for the pair, and it has not been run.
+
+Asterisks unchanged from EXTERNAL-STEPS.md §14, plus: the records service runs under its own systemd unit
+(`deploy/records.service`) on loopback, so its latency is honest-ish (60-120ms injected) but not WAN.
+
 ### Piece 5 — A label source
 
 The step where products like this die. Prove it early, on one connector.

@@ -178,7 +178,7 @@ of them. Ask it for a deliberately unknown id and record the answer as part of t
 | **Coverage** — fraction of rows that get a record at all | 40% empty means the joint rule is unlearnable for those rows, and you should know before spending | error below a floor, else warn |
 | **Stability** — call the same key twice, compare | if it differs, caching is invalid and evaluation is not reproducible | error |
 | **Freshness skew** — frozen snapshot vs live for the same keys | how much has moved, and how old the snapshot is: §5's alert as a number | warn |
-| **Signal** — does each field reduce label entropy against the majority-class baseline, permutation-tested | a field unrelated to the label is decorative, proven for zero tokens | warn |
+| **Signal** — each field against the majority-class baseline, permutation-tested, **and all of the step's fields together** | a step that carries nothing is decorative, proven for zero tokens. The joint test is not optional: see below | info per field, warn only if the joint test also finds nothing |
 | **Degeneracy** — constant across all rows, or unique per row | carries no information and burns tokens on every call | warn |
 | **Leakage** — one field predicts the label almost perfectly | usually the answer smuggled in (someone enriched with `assigned_queue`) | error |
 | **Payload waste** — outputs no prompt references | paying for data nobody reads, possibly personal | warn |

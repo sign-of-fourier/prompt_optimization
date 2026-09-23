@@ -88,6 +88,11 @@ def check_mapping(spec: ProjectSpec, dataset_columns: list[str], input_map: dict
     """Every placeholder of every module must be satisfiable on its first visit: from a mapped dataset column or from
     a field mapped on an incoming edge that is reached before it. Loop-back edges do not count for the first visit."""
     mapped_inputs = set(input_map)
+    if spec.steps:
+        # an external step's outputs arrive as frozen columns; whether this dataset actually carries them is
+        # `step_validation.check_frozen`'s job, and saying "no source" here as well would just be noise
+        from .steps import provided
+        mapped_inputs |= set(provided(spec))
     for ph, col in input_map.items():
         if col not in dataset_columns:
             rep.add("error", "mapping", f"placeholder {{{ph}}} is mapped to column {col!r}, which the dataset does not have", where=ph)
@@ -364,4 +369,12 @@ def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: di
     cols = columns(rows)
     check_mapping(spec, cols, input_map, rep)
     rep.summary.update(check_labels(spec, rows, input_map, rep))
+    if spec.steps:
+        # external steps: the wiring (tier 0), then arithmetic over the frozen columns (tier 2). No model calls.
+        from .step_validation import age_note, check_coverage, check_frozen, check_signal, check_steps
+        check_steps(spec, cols, rep)
+        check_frozen(spec, cols, rep)
+        check_coverage(spec, rows, rep)
+        check_signal(spec, rows, spec.evaluate.label_column, rep)
+        age_note(spec, rows, rep)
     return rep

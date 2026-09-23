@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { api } from './api.js'
 import { placeholders } from './Canvas.jsx'
 
 const TYPES = ['string', 'number', 'boolean', 'string[]']
@@ -199,6 +200,76 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
         </div>
         <div className="row" style={{ marginTop: 16 }}><button className="primary" onClick={onClose}>Done</button></div>
       </div>
+    </div>
+  )
+}
+
+
+// An external step: what it is, what it needs from the row, what it gives the prompts. Nothing here rewrites the
+// step - that is the point of it - so the panel is about wiring and trust, not about content.
+export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose }) {
+  const st = (spec.steps || []).find(x => x.id === id)
+  const [creds, setCreds] = useState([])
+  const [secret, setSecret] = useState('')
+  const [probe, setProbe] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { api.get('/step-credentials').then(setCreds).catch(() => {}) }, [])
+  if (!st) return null
+  const man = manifests.find(m => m.ref === st.manifest) || manifests.find(m => m.id === st.manifest.split('@')[0])
+  const cols = (datasets[0] && datasets[0].columns) || []
+  const set = patch => update(s => ({ ...s, steps: s.steps.map(x => x.id === id ? { ...x, ...patch } : x) }))
+  const addCred = async () => {
+    if (!secret.trim()) return
+    const c = await api.post('/step-credentials', { label: st.id + ' key', secret })
+    setSecret(''); setCreds(await api.get('/step-credentials')); set({ credential_id: c.id })
+  }
+  const runProbe = async () => {
+    setBusy(true); setProbe(null)
+    try { setProbe(await api.post(`/projects/${pid}/steps/${id}/probe`, { dataset_id: datasets[0] && datasets[0].id })) }
+    catch (e) { setProbe({ ok: false, error: e.message }) } finally { setBusy(false) }
+  }
+  return (
+    <div>
+      <div className="row"><h3 className="grow" style={{ margin: 0 }}>Step · {st.id}</h3><button className="small" onClick={onClose}>×</button></div>
+      <div className="help">Not part of the program: the optimizer never rewrites it. It runs once per row before
+        the prompts, and its answers are frozen onto the dataset — production calls it live instead.</div>
+
+      <label>Manifest</label>
+      <select value={st.manifest} onChange={e => set({ manifest: e.target.value, manifest_sha: '' })}>
+        {manifests.map(m => <option key={m.ref} value={m.ref}>{m.name} · {m.ref}</option>)}
+        {!man && <option value={st.manifest}>{st.manifest} (not installed here)</option>}
+      </select>
+      {man && <div className="help">{man.blurb}{man.price_usd_per_call ? ` · $${man.price_usd_per_call} per call` : ''}{man.cacheable ? ' · cacheable' : ''}</div>}
+
+      <label>What it needs from each row</label>
+      {man && man.inputs.map(i => (
+        <div className="row" key={i} style={{ marginBottom: 4 }}><code style={{ width: 120 }}>{i}</code>
+          <select className="grow" value={st.inputs[i] || ''} onChange={e => set({ inputs: { ...st.inputs, [i]: e.target.value } })}>
+            <option value="">— not mapped</option>{cols.map(c => <option key={c}>{c}</option>)}</select></div>
+      ))}
+
+      <label>What the prompts can then use</label>
+      <div className="chips">{man ? man.outputs.map(o => <span className="chip" key={o}>{'{' + st.id + '_' + o + '}'}</span>) : <span className="muted">unknown manifest</span>}</div>
+      <div className="help">Paste one of these into a prompt to use it. Fields no prompt mentions are still fetched
+        and still cost - the optimizer will happily drop the ones that do not change the answer.</div>
+
+      <label>Credential</label>
+      <select value={st.credential_id || ''} onChange={e => set({ credential_id: e.target.value || null })}>
+        <option value="">— none —</option>{creds.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+      <div className="row" style={{ marginTop: 6 }}><input type="password" placeholder="paste a key to add one" value={secret} onChange={e => setSecret(e.target.value)} />
+        <button className="small" onClick={addCred}>Add</button></div>
+
+      <div className="row" style={{ marginTop: 12 }}>
+        <button disabled={busy} onClick={runProbe}>{busy ? 'testing…' : 'Test this step'}</button>
+        <label className="row" style={{ margin: 0 }}><input type="checkbox" checked={st.enabled} onChange={e => set({ enabled: e.target.checked })} style={{ width: 'auto' }} /> enabled</label>
+      </div>
+      {probe && <div className={'issue ' + (probe.ok ? 'info' : 'error')} style={{ marginTop: 8 }}><span className="lvl">{probe.ok ? 'ok' : 'error'}</span>
+        <div>{probe.ok
+          ? <>Answered in {Math.round(probe.latency_s * 1000)} ms{probe.found ? '' : ' (no record for that id)'}.
+              <div className="mono" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{JSON.stringify(probe.returned)}</div>
+              <div className="where">unknown id → {probe.missing_behaviour}</div></>
+          : probe.error}</div></div>}
+      <div className="help" style={{ marginTop: 10 }}>Fetch the data onto a dataset from the <b>Data &amp; validation</b> tab.</div>
     </div>
   )
 }

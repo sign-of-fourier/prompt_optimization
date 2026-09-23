@@ -45,6 +45,10 @@ pre{background:#0a0f1e;border:1px solid var(--line);border-radius:8px;padding:10
 .node.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(94,227,200,.25)}
 .node.orch{border-color:var(--accent2)}
 .node.eval{border-style:dashed}
+/* an external step is environment, not program: square, muted, visibly a different kind of thing */
+.node.step{border-radius:3px;border-style:dashed;border-color:var(--accent2);background:#0d1326}
+.node.step .kind{color:var(--accent2)}
+.node.step.off{opacity:.5;border-color:var(--line)}
 .node .kind{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
 .node .kind.orch{color:var(--accent2)}
 .node .title{font-weight:600;margin:2px 0 4px}

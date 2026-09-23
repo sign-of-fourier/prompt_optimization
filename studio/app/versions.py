@@ -4,9 +4,9 @@ A version is a fully pinned snapshot - spec + prompt templates + concrete model 
 + the score it earned - created by promoting a run's node or the current canvas. It is never edited: `store.py`
 has no update statement, and re-fetching a version returns the same prompts that earned its score.
 
-What is *not* pinned yet, and must be by the time it matters: external-step ids and versions (Piece 4 - a manifest
-id per external node goes in `spec` the same way a model id does), and the dataset's content hash rather than its
-id (a dataset is mutable today: its rows file can be replaced under the same id).
+External steps are pinned by `manifest_sha`, taken at publish time: the pin is the declaration itself, not the name
+and version string, which can move under it. Still not pinned: the dataset's content hash rather than its id (a
+dataset is mutable today - its rows file can be replaced under the same id).
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .models import ProjectSpec
 
 # The behavioural part of a spec: two versions with the same fingerprint execute identically. Deliberately excludes
 # name, layout and the optimizer block - those describe how the version was produced, not what it does at serve time.
-BEHAVIOUR = ("modules", "edges", "entry", "max_steps", "eval_model", "evaluate")
+BEHAVIOUR = ("modules", "steps", "edges", "entry", "max_steps", "eval_model", "evaluate")
 
 
 def pin(spec: ProjectSpec, templates: dict[str, str] | None = None) -> ProjectSpec:
@@ -33,6 +33,10 @@ def pin(spec: ProjectSpec, templates: dict[str, str] | None = None) -> ProjectSp
         if sc.judge_model is None and sc.type.startswith("llm_judge"):
             sc.judge_model = s.eval_model
     s.optimizer.critic_model = s.optimizer.critic_model or s.optimizer.reflect_model
+    for st in s.steps:
+        m = __import__("app.steps", fromlist=["load_manifest"]).load_manifest(st.manifest)
+        if m is not None:
+            st.manifest, st.manifest_sha = m.ref, m.sha()   # freeze the declaration, not just its name
     s.layout = {}  # canvas positions are not part of what runs
     return s
 

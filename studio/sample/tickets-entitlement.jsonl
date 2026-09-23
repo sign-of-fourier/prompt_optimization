@@ -1,0 +1,120 @@
+{"ticket_id": "T2000", "message": "Timestamps are showing in the wrong timezone across the inbox.", "customer_id": "C1054", "queue": "bug"}
+{"ticket_id": "T2001", "message": "I missed the delivery. How do I arrange redelivery?", "customer_id": "C1026", "queue": "shipping"}
+{"ticket_id": "T2002", "message": "The VAT on invoice 8238 looks wrong for our country.", "customer_id": "C1014", "queue": "billing"}
+{"ticket_id": "T2003", "message": "Half of order 9468 arrived - where is the rest?", "customer_id": "C1043", "queue": "shipping"}
+{"ticket_id": "T2004", "message": "Do you have a student discount?", "customer_id": "C1060", "queue": "other"}
+{"ticket_id": "T2005", "message": "The VAT on invoice 3763 looks wrong for our country.", "customer_id": "C1017", "queue": "billing"}
+{"ticket_id": "T2006", "message": "Order 6294 never showed up. Please refund me.", "customer_id": "C1019", "queue": "refund"}
+{"ticket_id": "T2007", "message": "My invoice shows 33 seats but we only have 5.", "customer_id": "C1063", "queue": "billing"}
+{"ticket_id": "T2008", "message": "Do you offer training for new teams?", "customer_id": "C1069", "queue": "other"}
+{"ticket_id": "T2009", "message": "The keyboard broke after a week. I want a refund, not a replacement.", "customer_id": "C1040", "queue": "refund"}
+{"ticket_id": "T2010", "message": "Please add 21 more users to our workspace.", "customer_id": "C1025", "queue": "account"}
+{"ticket_id": "T2011", "message": "Please add 34 more users to our workspace.", "customer_id": "C1011", "queue": "account"}
+{"ticket_id": "T2012", "message": "Can I get order 8444 sent express instead?", "customer_id": "C1020", "queue": "shipping"}
+{"ticket_id": "T2013", "message": "I was charged twice for order 8925 this month.", "customer_id": "C1030", "queue": "billing"}
+{"ticket_id": "T2014", "message": "Can you merge these two accounts we created by mistake?", "customer_id": "C1048", "queue": "account"}
+{"ticket_id": "T2015", "message": "The standing desk broke after a week. I want a refund, not a replacement.", "customer_id": "C1035", "queue": "retention"}
+{"ticket_id": "T2016", "message": "the API has been returning a 500 error since yesterday.", "customer_id": "C1015", "queue": "escalation"}
+{"ticket_id": "T2017", "message": "The dashboard shows last week's numbers and will not refresh.", "customer_id": "C1015", "queue": "escalation"}
+{"ticket_id": "T2018", "message": "I was charged twice for order 6214 this month.", "customer_id": "C1020", "queue": "billing"}
+{"ticket_id": "T2019", "message": "This is not what was demoed to us. We would like our money back.", "customer_id": "C1032", "queue": "refund"}
+{"ticket_id": "T2020", "message": "Can I change the delivery address on order 8630?", "customer_id": "C1002", "queue": "shipping"}
+{"ticket_id": "T2021", "message": "the billing page has been returning a 500 error since yesterday.", "customer_id": "C1064", "queue": "escalation"}
+{"ticket_id": "T2022", "message": "My invoice shows 29 seats but we only have 6.", "customer_id": "C1062", "queue": "billing"}
+{"ticket_id": "T2023", "message": "Please remove a former employee's access immediately.", "customer_id": "C1000", "queue": "account"}
+{"ticket_id": "T2024", "message": "Can I change the delivery address on order 7871?", "customer_id": "C1061", "queue": "shipping"}
+{"ticket_id": "T2025", "message": "The VAT on invoice 3278 looks wrong for our country.", "customer_id": "C1021", "queue": "billing"}
+{"ticket_id": "T2026", "message": "Item arrived three weeks late so I no longer need it. Refund please.", "customer_id": "C1038", "queue": "refund"}
+{"ticket_id": "T2027", "message": "Notifications stopped arriving after the latest update.", "customer_id": "C1004", "queue": "escalation"}
+{"ticket_id": "T2028", "message": "I need to reset my password but the email never arrives.", "customer_id": "C1064", "queue": "account"}
+{"ticket_id": "T2029", "message": "Order 4626 never showed up. Please refund me.", "customer_id": "C1058", "queue": "refund"}
+{"ticket_id": "T2030", "message": "My invoice shows 23 seats but we only have 6.", "customer_id": "C1069", "queue": "billing"}
+{"ticket_id": "T2031", "message": "The VAT on invoice 8398 looks wrong for our country.", "customer_id": "C1041", "queue": "billing"}
+{"ticket_id": "T2032", "message": "Is there an API for the inbox?", "customer_id": "C1046", "queue": "other"}
+{"ticket_id": "T2033", "message": "Order 4003 never showed up. Please refund me.", "customer_id": "C1047", "queue": "refund"}
+{"ticket_id": "T2034", "message": "Is there an API for the admin panel?", "customer_id": "C1013", "queue": "other"}
+{"ticket_id": "T2035", "message": "The standing desk does not fit. How do I return it for a refund?", "customer_id": "C1063", "queue": "retention"}
+{"ticket_id": "T2036", "message": "Half of order 3465 arrived - where is the rest?", "customer_id": "C1007", "queue": "shipping"}
+{"ticket_id": "T2037", "message": "Uploading a file over 10MB fails silently every time.", "customer_id": "C1039", "queue": "bug"}
+{"ticket_id": "T2038", "message": "Please add 33 more users to our workspace.", "customer_id": "C1044", "queue": "account"}
+{"ticket_id": "T2039", "message": "Please add 28 more users to our workspace.", "customer_id": "C1039", "queue": "account"}
+{"ticket_id": "T2040", "message": "Is the API available in Spanish?", "customer_id": "C1011", "queue": "other"}
+{"ticket_id": "T2041", "message": "The tracking number for my keyboard has not updated in a week.", "customer_id": "C1041", "queue": "shipping"}
+{"ticket_id": "T2042", "message": "The jacket broke after a week. I want a refund, not a replacement.", "customer_id": "C1035", "queue": "retention"}
+{"ticket_id": "T2043", "message": "Is there an API for the billing page?", "customer_id": "C1069", "queue": "other"}
+{"ticket_id": "T2044", "message": "Two-factor codes never arrive, so I am locked out of the API.", "customer_id": "C1045", "queue": "bug"}
+{"ticket_id": "T2045", "message": "Please switch our billing contact to our finance team.", "customer_id": "C1009", "queue": "billing"}
+{"ticket_id": "T2046", "message": "Is the admin panel available in Spanish?", "customer_id": "C9818", "queue": "other"}
+{"ticket_id": "T2047", "message": "Please refund order 6977, I bought the same thing elsewhere.", "customer_id": "C1067", "queue": "retention"}
+{"ticket_id": "T2048", "message": "Is there an API for the mobile app?", "customer_id": "C1054", "queue": "other"}
+{"ticket_id": "T2049", "message": "Please add 38 more users to our workspace.", "customer_id": "C1046", "queue": "account"}
+{"ticket_id": "T2050", "message": "Please add 36 more users to our workspace.", "customer_id": "C1023", "queue": "account"}
+{"ticket_id": "T2051", "message": "Can you send a copy of last quarter's invoices?", "customer_id": "C1010", "queue": "billing"}
+{"ticket_id": "T2052", "message": "The parcel arrived damaged - the box was crushed.", "customer_id": "C1037", "queue": "shipping"}
+{"ticket_id": "T2053", "message": "I returned the office chair two weeks ago and still have no refund.", "customer_id": "C9547", "queue": "refund"}
+{"ticket_id": "T2054", "message": "Half of order 4294 arrived - where is the rest?", "customer_id": "C1033", "queue": "shipping"}
+{"ticket_id": "T2055", "message": "Is there an API for the API?", "customer_id": "C1058", "queue": "other"}
+{"ticket_id": "T2056", "message": "Can I change the delivery address on order 1198?", "customer_id": "C1023", "queue": "shipping"}
+{"ticket_id": "T2057", "message": "the admin panel has been returning a 500 error since yesterday.", "customer_id": "C1038", "queue": "bug"}
+{"ticket_id": "T2058", "message": "Can I get a copy of your SOC 2 report?", "customer_id": "C1003", "queue": "other"}
+{"ticket_id": "T2059", "message": "Half of order 5195 arrived - where is the rest?", "customer_id": "C1019", "queue": "shipping"}
+{"ticket_id": "T2060", "message": "Please add 16 more users to our workspace.", "customer_id": "C9565", "queue": "account"}
+{"ticket_id": "T2061", "message": "Please refund order 3590, I bought the same thing elsewhere.", "customer_id": "C1058", "queue": "refund"}
+{"ticket_id": "T2062", "message": "How do I change the email address on my account?", "customer_id": "C1063", "queue": "account"}
+{"ticket_id": "T2063", "message": "Can I speak to someone about a partnership?", "customer_id": "C1018", "queue": "other"}
+{"ticket_id": "T2064", "message": "The course was not what I expected. Can I get a refund?", "customer_id": "C1063", "queue": "retention"}
+{"ticket_id": "T2065", "message": "Order 2387 says delivered but nothing arrived.", "customer_id": "C1017", "queue": "shipping"}
+{"ticket_id": "T2066", "message": "Can I get order 3659 sent express instead?", "customer_id": "C1063", "queue": "shipping"}
+{"ticket_id": "T2067", "message": "My invoice shows 10 seats but we only have 6.", "customer_id": "C1044", "queue": "billing"}
+{"ticket_id": "T2068", "message": "Do you ship to Ireland, and how long does it take?", "customer_id": "C1041", "queue": "shipping"}
+{"ticket_id": "T2069", "message": "Is the billing page available in Spanish?", "customer_id": "C1069", "queue": "other"}
+{"ticket_id": "T2070", "message": "Order 7951 says delivered but nothing arrived.", "customer_id": "C1047", "queue": "shipping"}
+{"ticket_id": "T2071", "message": "I cannot log in - it says my email is not recognised.", "customer_id": "C1044", "queue": "account"}
+{"ticket_id": "T2072", "message": "The app crashes every time I open the inbox.", "customer_id": "C1056", "queue": "bug"}
+{"ticket_id": "T2073", "message": "Half of order 2463 arrived - where is the rest?", "customer_id": "C1059", "queue": "shipping"}
+{"ticket_id": "T2074", "message": "Search results are empty even though I know the records exist.", "customer_id": "C9983", "queue": "bug"}
+{"ticket_id": "T2075", "message": "How do I transfer ownership of the account to a colleague?", "customer_id": "C1004", "queue": "account"}
+{"ticket_id": "T2076", "message": "Two-factor codes never arrive, so I am locked out of the admin panel.", "customer_id": "C1064", "queue": "escalation"}
+{"ticket_id": "T2077", "message": "Are you hiring support engineers?", "customer_id": "C1026", "queue": "other"}
+{"ticket_id": "T2078", "message": "Where can I find your privacy policy?", "customer_id": "C1042", "queue": "other"}
+{"ticket_id": "T2079", "message": "Please add 30 more users to our workspace.", "customer_id": "C1062", "queue": "account"}
+{"ticket_id": "T2080", "message": "Order 7334 says delivered but nothing arrived.", "customer_id": "C1047", "queue": "shipping"}
+{"ticket_id": "T2081", "message": "My colleague cannot see the shared workspace.", "customer_id": "C1026", "queue": "account"}
+{"ticket_id": "T2082", "message": "What is your uptime guarantee?", "customer_id": "C1010", "queue": "other"}
+{"ticket_id": "T2083", "message": "I was charged twice for order 1193 this month.", "customer_id": "C1038", "queue": "billing"}
+{"ticket_id": "T2084", "message": "Is the inbox available in Spanish?", "customer_id": "C1052", "queue": "other"}
+{"ticket_id": "T2085", "message": "Two-factor codes never arrive, so I am locked out of the mobile app.", "customer_id": "C1064", "queue": "escalation"}
+{"ticket_id": "T2086", "message": "Please add 19 more users to our workspace.", "customer_id": "C1042", "queue": "account"}
+{"ticket_id": "T2087", "message": "Please add 10 more users to our workspace.", "customer_id": "C1028", "queue": "account"}
+{"ticket_id": "T2088", "message": "We are not using this any more. Please cancel and refund the remainder.", "customer_id": "C1056", "queue": "refund"}
+{"ticket_id": "T2089", "message": "Two-factor codes never arrive, so I am locked out of the inbox.", "customer_id": "C1015", "queue": "escalation"}
+{"ticket_id": "T2090", "message": "Do you have a roadmap I can look at?", "customer_id": "C1014", "queue": "other"}
+{"ticket_id": "T2091", "message": "We were billed annually but agreed to monthly.", "customer_id": "C1029", "queue": "billing"}
+{"ticket_id": "T2092", "message": "We need SSO enabled for our domain.", "customer_id": "C1068", "queue": "account"}
+{"ticket_id": "T2093", "message": "Half of order 7569 arrived - where is the rest?", "customer_id": "C1032", "queue": "shipping"}
+{"ticket_id": "T2094", "message": "Timestamps are showing in the wrong timezone across the API.", "customer_id": "C1008", "queue": "bug"}
+{"ticket_id": "T2095", "message": "Wrong item shipped - I ordered blue, got red. Just refund it.", "customer_id": "C1035", "queue": "retention"}
+{"ticket_id": "T2096", "message": "I returned the monitor stand two weeks ago and still have no refund.", "customer_id": "C1067", "queue": "retention"}
+{"ticket_id": "T2097", "message": "The app crashes every time I open the mobile app.", "customer_id": "C1044", "queue": "escalation"}
+{"ticket_id": "T2098", "message": "Please add 13 more users to our workspace.", "customer_id": "C1049", "queue": "account"}
+{"ticket_id": "T2099", "message": "Order 7993 never showed up. Please refund me.", "customer_id": "C1030", "queue": "retention"}
+{"ticket_id": "T2100", "message": "Is there an API for the reports page?", "customer_id": "C1028", "queue": "other"}
+{"ticket_id": "T2101", "message": "Timestamps are showing in the wrong timezone across the billing page.", "customer_id": "C1039", "queue": "bug"}
+{"ticket_id": "T2102", "message": "The app crashes every time I open the billing page.", "customer_id": "C1057", "queue": "bug"}
+{"ticket_id": "T2103", "message": "Is the mobile app available in Spanish?", "customer_id": "C1044", "queue": "other"}
+{"ticket_id": "T2104", "message": "The mobile app logs me out every few minutes.", "customer_id": "C1048", "queue": "bug"}
+{"ticket_id": "T2105", "message": "The card on file expired - how do I update it?", "customer_id": "C1063", "queue": "billing"}
+{"ticket_id": "T2106", "message": "You charged my card after I downgraded to the free plan.", "customer_id": "C1021", "queue": "billing"}
+{"ticket_id": "T2107", "message": "Can you hold the shipment until next week?", "customer_id": "C1068", "queue": "shipping"}
+{"ticket_id": "T2108", "message": "Why did my price go up this month?", "customer_id": "C1007", "queue": "billing"}
+{"ticket_id": "T2109", "message": "I returned the headphones two weeks ago and still have no refund.", "customer_id": "C1030", "queue": "retention"}
+{"ticket_id": "T2110", "message": "My invoice shows 8 seats but we only have 7.", "customer_id": "C1037", "queue": "billing"}
+{"ticket_id": "T2111", "message": "Is the reports page available in Spanish?", "customer_id": "C9583", "queue": "other"}
+{"ticket_id": "T2112", "message": "The courier left the package outside in the rain.", "customer_id": "C1010", "queue": "shipping"}
+{"ticket_id": "T2113", "message": "There is a line item on this invoice I do not recognise.", "customer_id": "C1036", "queue": "billing"}
+{"ticket_id": "T2114", "message": "The export button does nothing on the inbox - no file, no error.", "customer_id": "C1004", "queue": "escalation"}
+{"ticket_id": "T2115", "message": "I was charged twice for order 3391 this month.", "customer_id": "C1031", "queue": "billing"}
+{"ticket_id": "T2116", "message": "The office chair does not fit. How do I return it for a refund?", "customer_id": "C1064", "queue": "refund"}
+{"ticket_id": "T2117", "message": "Order 8125 never showed up. Please refund me.", "customer_id": "C1063", "queue": "retention"}
+{"ticket_id": "T2118", "message": "The export button does nothing on the billing page - no file, no error.", "customer_id": "C1004", "queue": "escalation"}
+{"ticket_id": "T2119", "message": "Please delete my account and all my data.", "customer_id": "C1061", "queue": "account"}

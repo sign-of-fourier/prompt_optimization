@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, credentials as C, db, labels as L, runs as R, serving, store, tiers, versions as V
+from . import auth, bundles as B, credentials as C, db, labels as L, runs as R, serving, steps as X, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -677,7 +677,7 @@ async def serve_version(vid: str, body: ServeBody, request: Request, user=Depend
         _check_models(spec, access)
     on_call = db.usage_logger(con, user["id"], access.tier, v["project_id"])
     try:
-        out = await serving.serve(spec, body.inputs, access=access, on_call=on_call,
+        out = await serving.serve(spec, body.inputs, access=access, on_call=on_call, secrets=_step_secrets(con, user, spec),
                                   mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None)
     except serving.MissingInputs as e:
         raise HTTPException(400, str(e))
@@ -689,8 +689,9 @@ async def serve_version(vid: str, body: ServeBody, request: Request, user=Depend
     tid = store.create_trace(con, version_id=vid, project_id=v["project_id"], user_id=user["id"], inputs=body.inputs,
                              output=out["output"], parsed=out["parsed"], path=out["path"], metrics=out["metrics"],
                              input_tokens=out["input_tokens"], output_tokens=out["output_tokens"], usd=out["usd"],
-                             latency_s=out["latency_s"])
+                             latency_s=out["latency_s"], steps=out.get("steps"))
     return {"trace_id": tid, "version_id": vid, "output": out["output"], "parsed": out["parsed"], "path": out["path"],
+            "steps": out.get("steps") or None,
             "usage": {"input_tokens": out["input_tokens"], "output_tokens": out["output_tokens"], "usd": out["usd"],
                       "latency_s": out["latency_s"]}}
 
@@ -783,6 +784,140 @@ def promote_traces(pid: str, body: PromoteBody, request: Request, user=auth.User
                 (did, pid, name, str(path), json.dumps(cols), len(rows), json.dumps(input_map), label_column, db.now()))
     con.commit()
     return {"id": did, "name": name, "columns": cols, "n_rows": len(rows), "input_map": input_map, "label_column": label_column}
+
+# ---- external steps (v0, flag-gated) ----------------------------------------------------------
+
+def _step_secrets(con, user: dict, spec: ProjectSpec) -> dict[str, str]:
+    """step id -> its decrypted secret, for the steps this spec enables."""
+    out = {}
+    for st in spec.steps:
+        if st.enabled and st.credential_id:
+            enc = store.step_secret(con, user["id"], st.credential_id)
+            if enc:
+                out[st.id] = C.decrypt(enc).get("secret", "")
+    return out
+
+
+@app.get("/steps")
+def list_steps(user=auth.User):
+    """The installed manifests. In v0 these are files in the repo; a registry is what replaces this."""
+    _v0()
+    return X.list_manifests()
+
+
+class StepCredentialBody(BaseModel):
+    label: str = ""
+    secret: str
+
+
+@app.get("/step-credentials")
+def list_step_credentials(request: Request, user=auth.User):
+    _v0()
+    return store.list_step_credentials(request.app.state.db, user["id"])
+
+
+@app.post("/step-credentials")
+def add_step_credential(body: StepCredentialBody, request: Request, user=auth.User):
+    _v0()
+    if not body.secret.strip():
+        raise HTTPException(400, "a secret is required")
+    return store.create_step_credential(request.app.state.db, user_id=user["id"], label=body.label or "step key",
+                                        secret=C.encrypt({"secret": body.secret.strip()}))
+
+
+@app.delete("/step-credentials/{cid}")
+def delete_step_credential(cid: str, request: Request, user=auth.User):
+    _v0()
+    store.delete_step_credential(request.app.state.db, user["id"], cid)
+    return {"ok": True}
+
+
+class ProbeBody(BaseModel):
+    dataset_id: str | None = None
+
+
+@app.post("/projects/{pid}/steps/{sid}/probe")
+async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user=auth.User):
+    """Tier 1 (EXTERNAL-STEPS.md §8): two calls. Is it reachable, does the credential work, does the response match
+    the declared schema, and how does it say 'no record'? That last one decides whether a missing customer is a
+    failed row or a legitimate null, and production is full of them."""
+    _v0()
+    p = _project(request, pid, user)
+    con = request.app.state.db
+    spec = ProjectSpec.model_validate(p["spec"])
+    st = next((x for x in spec.steps if x.id == sid), None)
+    if st is None:
+        raise HTTPException(404, "no such step on this canvas")
+    m = X.load_manifest(st.manifest)
+    if m is None:
+        raise HTTPException(400, f"no manifest {st.manifest!r} is installed")
+    secret = _step_secrets(con, user, spec).get(sid, "")
+    args: dict[str, Any] = {}
+    if body.dataset_id:
+        d = _dataset(request, body.dataset_id, user)
+        rows = _rows(d)
+        if rows:
+            args = {name: rows[0].get(col) for name, col in st.inputs.items()}
+    if not args:
+        args = {f.name: "probe" for f in m.inputs}
+    out: dict[str, Any] = {"url": m.transport.url, "sent": args}
+    try:
+        got, met = await X.call(m, args, secret=secret)
+        out.update({"ok": True, "found": got is not None, "returned": got, "latency_s": met["latency_s"]})
+    except X.StepError as e:
+        return {**out, "ok": False, "error": str(e)}
+    # ... and how it answers for something that does not exist
+    unknown = {f.name: "__no_such_id__" for f in m.inputs}
+    try:
+        got2, _ = await X.call(m, unknown, secret=secret)
+        out["missing_behaviour"] = ("returns a record for an unknown id - the step cannot tell you what it does not know"
+                                    if got2 is not None else f"status {m.missing.get('status', 404)}: {m.missing.get('means', 'no record')}")
+        out["missing_ok"] = got2 is None
+    except X.StepError as e:
+        out["missing_behaviour"] = f"errors instead of reporting 'no record': {e}"
+        out["missing_ok"] = False
+    return out
+
+
+class EnrichBody(BaseModel):
+    step_id: str
+    name: str = ""
+
+
+@app.post("/datasets/{did}/enrich")
+async def enrich_dataset(did: str, body: EnrichBody, request: Request, user=auth.User):
+    """Fetch and freeze: run the step over every row once and write a NEW dataset carrying its columns.
+
+    A new dataset rather than an edit, because the old one is what earlier runs and versions were scored against.
+    From here on evaluation reads these frozen values and never calls the step again; serving calls it live."""
+    _v0()
+    d = _dataset(request, did, user)
+    con = request.app.state.db
+    p = _project(request, d["project_id"], user)
+    spec = ProjectSpec.model_validate(p["spec"])
+    st = next((x for x in spec.steps if x.id == body.step_id), None)
+    if st is None:
+        raise HTTPException(404, "no such step on this canvas")
+    missing = [f for f in st.inputs.values() if f not in d["columns"]]
+    if missing:
+        raise HTTPException(400, f"this dataset has no column {missing[0]!r} for the step to look up")
+    try:
+        rows, report = await X.enrich(spec, st, _rows(d), secret=_step_secrets(con, user, spec).get(st.id, ""))
+    except X.StepError as e:
+        raise HTTPException(400, str(e))
+    nid = db.new_id()
+    path = DATASETS_DIR / f"{nid}.json"
+    path.write_text(json.dumps(rows, default=str))
+    cols = columns(rows)
+    m = X.load_manifest(st.manifest)
+    input_map = {**d["input_map"], **{X.column(st.id, f.name): X.column(st.id, f.name) for f in (m.outputs if m else [])
+                                      if X.column(st.id, f.name) in cols}}
+    name = body.name or f"{d['name']} + {st.id}"
+    con.execute("insert into datasets values (?,?,?,?,?,?,?,?,?)",
+                (nid, d["project_id"], name, str(path), json.dumps(cols), len(rows), json.dumps(input_map), d["label_column"], db.now()))
+    con.commit()
+    return {"id": nid, "name": name, "columns": cols, "n_rows": len(rows), "input_map": input_map,
+            "label_column": d["label_column"], "report": report}
 
 # dev only: serve the built frontend and accept the nginx-style prefixes (/studio/api, /api) from the same process
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
