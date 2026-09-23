@@ -241,7 +241,9 @@ def test_a_field_that_only_matters_in_combination_is_not_condemned(server):
     assert any("may still matter combined with the input text" in i.message for i in alone)
     together = [i for i in rep.issues if "taken together" in i.message]
     assert len(together) == 1 and together[0].level == "info"       # the interaction is found
-    assert together[0].data["accuracy"] > together[0].data["baseline"] + 0.1
+    # `info` here means the permutation test called it significant; the margin is modest because the statistic is
+    # cross-validated - a rule fitted and scored on the same rows would report a much larger and much less real gap
+    assert together[0].data["accuracy"] > together[0].data["baseline"]
 
 
 def test_a_step_that_carries_nothing_is_called_out(server):
@@ -258,3 +260,27 @@ def test_a_step_that_carries_nothing_is_called_out(server):
         SV.check_signal(spec(), rows, "queue", rep)
     warns = [i for i in rep.issues if i.level == "warn"]
     assert len(warns) == 1 and "alone or in combination" in warns[0].message and "pilot" in warns[0].message
+
+
+def test_a_noisy_field_does_not_look_useful_just_for_having_many_values(server):
+    """The reason the statistic is cross-validated: a value spread over many small groups (25 region codes here) is memorisable, so a rule
+    fitted and scored on the same rows calls it informative. Not wide enough to be caught as "unique on every row" -
+    that is a different check - just noisy enough to be flattering if nothing is held out."""
+    import random
+    import unittest.mock as mock
+    rnd = random.Random(11)
+    rows = [{"queue": "escalation" if plan == "enterprise" else rnd.choice(["bug", "billing", "shipping"]),
+             "rec_plan": plan, "rec_open_tickets": rnd.choice([0, 1]), "rec_score": f"r{rnd.randint(0, 24)}"}
+            for plan in (rnd.choice(["free", "pro", "enterprise"]) for _ in range(200))]
+    m = X.load_manifest("rec@1.0.0")
+    with mock.patch.object(SV, "load_manifest", return_value=m):
+        rep = ValidationReport()
+        SV.check_signal(spec(), rows, "queue", rep)
+    # the same statistic, fitted and scored on the same rows, calls this grouping 80% accurate; held out it is 46%
+    groups = [(r["rec_plan"], r["rec_open_tickets"], r["rec_score"]) for r in rows]
+    labels = [r["queue"] for r in rows]
+    assert SV._majority_accuracy(list(zip(groups, labels)), folds=1) > SV._majority_accuracy(list(zip(groups, labels))) + 0.2
+    redundant = [i for i in rep.issues if i.data.get("redundant")]
+    assert redundant and "rec_score" in redundant[0].data["redundant"]     # noise, however many values it has
+    kept = [i.message for i in rep.issues if "cannot replace it" in i.message]
+    assert any("rec_plan" in k for k in kept)                              # and the field that decides the label stays

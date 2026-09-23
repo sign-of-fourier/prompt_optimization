@@ -70,7 +70,12 @@ def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationRe
         if len(unused) == len(m.outputs):
             rep.add("warn", "step", "no prompt uses anything this step returns: you are paying for data nobody reads", where=s.id)
         elif unused:
-            rep.add("info", "step", f"fields no prompt uses: {unused} (they cost nothing in tokens, but nothing is learned from them either)", where=s.id)
+            # This is a data-hygiene finding, not a cost one. The call returns every declared field in one response,
+            # so an unused field costs no extra call, and it is not in the prompt, so it costs no tokens either.
+            # What it does cost is data you are moving without a reason - which matters when the field is personal.
+            rep.add("warn", "step", f"no prompt reads {unused}. That costs no extra call and no tokens, but you are pulling "
+                                    f"data you do not use: drop it from the manifest's outputs, or check it is not personal "
+                                    f"data you have no reason to hold", where=s.id, unused=unused)
 
 
 def check_frozen(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationReport) -> None:
@@ -95,12 +100,33 @@ def _entropy(counts) -> float:
     return -sum((c / n) * math.log2(c / n) for c in counts if c) if n else 0.0
 
 
-def _majority_accuracy(pairs: list[tuple[Any, Any]]) -> float:
-    """Best accuracy achievable by answering each value's most common label - the simplest possible use of a field."""
-    by: dict[Any, Counter] = {}
-    for v, y in pairs:
-        by.setdefault(v, Counter())[y] += 1
-    return sum(c.most_common(1)[0][1] for c in by.values()) / max(1, len(pairs))
+def _majority_accuracy(pairs: list[tuple[Any, Any]], folds: int = 5) -> float:
+    """Accuracy of the simplest possible use of a field: answer each value's most common label.
+
+    Cross-validated, and that is not fussiness. Fitted and scored on the same rows, this statistic rewards any field
+    with many distinct values - a random number binned into twenty groups "predicts" beautifully, because each group
+    is small enough to memorise. Scoring each fold with a rule built from the other folds removes that: a noise field
+    has nothing to say about rows it has not seen. Groups absent from the training folds fall back to the overall
+    majority, which is what a caller would do anyway.
+    """
+    n = len(pairs)
+    if n < folds * 2:
+        folds = 1
+    if folds == 1:                                   # too little data to hold anything out; say so by not pretending
+        by: dict[Any, Counter] = {}
+        for v, y in pairs:
+            by.setdefault(v, Counter())[y] += 1
+        return sum(c.most_common(1)[0][1] for c in by.values()) / max(1, n)
+    correct = 0
+    for f in range(folds):
+        train = [pairs[i] for i in range(n) if i % folds != f]
+        by = {}
+        for v, y in train:
+            by.setdefault(v, Counter())[y] += 1
+        overall = Counter(y for _, y in train).most_common(1)[0][0] if train else None
+        rule = {v: c.most_common(1)[0][0] for v, c in by.items()}
+        correct += sum(1 for i in range(n) if i % folds == f and rule.get(pairs[i][0], overall) == pairs[i][1])
+    return correct / max(1, n)
 
 
 def check_signal(spec: ProjectSpec, rows: list[dict[str, Any]], label_column: str | None, rep: ValidationReport,
@@ -139,6 +165,7 @@ def check_signal(spec: ProjectSpec, rows: list[dict[str, Any]], label_column: st
             continue
         m = load_manifest(s.manifest)
         usable: list[list[Any]] = []
+        names: list[str] = []
         quiet: list[str] = []
         for f in (m.outputs if m else []):
             col = column(s.id, f.name)
@@ -159,6 +186,7 @@ def check_signal(spec: ProjectSpec, rows: list[dict[str, Any]], label_column: st
                                          f"useful feature, it is the answer: check the step is not returning the label", where=s.id)
                 continue
             usable.append(binned)
+            names.append(col)
             p = permutation_p(binned, acc)
             if p > SIGNAL_P:
                 quiet.append(col)
@@ -183,11 +211,23 @@ def check_signal(spec: ProjectSpec, rows: list[dict[str, Any]], label_column: st
                 rep.add("info", "step", f"taken together, this step's fields predict the label {acc:.0%} of the time against a "
                                         f"{base:.0%} baseline (p={p:.3f}) - the interaction the per-field numbers above cannot show",
                         where=s.id, accuracy=round(acc, 3), baseline=round(base, 3))
-        elif quiet and len(usable) == 1:
-            rep.add("warn", "step", f"the only usable field, {quiet[0]}, has no relationship to the label. Run the pilot "
-                                    f"with the step on and off before spending a run on it", where=s.id)
-
-
+                # leave-one-out: which of them is actually carrying that? A field whose removal costs nothing carries
+                # nothing the others do not already carry, and is the first thing to drop from the prompt.
+                dead = []
+                for i, name in enumerate(names):
+                    rest = [c for j, c in enumerate(usable) if j != i]
+                    without = [tuple(col[k] for col in rest) for k in range(len(rows))]
+                    delta = acc - _majority_accuracy(list(zip(without, labels)))
+                    if delta <= 0:
+                        dead.append(name)
+                    else:
+                        rep.add("info", "step", f"{name} is worth {delta:+.0%} of the {acc:.0%}: the other fields cannot replace it",
+                                where=s.id, delta=round(delta, 3))
+                if dead:
+                    rep.add("warn", "step", f"{dead} add nothing the step's other fields do not already carry. Dropping them from the "
+                                            f"prompt costs tokens on every call and (on this data) no accuracy - though this arithmetic "
+                                            f"cannot see the input text, so confirm with a run before trusting it",
+                            where=s.id, redundant=dead)
 def _bin(v: Any) -> Any:
     """Numbers get coarse bins so a continuous field is not automatically 'unique on every row'."""
     if isinstance(v, bool) or v is None:

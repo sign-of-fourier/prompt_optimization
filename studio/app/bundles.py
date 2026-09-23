@@ -67,7 +67,9 @@ def list_examples() -> list[dict[str, Any]]:
     for p in sorted(EXAMPLES_DIR.glob("*.json")):
         b = Bundle.model_validate_json(p.read_text())
         rows = b.rows()
-        out.append({"slug": p.stem, "name": b.name, "blurb": b.blurb, "order": b.order, "steps": len(b.spec.modules),
+        # "modules" and "steps" are different things now: prompts the optimizer rewrites, and external steps it does not
+        out.append({"slug": p.stem, "name": b.name, "blurb": b.blurb, "order": b.order,
+                    "modules": len(b.spec.modules), "steps": len(b.spec.steps),
                     "rows": len(rows) if rows else 0, "goal": b.spec.optimizer.goal, "dataset": b.dataset.name if b.dataset else None})
     return sorted(out, key=lambda e: (e["order"], e["name"]))
 

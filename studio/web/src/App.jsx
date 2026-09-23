@@ -106,7 +106,7 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
               <div className="card" key={ex.slug}>
                 <div className="row"><b>{ex.name}</b><span className="pill">{ex.goal === 'compress' ? 'compression' : 'accuracy'}</span></div>
                 <p className="muted" style={{ margin: '6px 0 10px', fontSize: 13 }}>{ex.blurb}</p>
-                <div className="row"><span className="muted" style={{ fontSize: 12 }}>{ex.steps} steps · {ex.rows} rows{ex.dataset ? ` · ${ex.dataset}` : ''}</span><div className="grow" /><button className="small primary" onClick={() => clone(ex)}>Add to my projects</button></div>
+                <div className="row"><span className="muted" style={{ fontSize: 12 }}>{ex.modules} prompt{ex.modules === 1 ? '' : 's'}{ex.steps ? ` · ${ex.steps} external step${ex.steps === 1 ? '' : 's'}` : ''} · {ex.rows} rows{ex.dataset ? ` · ${ex.dataset}` : ''}</span><div className="grow" /><button className="small primary" onClick={() => clone(ex)}>Add to my projects</button></div>
               </div>
             ))}
           </div>

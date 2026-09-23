@@ -181,7 +181,8 @@ of them. Ask it for a deliberately unknown id and record the answer as part of t
 | **Signal** — each field against the majority-class baseline, permutation-tested, **and all of the step's fields together** | a step that carries nothing is decorative, proven for zero tokens. The joint test is not optional: see below | info per field, warn only if the joint test also finds nothing |
 | **Degeneracy** — constant across all rows, or unique per row | carries no information and burns tokens on every call | warn |
 | **Leakage** — one field predicts the label almost perfectly | usually the answer smuggled in (someone enriched with `assigned_queue`) | error |
-| **Payload waste** — outputs no prompt references | paying for data nobody reads, possibly personal | warn |
+| **Redundancy** — leave-one-out: joint accuracy with each field removed | a field the others already imply. This is the check that answers "can we drop it" directly | warn, listing the droppable fields |
+| **Payload waste** — outputs no prompt references | no extra call and no tokens, but data you are holding for no reason - a privacy finding, not a cost one | warn |
 
 The signal test is the one that distinguishes a serious tool: shuffle the field a couple of hundred times, see
 where the real entropy reduction falls. It is also the check that would have caught the lazy version of this very
