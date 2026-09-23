@@ -211,3 +211,21 @@ def test_compress_goal_validation_warns_without_token_penalty():
              evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer")], objective={"accuracy": 1.0, "template_tokens": -0.002}))
     rep = validate_static(s, ROWS, INPUT_MAP)
     assert rep.ok and not any(i.stage == "optimizer" for i in rep.issues)
+
+
+def test_version_pin_and_fingerprint():
+    """A version pins what runs: templates and concrete model ids. The fingerprint moves with those and with nothing
+    else - editing the optimizer or the canvas layout gives the same fingerprint, editing a prompt does not."""
+    from app import versions as V
+    s = spec(layout={"extract": {"x": 1}})
+    a = V.pin(s)
+    assert a.layout == {} and all(m.model == s.eval_model for m in a.modules)
+    assert a.optimizer.critic_model == a.optimizer.reflect_model
+    assert s.modules[0].model is None and s.layout          # pinning is pure: the source spec is untouched
+
+    s.optimizer.rounds += 7
+    s.layout = {}
+    assert V.fingerprint(V.pin(s)) == V.fingerprint(a)      # how it was produced is not what it does
+
+    b = V.pin(s, {"extract": "Pull the fact out of {text}{prev}"})
+    assert b.modules[0].template.startswith("Pull the fact") and V.fingerprint(b) != V.fingerprint(a)

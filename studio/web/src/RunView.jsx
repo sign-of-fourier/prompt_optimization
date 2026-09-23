@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
 import { Cost } from './DataPanel.jsx'
 
-export default function RunView({ pid, spec, datasets, mock }) {
+export default function RunView({ pid, spec, datasets, mock, features = {} }) {
   const [runs, setRuns] = useState([])
   const [rid, setRid] = useState(null)
   const [did, setDid] = useState(datasets[0] && datasets[0].id)
@@ -16,7 +16,7 @@ export default function RunView({ pid, spec, datasets, mock }) {
     try { const r = await api.post(`/projects/${pid}/runs`, { dataset_id: did, mock: mock || undefined }); await refresh(); setRid(r.id) }
     catch (ex) { setErr(ex.detail && ex.detail.issues ? ex.detail.issues.map(i => i.message).join(' · ') : ex.message) }
   }
-  if (rid) return <Run rid={rid} spec={spec} onBack={() => { setRid(null); refresh() }} />
+  if (rid) return <Run pid={pid} rid={rid} spec={spec} features={features} onBack={() => { setRid(null); refresh() }} />
   return (
     <div className="page">
       <div className="card">
@@ -41,7 +41,7 @@ export default function RunView({ pid, spec, datasets, mock }) {
   )
 }
 
-function Run({ rid, spec, onBack }) {
+function Run({ pid, rid, spec, features = {}, onBack }) {
   const [st, setSt] = useState(null)
   const [tree, setTree] = useState({ nodes: [] })
   const [sel, setSel] = useState(null)
@@ -66,7 +66,8 @@ function Run({ rid, spec, onBack }) {
       <div className="row" style={{ marginBottom: 10 }}><button className="small" onClick={onBack}>← runs</button><span className={'pill ' + live.state}>{live.state}</span>
         <span className="muted">round {live.round ?? 0} · {live.step || ''} · {live.nodes || tree.nodes.length} nodes · {live.usage && live.usage.calls} calls · ${(live.spent_usd || 0).toFixed(3)}</span>
         <span className="muted">accepted {live.accepted ?? 0} / proposed {live.proposed ?? 0}</span>
-        <div className="grow" />{live.state === 'running' && <button className="danger small" onClick={() => api.post(`/runs/${rid}/stop`)}>stop</button>}</div>
+        <div className="grow" />{live.state === 'running' && <button className="danger small" onClick={() => api.post(`/runs/${rid}/stop`)}>stop</button>}
+        {features.v0 && best && live.state !== 'running' && <Publish pid={pid} rid={rid} nid={null} label="Publish best as version" />}</div>
       {live.error && <div className="err">{live.error}</div>}
       <div className="grid3">
         <div className="stat card"><div className="num">{best ? best.score.toFixed(3) : '—'}</div><div className="lbl">best objective on the eval set ({live.train_rows} rows)</div></div>
@@ -79,7 +80,7 @@ function Run({ rid, spec, onBack }) {
       </div>
       {spec.optimizer.goal === 'compress' && <div className="card"><h3>The front: accuracy against template tokens</h3>
         <Front tree={tree} spec={spec} rows={live.train_rows} onSelect={setSel} sel={sel} /></div>}
-      {sel && <NodeDetail rid={rid} nid={sel} tree={tree} spec={spec} />}
+      {sel && <NodeDetail rid={rid} nid={sel} tree={tree} spec={spec} pid={pid} features={features} />}
       {st.summary && <div className="card"><h3>Summary</h3><div className="kv"><b>stopped</b><span>{st.summary.stopped_because}</span><b>rounds</b><span>{st.summary.rounds}</span><b>seconds</b><span>{Math.round(st.summary.seconds)}</span>
         </div>
         {st.summary.holdout && <HoldoutTable h={st.summary.holdout} />}</div>}
@@ -190,7 +191,23 @@ function diffWords(a, b) {
   return out
 }
 
-function NodeDetail({ rid, nid, tree, spec }) {
+function Publish({ pid, rid, nid, label, onDone }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(null)
+  const go = async () => {
+    setBusy(true); setErr('')
+    try { setDone(await api.post(`/projects/${pid}/versions`, { run_id: rid, node_id: nid || undefined })); onDone && onDone() }
+    catch (e) { setErr(e.message) } finally { setBusy(false) }
+  }
+  return <>
+    <button className="small" disabled={busy} onClick={go} title="Freeze these prompts, with their score, as something that can be served">{busy ? 'publishing…' : label}</button>
+    {done && <span className="ok" style={{ fontSize: 12.5 }}>published as <b>{done.label}</b> — see the Serving tab</span>}
+    {err && <span className="err">{err}</span>}
+  </>
+}
+
+function NodeDetail({ rid, nid, tree, spec, pid, features = {} }) {
   const [d, setD] = useState(null)
   useEffect(() => { api.get(`/runs/${rid}/nodes/${nid}`).then(setD) }, [rid, nid])
   if (!d) return null
@@ -199,7 +216,8 @@ function NodeDetail({ rid, nid, tree, spec }) {
   const key = Object.keys(spec.evaluate.objective)[0]
   return (
     <div className="card">
-      <h3>Node {n.id} <span className="muted">· {n.origin.op}{n.origin.params.module ? ` on ${n.origin.params.module}` : ''} · depth {n.depth}{ev ? ` · score ${ev.score.toFixed(3)} on ${ev.n} rows` : ' · not evaluated'}</span></h3>
+      <div className="row"><h3 style={{ margin: 0 }}>Node {n.id} <span className="muted">· {n.origin.op}{n.origin.params.module ? ` on ${n.origin.params.module}` : ''} · depth {n.depth}{ev ? ` · score ${ev.score.toFixed(3)} on ${ev.n} rows` : ' · not evaluated'}</span></h3>
+        <div className="grow" />{features.v0 && ev && <Publish pid={pid} rid={rid} nid={n.id} label="Publish this node as a version" />}</div>
       {ev && <div className="help">metrics: {Object.entries(ev.metrics).map(([k, v]) => `${k} ${v.toFixed(3)}`).join(' · ')}</div>}
       {Object.keys(mods).map(k => (
         <div key={k} style={{ marginBottom: 10 }}>

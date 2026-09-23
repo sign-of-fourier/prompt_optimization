@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 import tempfile
 os.environ["STUDIO_DATA"] = os.path.join(tempfile.gettempdir(), "studio_test_data")
 os.environ["STUDIO_INSECURE_COOKIE"] = "1"
+os.environ["STUDIO_V0"] = "1"   # PLAN.md v0 pieces are flag-gated; the tests run with them on
 import shutil
 shutil.rmtree(os.environ["STUDIO_DATA"], ignore_errors=True)
 
@@ -78,6 +79,95 @@ async def _flow():
             assert ip["name"] == SPEC["name"] + " 2" and ip["datasets"][0]["n_rows"] == 16 and ip["datasets"][0]["input_map"] == b["dataset"]["input_map"]
             assert (await c.post("/projects/import", json={**b, "bundle": 99})).status_code == 400
             assert (await c.post("/projects/import", json={**b, "dataset": {**b["dataset"], "rows": None, "sample": "tickets.jsonl"}})).status_code == 400
+            # versions (v0): promoting a run node pins the prompts that earned the score, and the fetch reproduces them
+            assert (await c.get("/features")).json()["v0"] is True
+            v = (await c.post(f"/projects/{pid}/versions", json={"run_id": rid})).json()
+            assert v["label"] == "v1" and v["source"]["kind"] == "run_node" and v["source"]["run_id"] == rid
+            assert v["score"] == st["summary"]["best"]["score"] and v["dataset_id"] == did and v["holdout"]["best_score"] is not None
+            got = (await c.get(f"/versions/{v['id']}")).json()
+            assert {m["id"]: m["template"] for m in got["spec"]["modules"]} == best   # the exact prompts that were scored
+            assert got["fingerprint"] == v["fingerprint"] and got["spec"]["modules"][0]["model"] == got["spec"]["eval_model"]  # models pinned, not defaulted
+            lst = (await c.get(f"/projects/{pid}/versions")).json()
+            assert [x["id"] for x in lst] == [v["id"]] and "spec" not in lst[0]
+            # a named node instead of the run's best: no hold-out, because that node was never scored on those rows
+            other = next(n["id"] for n in tr["nodes"] if n["id"] != st["summary"]["best"]["id"])
+            v2 = (await c.post(f"/projects/{pid}/versions", json={"run_id": rid, "node_id": other, "label": "candidate"})).json()
+            assert v2["source"]["node_id"] == other and v2["holdout"] is None and v2["label"] == "candidate"
+            # the canvas as it stands: unscored, and its fingerprint differs from the optimized one
+            v3 = (await c.post(f"/projects/{pid}/versions", json={})).json()
+            assert v3["source"] == {"kind": "canvas"} and v3["score"] is None
+            assert v3["spec"]["modules"][0]["template"] == SPEC["modules"][0]["template"]
+            same = {m["id"]: m["template"] for m in v3["spec"]["modules"]} == best
+            assert (v3["fingerprint"] == v["fingerprint"]) is same   # the fingerprint tracks what runs, nothing else
+            assert (await c.get("/versions/nope")).status_code == 404
+            assert (await c.post(f"/projects/{pid}/versions", json={"run_id": "nope"})).status_code == 404
+            # versions are scoped to their project and go when it does
+            pv = (await c.post("/projects")).json()["id"]
+            assert (await c.post(f"/projects/{pv}/versions", json={"run_id": rid})).status_code == 400
+            await c.delete(f"/projects/{pv}")
+            assert len((await c.get(f"/projects/{pid}/versions")).json()) == 3
+            # serving (v0): a workspace key, the version's input contract, and one request through the same compile path
+            k = (await c.post("/keys", json={"label": "prod"})).json()
+            assert k["key"].startswith("imp_") and k["key"].startswith(k["prefix"])
+            assert [x["id"] for x in (await c.get("/keys")).json()] == [k["id"]]
+            ct = (await c.get(f"/v/{v['id']}")).json()
+            assert ct["inputs"] == ["context", "question"] and ct["outputs"] == ["answer"] and ct["url"].endswith(f"/api/v/{v['id']}/run")
+            H = {"Authorization": f"Bearer {k['key']}"}
+            assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}})).status_code == 401          # the cookie is not enough
+            assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}}, headers={"Authorization": "Bearer imp_nope"})).status_code == 401
+            r = await c.post(f"/v/{v['id']}/run", json={"inputs": {"context": "x"}}, headers=H)
+            assert r.status_code == 400 and "question" in r.text
+            # the invariant: the answer a served request gives is the answer the evaluator produced for that row
+            nd = (await c.get(f"/runs/{rid}/nodes/{st['summary']['best']['id']}")).json()["node"]
+            scored = nd["evaluation"]["per_example"][0]
+            row = ROWS[int(scored["example_id"])]
+            r = await c.post(f"/v/{v['id']}/run", headers=H,
+                             json={"inputs": {"context": row["context"], "question": row["question"]}, "mock": True})
+            assert r.status_code == 200, r.text
+            served = r.json()
+            assert served["output"] == scored["output"], (served["output"], scored["output"])
+            assert served["parsed"] == scored["parsed"] and served["path"] == ["answer"]
+            # the request left a trace, and it carries what a later outcome will be attached to
+            tr2 = (await c.get(f"/projects/{pid}/traces")).json()
+            assert tr2[0]["id"] == served["trace_id"] and tr2[0]["version_id"] == v["id"] and tr2[0]["output"] == served["output"]
+            assert tr2[0]["inputs"]["question"] == row["question"] and tr2[0]["error"] is None
+            await c.delete(f"/keys/{k['id']}"); assert (await c.get("/keys")).json() == []
+            assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}}, headers=H)).status_code == 401  # revoked
+            # the flywheel (v0): served answers -> corrections -> a dataset -> a run that starts from what is deployed
+            k2 = (await c.post("/keys", json={"label": "loop"})).json(); H2 = {"Authorization": f"Bearer {k2['key']}"}
+            tids = []
+            for row2 in ROWS[:6]:
+                rr = await c.post(f"/v/{v['id']}/run", headers=H2, json={"inputs": {"context": row2["context"], "question": row2["question"]}, "mock": True})
+                tids.append((rr.json()["trace_id"], row2["answer"]))
+            # an outcome with neither a label nor a value is not an outcome
+            assert (await c.post(f"/traces/{tids[0][0]}/outcome", json={"kind": "correction"}, headers=H2)).status_code == 400
+            for tid, right in tids:
+                assert (await c.post(f"/traces/{tid}/outcome", headers=H2,
+                                     json={"kind": "correction", "label": right, "source": "agent"})).status_code == 200
+            # corrected twice: the agent changed their mind, that is one row, not two
+            await c.post(f"/traces/{tids[0][0]}/outcome", json={"kind": "correction", "label": "Elsewhere"}, headers=H2)
+            tl = (await c.get(f"/projects/{pid}/traces")).json()
+            assert len(tl[0]["outcomes"]) >= 1 and sum(len(t["outcomes"]) for t in tl) == 7
+            assert (await c.post(f"/traces/nope/outcome", json={"label": "x"}, headers=H2)).status_code == 404
+            # promote: an ordinary dataset, with provenance on every row
+            pr = (await c.post(f"/projects/{pid}/datasets/from-traces", json={"version_id": v["id"]})).json()
+            assert pr["n_rows"] == 6 and pr["label_column"] == "answer" and pr["input_map"] == {"context": "context", "question": "question"}
+            assert set(["trace_id", "version_id", "captured_at", "label_source"]) <= set(pr["columns"])
+            pd_ = (await c.get(f"/datasets/{pr['id']}")).json()
+            assert pd_["preview"][0]["answer"] == "Elsewhere"   # the last correction won
+            # re-optimize from the deployed prompts, not from whatever the canvas drifted to
+            await c.put(f"/projects/{pid}", json={**SPEC, "modules": [{**SPEC["modules"][0], "template": "drifted {context} {question}"}]})
+            rs = (await c.post(f"/projects/{pid}/versions/{v['id']}/restore")).json()
+            assert {m["id"]: m["template"] for m in rs["spec"]["modules"]} == best and rs["spec"]["name"] == SPEC["name"]
+            assert (await c.post(f"/projects/{pid}/validate", json={"dataset_id": pr["id"]})).json()["ok"]
+            r2 = await c.post(f"/projects/{pid}/runs", json={"dataset_id": pr["id"], "mock": True}); rid2 = r2.json()["id"]
+            for _ in range(300):
+                await asyncio.sleep(0.05)
+                st2 = (await c.get(f"/runs/{rid2}")).json()
+                if st2["live"]["state"] in ("done", "failed", "stopped"): break
+            assert st2["live"]["state"] == "done", st2
+            assert st2["summary"]["best"]["score"] >= st2["summary"]["root_score"]   # the root here IS the deployed prompt
+            await c.delete(f"/keys/{k2['id']}")
             # endpoints & keys: a custom OpenAI-compatible endpoint shows its models in the catalog and routes to itself
             os.environ.setdefault("AWS_BEARER_TOKEN_BEDROCK", "test-token")  # house Bedrock key present
             r = await c.get("/models"); assert r.json()["house_keys"] is True and all(m["source"] == "house" for m in r.json()["models"])

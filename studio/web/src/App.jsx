@@ -4,6 +4,7 @@ import Canvas from './Canvas.jsx'
 import DataPanel from './DataPanel.jsx'
 import { OptimizerPanel } from './panels.jsx'
 import RunView from './RunView.jsx'
+import Serving from './Serving.jsx'
 import KeysPanel from './KeysPanel.jsx'
 import Tutorial, { tutorialVisible } from './Tutorial.jsx'
 import { NAME, SITE_URL, COMPANY_URL } from './brand.js'
@@ -23,14 +24,15 @@ export default function App() {
   const [user, setUser] = useState(undefined)
   const [models, setModels] = useState({ models: [], mock: false, house_keys: true, own_keys: true, tier: '', max_q: 4, max_concurrency: 4 })
   const [showKeys, setShowKeys] = useState(false)
+  const [features, setFeatures] = useState({ v0: false })   // PLAN.md's v0 pieces, off unless the service enables them
   const reloadModels = useCallback(() => api.get('/models').then(setModels).catch(() => {}), [])
   useEffect(() => { api.get('/auth/me').then(setUser).catch(() => setUser(null)) }, [])
-  useEffect(() => { if (user) reloadModels() }, [user, reloadModels])
+  useEffect(() => { if (user) { reloadModels(); api.get('/features').then(setFeatures).catch(() => {}) } }, [user, reloadModels])
   if (user === undefined) return <div className="login muted">loading…</div>
   if (!user) return <Login onUser={setUser} />
   return <>
-    <Workspace user={user} models={models} onKeys={() => setShowKeys(true)} onLogout={() => api.post('/auth/logout').then(() => setUser(null))} />
-    {showKeys && <KeysPanel models={models} onClose={() => { setShowKeys(false); reloadModels() }} />}
+    <Workspace user={user} models={models} features={features} onKeys={() => setShowKeys(true)} onLogout={() => api.post('/auth/logout').then(() => setUser(null))} />
+    {showKeys && <KeysPanel models={models} features={features} onClose={() => { setShowKeys(false); reloadModels() }} />}
   </>
 }
 
@@ -60,7 +62,7 @@ function Login({ onUser }) {
   )
 }
 
-function Workspace({ user, models, onKeys, onLogout }) {
+function Workspace({ user, models, features, onKeys, onLogout }) {
   const [projects, setProjects] = useState([])
   const [pid, setPid] = useState(null)
   const refresh = useCallback(() => api.get('/projects').then(setProjects), [])
@@ -77,7 +79,7 @@ function Workspace({ user, models, onKeys, onLogout }) {
     try { const b = JSON.parse(await file.text()); const r = await api.post('/projects/import', b); await refresh(); setPid(r.id) }
     catch (e) { setErr('import failed: ' + e.message) }
   }
-  if (pid) return <Editor pid={pid} models={models} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
+  if (pid) return <Editor pid={pid} models={models} features={features} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
   return (
     <div className="shell">
       <div className="top"><div className="brand"><span>{NAME}</span></div><a className="muted" style={{ fontSize: 12.5 }} href={SITE_URL}>Why compress</a><a className="muted" style={{ fontSize: 12.5 }} href={COMPANY_URL}>About</a>
@@ -114,7 +116,7 @@ function Workspace({ user, models, onKeys, onLogout }) {
   )
 }
 
-function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
+function Editor({ pid, models, features, user, onBack, onKeys, onLogout }) {
   const [spec, setSpec] = useState(null)
   const [datasets, setDatasets] = useState([])
   const [tab, setTab] = useState('build')
@@ -142,7 +144,7 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
         <div className="brand"><a href="#" onClick={e => { e.preventDefault(); onBack() }} style={{ color: 'inherit' }}>{NAME}</a> /</div>
         <input value={spec.name} onChange={e => update({ ...spec, name: e.target.value })} style={{ width: 160 }} />
         <div className="tabs">
-          {[['build', 'Build'], ['data', 'Data & validation'], ['run', 'Runs']].map(([k, l]) => <button key={k} data-tut={'tab-' + k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}
+          {[['build', 'Build'], ['data', 'Data & validation'], ['run', 'Runs'], ...(features.v0 ? [['serve', 'Serving']] : [])].map(([k, l]) => <button key={k} data-tut={'tab-' + k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>{l}</button>)}
         </div>
         <button data-tut="btn-optimizer" onClick={() => setShowOpt(true)}>Optimizer ⚙</button>
         <button data-tut="btn-tutorial" className={showTut ? 'primary' : ''} onClick={() => setShowTut(true)}>Tutorial</button>
@@ -157,7 +159,8 @@ function Editor({ pid, models, user, onBack, onKeys, onLogout }) {
       <div className="main">
         {tab === 'build' && <Canvas spec={spec} update={update} models={models.models} />}
         {tab === 'data' && <DataPanel pid={pid} spec={spec} update={update} datasets={datasets} reload={load} mock={models.mock} />}
-        {tab === 'run' && <RunView pid={pid} spec={spec} datasets={datasets} mock={models.mock} />}
+        {tab === 'run' && <RunView pid={pid} spec={spec} datasets={datasets} mock={models.mock} features={features} />}
+        {tab === 'serve' && <Serving pid={pid} reload={load} />}
       </div>
       {showOpt && <OptimizerPanel spec={spec} update={update} models={models.models} tier={models} onClose={() => setShowOpt(false)} />}
       {showTut && <Tutorial spec={spec} update={update} datasets={datasets} reload={load} pid={pid} tab={tab} setTab={setTab} onClose={() => setShowTut(false)} />}

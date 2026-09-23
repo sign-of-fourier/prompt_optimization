@@ -1,12 +1,38 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
 
+// Workspace keys for the serving endpoint. Model credentials (above) are what the studio calls out with; these are
+// what calls the studio in. Shown once, stored as a sha256.
+function ApiKeys() {
+  const [keys, setKeys] = useState([])
+  const [fresh, setFresh] = useState(null)
+  const [label, setLabel] = useState('')
+  const load = () => api.get('/keys').then(setKeys).catch(() => {})
+  useEffect(() => { load() }, [])
+  const add = async () => { const k = await api.post('/keys', { label }); setLabel(''); setFresh(k); load() }
+  const del = async id => { await api.del(`/keys/${id}`); setFresh(null); load() }
+  return (
+    <div style={{ marginTop: 14 }}>
+      <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>API keys <span className="pill">serving</span></h3>
+      <div className="help">Used to call a published version over HTTP: <code>Authorization: Bearer &lt;key&gt;</code>. The session
+        cookie does not work on that endpoint. A key is shown once - if it is lost, revoke it and make another.</div>
+      {fresh && <div className="card" style={{ borderColor: 'var(--accent)' }}>
+        <b>Copy this now.</b><pre className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{fresh.key}</pre></div>}
+      {keys.map(k => <div className="card row" key={k.id}><b>{k.label}</b><span className="mono muted">{k.prefix}…</span>
+        <span className="muted" style={{ fontSize: 12 }}>{k.last_used ? `last used ${new Date(k.last_used * 1000).toLocaleString()}` : 'never used'}</span>
+        <div className="grow" /><button className="small danger" onClick={() => del(k.id)}>Revoke</button></div>)}
+      <div className="row" style={{ marginTop: 6 }}><input placeholder="label, e.g. production" value={label} onChange={e => setLabel(e.target.value)} style={{ width: 220 }} />
+        <button onClick={add}>+ New key</button></div>
+    </div>
+  )
+}
+
 const FIELDS = {
   access_key_id: ['AWS access key id', 'AKIA…'], secret_access_key: ['AWS secret access key', ''], region: ['Region', 'us-east-1'],
   api_key: ['API key', 'sk-…'], base_url: ['Base URL', 'https://host/v1'], models: ['Model ids (comma-separated)', 'llama-3.3-70b, …'],
 }
 
-export default function KeysPanel({ models, onClose }) {
+export default function KeysPanel({ models, features = {}, onClose }) {
   const [data, setData] = useState(null)
   const [usage, setUsage] = useState(null)
   const [adding, setAdding] = useState(false)
@@ -69,6 +95,8 @@ export default function KeysPanel({ models, onClose }) {
           <div className="row" style={{ marginTop: 10 }}><button className="primary" disabled={!!busy} onClick={add}>{busy ? 'adding…' : 'Add and test'}</button></div>
           {form.provider === 'bedrock' && <div className="help">An IAM user or role with <code>bedrock:InvokeModel</code> on the models you list. The site's own Bedrock access is a bearer token; yours is a key pair.</div>}
         </div>}
+
+        {features.v0 && <ApiKeys />}
 
         {usage && usage.totals.calls > 0 && <div style={{ marginTop: 14 }}>
           <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Usage, last {usage.days} days</h3>

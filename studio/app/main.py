@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, credentials as C, db, runs as R, tiers
+from . import auth, bundles as B, credentials as C, db, labels as L, runs as R, serving, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -23,6 +23,9 @@ from .validation import pilot as run_pilot, project_cost, validate_static
 
 DATASETS_DIR = db.DATA_DIR / "datasets"
 MOCK_DEFAULT = os.environ.get("STUDIO_MOCK") == "1"
+# PLAN.md's v0 pieces ship in this codebase behind one flag, off by default: what is live at impromptune.com today
+# is unaffected until STUDIO_V0=1 is set on the service.
+V0 = os.environ.get("STUDIO_V0") == "1"
 
 
 def load_env():
@@ -38,6 +41,7 @@ def load_env():
 async def lifespan(app: FastAPI):
     load_env()
     app.state.db = db.connect()
+    store.init(app.state.db)
     app.state.runs = R.RunManager()
     DATASETS_DIR.mkdir(parents=True, exist_ok=True)
     yield
@@ -220,6 +224,7 @@ def delete_project(pid: str, request: Request, user=auth.User):
         Path(path).unlink(missing_ok=True)
     for t in ("runs", "validations", "datasets"):
         con.execute(f"delete from {t} where project_id=?", (pid,))
+    store.delete_project_rows(con, pid)
     con.execute("delete from projects where id=?", (pid,)); con.commit()
     return {"ok": True}
 
@@ -517,6 +522,267 @@ async def stop_run(rid: str, request: Request, user=auth.User):
     _run(request, rid, user)
     return {"stopped": request.app.state.runs.stop(rid)}
 
+
+# ---- versions (v0, flag-gated) --------------------------------------------------------------
+
+def _v0() -> None:
+    if not V0:
+        raise HTTPException(404, "not enabled")
+
+
+@app.get("/features")
+def features():
+    return {"v0": V0}
+
+
+class PublishBody(BaseModel):
+    label: str = ""
+    run_id: str | None = None      # None -> publish the canvas as it stands (unscored)
+    node_id: str | None = None     # None with a run_id -> that run's best fully evaluated node
+
+
+@app.post("/projects/{pid}/versions")
+def publish_version(pid: str, body: PublishBody, request: Request, user=auth.User):
+    """Promote a run node (or the canvas) to an immutable version. Nothing is recomputed here: the score recorded is
+    the one the node already earned, on the rows it earned it."""
+    _v0()
+    p = _project(request, pid, user)
+    con = request.app.state.db
+    spec = ProjectSpec.model_validate(p["spec"])
+    extra: dict[str, Any] = {"source": {"kind": "canvas"}}
+    templates = None
+    if body.run_id:
+        r = _run(request, body.run_id, user)
+        if r["project_id"] != pid:
+            raise HTTPException(400, "that run belongs to another project")
+        node = None
+        if body.node_id:
+            node = next((n for n in R.read_tree(body.run_id)["nodes"] if n["id"] == body.node_id), None)
+            if node is None:
+                raise HTTPException(404, "node not found in that run")
+        elif not (r.get("summary") or {}).get("best"):
+            raise HTTPException(400, "that run has no fully evaluated node to publish")
+        extra = V.from_run(r, node)
+        templates = extra.pop("templates")
+    pinned = V.pin(spec, templates)
+    n = len(store.list_versions(con, pid, user["id"])) + 1
+    return store.create_version(con, project_id=pid, user_id=user["id"], label=body.label or f"v{n}",
+                                spec=pinned.model_dump(mode="json"), fingerprint=V.fingerprint(pinned), **extra)
+
+
+@app.get("/projects/{pid}/versions")
+def list_versions(pid: str, request: Request, user=auth.User):
+    _v0()
+    _project(request, pid, user)
+    return store.list_versions(request.app.state.db, pid, user["id"])
+
+
+@app.get("/versions/{vid}")
+def get_version(vid: str, request: Request, user=auth.User):
+    """The immutable fetch: the exact spec and prompts that earned this version's score."""
+    _v0()
+    v = store.get_version(request.app.state.db, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    return v
+
+# ---- api keys (v0, flag-gated) ---------------------------------------------------------------
+
+import hashlib as _hashlib
+import secrets as _secrets
+
+KEY_PREFIX = "imp_"
+
+
+def _key_hash(key: str) -> str:
+    return _hashlib.sha256(key.encode()).hexdigest()
+
+
+def api_key_user(request: Request) -> dict:
+    """Auth for the serving endpoint: a workspace API key in `Authorization: Bearer ...` or `X-API-Key`. Machines
+    call this endpoint, so the session cookie is deliberately not accepted."""
+    hdr = request.headers.get("authorization") or ""
+    key = hdr[7:].strip() if hdr.lower().startswith("bearer ") else (request.headers.get("x-api-key") or "").strip()
+    con = request.app.state.db
+    uid = store.api_key_owner(con, _key_hash(key)) if key else None
+    if not uid:
+        raise HTTPException(401, "a workspace API key is required: send it as `Authorization: Bearer <key>`")
+    u = con.execute("select id, email, tier from users where id=?", (uid,)).fetchone()
+    if not u:
+        raise HTTPException(401, "that key's account no longer exists")
+    return dict(u)
+
+
+class KeyBody(BaseModel):
+    label: str = ""
+
+
+@app.post("/keys")
+def create_key(body: KeyBody, request: Request, user=auth.User):
+    """The only time the key itself is returned: only its sha256 is stored."""
+    _v0()
+    key = KEY_PREFIX + _secrets.token_urlsafe(32)
+    k = store.create_api_key(request.app.state.db, user_id=user["id"], label=body.label or "api key",
+                             hash=_key_hash(key), prefix=key[:len(KEY_PREFIX) + 6])
+    return {**k, "key": key}
+
+
+@app.get("/keys")
+def list_keys(request: Request, user=auth.User):
+    _v0()
+    return store.list_api_keys(request.app.state.db, user["id"])
+
+
+@app.delete("/keys/{kid}")
+def delete_key(kid: str, request: Request, user=auth.User):
+    _v0()
+    store.delete_api_key(request.app.state.db, user["id"], kid)
+    return {"ok": True}
+
+
+# ---- serving (v0, flag-gated) -----------------------------------------------------------------
+
+class ServeBody(BaseModel):
+    inputs: dict[str, Any] = {}
+    mock: bool | None = None
+
+
+@app.get("/v/{vid}")
+def version_contract(vid: str, request: Request, user=auth.User):
+    """What to POST to this version: its input names, and the fields it returns."""
+    _v0()
+    v = store.get_version(request.app.state.db, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    spec = ProjectSpec.model_validate(v["spec"])
+    terminal = next((m for m in spec.modules if not spec.outgoing(m.id)), spec.modules[0] if spec.modules else None)
+    return {"version_id": vid, "label": v["label"], "inputs": serving.required_inputs(spec),
+            "outputs": [f.name for f in terminal.schema_fields] if terminal else [], "eval_model": spec.eval_model,
+            "url": f"{brand.public_url()}/api/v/{vid}/run"}
+
+
+@app.post("/v/{vid}/run")
+async def serve_version(vid: str, body: ServeBody, request: Request, user=Depends(api_key_user)):
+    """Run a published version on one input. The same compile path and the same executor as evaluation - that is the
+    point of the endpoint, not an implementation detail."""
+    _v0()
+    con = request.app.state.db
+    v = store.get_version(con, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    spec = ProjectSpec.model_validate(v["spec"])
+    mock = MOCK_DEFAULT if body.mock is None else body.mock
+    access = _access(request, user)
+    if not mock:
+        _check_models(spec, access)
+    on_call = db.usage_logger(con, user["id"], access.tier, v["project_id"])
+    try:
+        out = await serving.serve(spec, body.inputs, access=access, on_call=on_call,
+                                  mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None)
+    except serving.MissingInputs as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        # a failed request is still a trace: it is evidence about the version, and Piece 3 hangs outcomes off it
+        tid = store.create_trace(con, version_id=vid, project_id=v["project_id"], user_id=user["id"], inputs=body.inputs,
+                                 error=f"{type(e).__name__}: {e}")
+        raise HTTPException(502, {"message": f"the version failed on this input: {type(e).__name__}: {e}", "trace_id": tid})
+    tid = store.create_trace(con, version_id=vid, project_id=v["project_id"], user_id=user["id"], inputs=body.inputs,
+                             output=out["output"], parsed=out["parsed"], path=out["path"], metrics=out["metrics"],
+                             input_tokens=out["input_tokens"], output_tokens=out["output_tokens"], usd=out["usd"],
+                             latency_s=out["latency_s"])
+    return {"trace_id": tid, "version_id": vid, "output": out["output"], "parsed": out["parsed"], "path": out["path"],
+            "usage": {"input_tokens": out["input_tokens"], "output_tokens": out["output_tokens"], "usd": out["usd"],
+                      "latency_s": out["latency_s"]}}
+
+
+@app.get("/projects/{pid}/traces")
+def list_traces(pid: str, request: Request, limit: int = 100, user=auth.User):
+    _v0()
+    _project(request, pid, user)
+    con = request.app.state.db
+    ts = store.list_traces(con, pid, user["id"], limit)
+    outs = store.list_outcomes(con, [t["id"] for t in ts])
+    return [{**t, "outcomes": outs.get(t["id"], [])} for t in ts]
+
+
+# ---- outcomes (v0, flag-gated) ----------------------------------------------------------------
+
+class OutcomeBody(BaseModel):
+    kind: str = "correction"       # correction (carries the right answer) | rating | reopen | conversion | ...
+    label: str | None = None       # the right answer, for a correction: this is what makes the trace a label
+    value: float | None = None     # a numeric signal (CSAT, revenue) when there is no label
+    source: str = "api"            # who says so: an agent, a downstream system, a rule
+    note: str = ""
+
+
+def outcome_user(request: Request) -> dict:
+    """An outcome may arrive from the system that learned it (API key) or from a person in the studio (session).
+    Unlike serving, both are legitimate: corrections are as often typed by a human as posted by a ticketing system."""
+    try:
+        return api_key_user(request)
+    except HTTPException:
+        return auth.current_user(request)
+
+
+@app.post("/traces/{tid}/outcome")
+def post_outcome(tid: str, body: OutcomeBody, request: Request, user=Depends(outcome_user)):
+    """What happened after the answer. Posted against a trace id, usually later and by something else."""
+    _v0()
+    con = request.app.state.db
+    t = store.get_trace(con, tid, user["id"])
+    if not t:
+        raise HTTPException(404, "trace not found")
+    if body.label is None and body.value is None:
+        raise HTTPException(400, "an outcome needs a label (the right answer) or a value (a numeric signal)")
+    return store.create_outcome(con, trace_id=tid, project_id=t["project_id"], user_id=user["id"], kind=body.kind,
+                                label=body.label, value=body.value, source=body.source, note=body.note)
+
+
+@app.post("/projects/{pid}/versions/{vid}/restore")
+def restore_version(pid: str, vid: str, request: Request, user=auth.User):
+    """Put a published version back on the canvas. Re-optimizing has to start from what is deployed, not from
+    whatever the canvas drifted to since - this is the step that makes the loop a loop rather than a fork."""
+    _v0()
+    p = _project(request, pid, user)
+    con = request.app.state.db
+    v = store.get_version(con, vid, user["id"])
+    if not v or v["project_id"] != pid:
+        raise HTTPException(404, "version not found in this project")
+    cur = ProjectSpec.model_validate(p["spec"])
+    spec = ProjectSpec.model_validate(v["spec"])
+    spec.name, spec.layout = cur.name, cur.layout      # the canvas keeps its name and its node positions
+    con.execute("update projects set spec=?, updated=? where id=?", (spec.model_dump_json(), db.now(), pid))
+    con.commit()
+    return {"ok": True, "spec": spec.model_dump()}
+
+
+class PromoteBody(BaseModel):
+    version_id: str | None = None      # only traces from this version
+    kind: str = "correction"
+    name: str = ""
+
+
+@app.post("/projects/{pid}/datasets/from-traces")
+def promote_traces(pid: str, body: PromoteBody, request: Request, user=auth.User):
+    """Turn corrected traces into an ordinary dataset: same table, same mapping, same Run button."""
+    _v0()
+    p = _project(request, pid, user)
+    con = request.app.state.db
+    spec = ProjectSpec.model_validate(p["spec"])
+    label_column = spec.evaluate.label_column or "answer"
+    rows = L.rows_from_traces(store.labelled_traces(con, pid, user["id"], version_id=body.version_id, kind=body.kind), label_column)
+    if not rows:
+        raise HTTPException(400, "no corrected traces yet: post an outcome with a label against a trace first")
+    did = db.new_id()
+    path = DATASETS_DIR / f"{did}.json"
+    path.write_text(json.dumps(rows, default=str))
+    cols = columns(rows)
+    input_map = {ph: ph for ph in serving.required_inputs(spec) if ph in cols}
+    name = body.name or f"corrections {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    con.execute("insert into datasets values (?,?,?,?,?,?,?,?,?)",
+                (did, pid, name, str(path), json.dumps(cols), len(rows), json.dumps(input_map), label_column, db.now()))
+    con.commit()
+    return {"id": did, "name": name, "columns": cols, "n_rows": len(rows), "input_map": input_map, "label_column": label_column}
 
 # dev only: serve the built frontend and accept the nginx-style prefixes (/studio/api, /api) from the same process
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
