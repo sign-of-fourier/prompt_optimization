@@ -506,10 +506,20 @@ def run_tree(rid: str, request: Request, user=auth.User):
 
 @app.get("/runs/{rid}/nodes/{nid}")
 def run_node(rid: str, nid: str, request: Request, user=auth.User):
-    _run(request, rid, user)
+    r = _run(request, rid, user)
     n = R.read_node(rid, nid)
     if not n:
         raise HTTPException(404, "node not found")
+    # the expected answers, keyed the way the evaluator keyed them. A run's per-example rows record what the model
+    # said and whether it scored, never what the right answer was - which is what makes a per-class collapse
+    # invisible in the UI. Rebuilt through `to_dataset` so the ids match by construction rather than by luck.
+    try:
+        d = db.row(request.app.state.db.execute("select * from datasets where id=?", (r["dataset_id"],)).fetchone())
+        if d:
+            ds = to_dataset(_rows(d), d["input_map"], d["label_column"])
+            n["expected"] = {ex.id: ex.answer for ex in ds if ex.answer is not None}
+    except Exception:
+        n["expected"] = {}
     return n
 
 

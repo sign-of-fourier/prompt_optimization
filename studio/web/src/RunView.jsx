@@ -181,6 +181,53 @@ function Tree({ tree, onSelect, sel }) {
   )
 }
 
+// What a score of 0.79 hides: which classes it is getting wrong. A per-class table makes a collapse obvious -
+// "billing 0/14, nine of them answered bug" - where a single number and a list of rows does not.
+function ByClass({ per, expected, spec }) {
+  const [full, setFull] = useState(false)
+  const field = (spec.evaluate.scorers[0] || {}).field
+  const answer = r => {
+    const p = r.parsed
+    if (p && typeof p === 'object') {
+      if (field && field in p) return String(p[field])
+      const ks = Object.keys(p)
+      if (ks.length === 1) return String(p[ks[0]])
+    }
+    return (r.output || '').trim().slice(0, 40)
+  }
+  const rows = per.filter(r => expected[r.example_id] !== undefined)
+  const classes = [...new Set(rows.map(r => String(expected[r.example_id])))]
+  if (classes.length < 2 || classes.length > 14 || rows.length === 0) return null
+  const key = Object.keys(spec.evaluate.objective)[0]
+  const table = {}
+  classes.forEach(c => (table[c] = { n: 0, right: 0, answers: {} }))
+  rows.forEach(r => {
+    const t = String(expected[r.example_id]), a = answer(r)
+    const cell = table[t]
+    cell.n++
+    if (r.metrics && r.metrics[key] >= 1) cell.right++
+    else cell.answers[a] = (cell.answers[a] || 0) + 1
+  })
+  const order = classes.sort((a, b) => (table[a].right / table[a].n) - (table[b].right / table[b].n))
+  const shown = full ? order : order.slice(0, 8)
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="row"><b style={{ fontSize: 13 }}>Per class</b><span className="muted" style={{ fontSize: 12 }}>worst first</span>
+        <div className="grow" />{order.length > 8 && <button className="small" onClick={() => setFull(!full)}>{full ? 'top 8' : `all ${order.length}`}</button>}</div>
+      <table style={{ marginTop: 4 }}><thead><tr><th>label</th><th>rows</th><th>right</th><th>answered instead</th></tr></thead><tbody>
+        {shown.map(c => {
+          const t = table[c], pct = t.right / t.n
+          return <tr key={c}>
+            <td><code>{c}</code></td><td className="muted">{t.n}</td>
+            <td style={{ color: pct >= 0.8 ? 'var(--accent)' : pct >= 0.4 ? 'var(--accent2)' : 'var(--danger)' }}>{t.right}/{t.n}</td>
+            <td className="muted" style={{ fontSize: 12 }}>{Object.entries(t.answers).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([a, n]) => `${a} ×${n}`).join(' · ') || '—'}</td>
+          </tr>
+        })}
+      </tbody></table>
+    </div>
+  )
+}
+
 function diffWords(a, b) {
   const A = (a || '').split(/(\s+)/), B = (b || '').split(/(\s+)/)
   const n = A.length, m = B.length, dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
@@ -226,6 +273,7 @@ function NodeDetail({ rid, nid, tree, spec, pid, features = {} }) {
         </div>
       ))}
       {n.origin.op === 'reflect' && <div className="help">Rewritten from node {n.origin.params.source}, after seeing rows {JSON.stringify(n.origin.params.minibatch_ids)}.</div>}
+      {ev && ev.per_example && d.expected && <ByClass per={ev.per_example} expected={d.expected} spec={spec} />}
       {ev && ev.per_example && <details><summary className="muted" style={{ cursor: 'pointer' }}>per-example results ({ev.per_example.length})</summary>
         <table><thead><tr><th>id</th><th>path</th><th>output</th><th>{key}</th><th>critic note</th></tr></thead><tbody>
           {ev.per_example.slice(0, 50).map(r => <tr key={r.example_id}><td className="mono">{r.example_id}</td><td className="mono muted">{Object.keys(r.trace || {}).filter(k => !k.startsWith('_')).join(' → ')}</td>
