@@ -435,7 +435,10 @@ async def start_run(pid: str, body: RunBody, request: Request, user=auth.User):
     notes = _caps(spec, access)
     rid = db.new_id()
     con = request.app.state.db
-    con.execute("insert into runs values (?,?,?,?,?,?,?,?,?)", (rid, pid, d["id"], "running", str(R.RUNS_DIR / rid), db.now(), None, None, None))
+    # the spec is stored as it is at this instant, after the tier clamps: this row is the record of what ran
+    con.execute("insert into runs (id, project_id, dataset_id, status, dir, started, finished, summary, error, spec)"
+                " values (?,?,?,?,?,?,?,?,?,?)",
+                (rid, pid, d["id"], "running", str(R.RUNS_DIR / rid), db.now(), None, None, None, spec.model_dump_json()))
     con.commit()
     request.app.state.runs.start(con, rid, spec, rows, d["input_map"], d["label_column"], mock=mock, pilot=(v or {}).get("pilot"), access=access,
                                  on_call=db.usage_logger(con, user["id"], access.tier, pid, rid))
@@ -555,6 +558,10 @@ def publish_version(pid: str, body: PublishBody, request: Request, user=auth.Use
         r = _run(request, body.run_id, user)
         if r["project_id"] != pid:
             raise HTTPException(400, "that run belongs to another project")
+        # the run's own spec, not the canvas as it stands: publishing an hour later must not record settings the run
+        # never used. Older runs predate the column and fall back to the canvas, which is the best that can be done.
+        if r.get("spec"):
+            spec = ProjectSpec.model_validate(r["spec"])
         node = None
         if body.node_id:
             node = next((n for n in R.read_tree(body.run_id)["nodes"] if n["id"] == body.node_id), None)

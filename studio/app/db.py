@@ -29,7 +29,10 @@ create table if not exists usage_log (id integer primary key autoincrement, ts r
     output_tokens integer not null, cached integer not null, latency_s real, usd real not null);
 create index if not exists usage_user_ts on usage_log (user_id, ts);
 """
-MIGRATIONS = ["alter table users add column tier text"]
+MIGRATIONS = ["alter table users add column tier text",
+              # a run has to carry the spec it ran: publishing a version from it later must not pick up
+              # whatever the canvas has drifted to since
+              "alter table runs add column spec text"]
 JSON_COLS = {"spec", "columns", "input_map", "report", "pilot", "cost", "summary"}  # not "models"/"config": credentials decode their own
 
 

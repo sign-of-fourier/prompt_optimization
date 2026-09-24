@@ -110,7 +110,7 @@ before cache, ~2.7× after) because it gives every child a full evaluation inste
 conservative, not wrong by an order of magnitude — flat tiers are more viable than that figure suggests, but the
 gate and the cache belong in the formula before a price is set.
 
-**Also found:** a run does not store the spec it ran. The run row has a `project_id`, and the project's spec has
+**Also found (fixed 2026-09-24, see Piece 1):** a run does not store the spec it ran. The run row has a `project_id`, and the project's spec has
 changed since — so an old run's numbers cannot be reproduced or attributed to a configuration. This is exactly what
 Piece 1 fixes, and it is the reason Piece 1 comes before serving rather than after.
 
@@ -139,6 +139,13 @@ eval_model`, judge, critic), layout dropped — plus a **fingerprint**: sha256 o
 eval_model, evaluate` only. Same fingerprint, same behaviour; changing the optimizer or the canvas layout does not
 move it. Publishing a node that is not the run's best records no hold-out, because that node was never scored on
 those rows.
+
+**Correction (2026-09-24).** As first built, `publish_version` pinned the *project's current* spec and substituted
+only the node's templates. Publishing two versions from two earlier runs therefore recorded whatever the canvas had
+drifted to in between - in the entitlement A/B both versions claimed the external step was disabled, because that
+was the canvas's final state, not either run's. Prompts were pinned; everything else silently was not. Runs now
+store their spec at start (`runs.spec`) and a version is built from that. Runs from before the column fall back to
+the canvas, which is all that can be done for them.
 
 Asterisks, both of which have to close before the pin is honest:
 
@@ -294,6 +301,24 @@ The step where products like this die. Prove it early, on one connector.
 - **Done when:** "connect → labelled dataset → baseline score" runs without hand-editing a file, and the labels are
   good enough to optimize against. *If they are not, that finding is more valuable than the rest of v0.*
 
+**Status (2026-09-24): parked, and the reason is the finding.** We have a HubSpot portal with a Service Key
+(`crm.objects.tickets.read`) and it holds two contacts and no tickets. That settles what a free vendor account can
+and cannot buy: it proves auth, pagination, rate limits, property discovery and field mapping - and it cannot say
+anything about whether real dispositions are good enough to optimize against, because there are none.
+
+The tempting fix is to push our synthetic tickets into HubSpot and pull them back out. That tests the connector
+while *looking* like a test of the data, which is worse than not testing it. So Piece 5 splits in two:
+
+- **the plumbing** - buildable now against HubSpot, claims nothing about labels;
+- **the finding** - needs a few hundred rows of somebody's real ticket text with the queue it actually ended up in.
+  Parked until that data exists, either from a design partner or from a separate synthetic-data process that is
+  honest about being synthetic.
+
+Note for whoever builds it: HubSpot disabled new legacy private app creation (28 Sep 2026 for new accounts,
+26 Oct 2026 for existing), so the credential is a **Service Key** (`Authorization: Bearer`, Settings → Integrations
+→ Service Keys), not a private-app token. Reading *other people's* portals still needs a Projects-based public app
+and OAuth, which is the long-lead item worth starting early.
+
 ### Piece 6 — Metering and caps
 
 - **Contract:** a defined **credit unit**, charged at exactly **one** place in the code, with a per-run cap and a
@@ -353,7 +378,9 @@ The single list of what promotes a fake to the real thing. When one fires, that 
 These block specific pieces and are not mine to make.
 
 - **Metering unit** — credits, calls, or tokens? Blocks Piece 6. Piece 0 gives the numbers to choose with.
-- **Which connector** for Piece 5, and do we have an account with usable historical dispositions to test against?
+- **Which connector** for Piece 5 - and the dispositions question is now answered: no, we do not have an account
+  with usable history. Piece 5's finding is parked until real data exists; its plumbing can be built against
+  HubSpot whenever it is wanted.
 - **Hosted multi-tenant vs customer-account deployment** — which shape v1 targets; changes what Piece 2 hardens into.
 - **Is the tier model still** free = own credentials, no parallelism; beginner = some house spend; advanced = more?
   Piece 6 encodes it.

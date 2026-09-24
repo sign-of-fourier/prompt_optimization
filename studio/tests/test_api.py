@@ -81,16 +81,22 @@ async def _flow():
             assert ip["name"] == SPEC["name"] + " 2" and ip["datasets"][0]["n_rows"] == 16 and ip["datasets"][0]["input_map"] == b["dataset"]["input_map"]
             assert (await c.post("/projects/import", json={**b, "bundle": 99})).status_code == 400
             assert (await c.post("/projects/import", json={**b, "dataset": {**b["dataset"], "rows": None, "sample": "tickets.jsonl"}})).status_code == 400
+            # a version records the spec the RUN used, not the canvas as it stands when you get round to publishing
+            await c.put(f"/projects/{pid}", json={**SPEC, "max_steps": 3, "modules": [{**SPEC["modules"][0], "description": "drifted"}]})
+            vdrift = (await c.post(f"/projects/{pid}/versions", json={"run_id": rid, "label": "from an old run"})).json()
+            assert vdrift["spec"]["max_steps"] == 8 and vdrift["spec"]["modules"][0]["description"] != "drifted"   # the run's, not the canvas's
+            await c.put(f"/projects/{pid}", json=SPEC)
+
             # versions (v0): promoting a run node pins the prompts that earned the score, and the fetch reproduces them
             assert (await c.get("/features")).json()["v0"] is True
             v = (await c.post(f"/projects/{pid}/versions", json={"run_id": rid})).json()
-            assert v["label"] == "v1" and v["source"]["kind"] == "run_node" and v["source"]["run_id"] == rid
+            assert v["label"] == "v2" and v["source"]["kind"] == "run_node" and v["source"]["run_id"] == rid
             assert v["score"] == st["summary"]["best"]["score"] and v["dataset_id"] == did and v["holdout"]["best_score"] is not None
             got = (await c.get(f"/versions/{v['id']}")).json()
             assert {m["id"]: m["template"] for m in got["spec"]["modules"]} == best   # the exact prompts that were scored
             assert got["fingerprint"] == v["fingerprint"] and got["spec"]["modules"][0]["model"] == got["spec"]["eval_model"]  # models pinned, not defaulted
             lst = (await c.get(f"/projects/{pid}/versions")).json()
-            assert [x["id"] for x in lst] == [v["id"]] and "spec" not in lst[0]
+            assert [x["id"] for x in lst] == [v["id"], vdrift["id"]] and "spec" not in lst[0]
             # a named node instead of the run's best: no hold-out, because that node was never scored on those rows
             other = next(n["id"] for n in tr["nodes"] if n["id"] != st["summary"]["best"]["id"])
             v2 = (await c.post(f"/projects/{pid}/versions", json={"run_id": rid, "node_id": other, "label": "candidate"})).json()
@@ -107,7 +113,7 @@ async def _flow():
             pv = (await c.post("/projects")).json()["id"]
             assert (await c.post(f"/projects/{pv}/versions", json={"run_id": rid})).status_code == 400
             await c.delete(f"/projects/{pv}")
-            assert len((await c.get(f"/projects/{pid}/versions")).json()) == 3
+            assert len((await c.get(f"/projects/{pid}/versions")).json()) == 4
             # serving (v0): a workspace key, the version's input contract, and one request through the same compile path
             k = (await c.post("/keys", json={"label": "prod"})).json()
             assert k["key"].startswith("imp_") and k["key"].startswith(k["prefix"])
