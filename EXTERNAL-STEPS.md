@@ -188,6 +188,17 @@ The signal test is the one that distinguishes a serious tool: shuffle the field 
 where the real entropy reduction falls. It is also the check that would have caught the lazy version of this very
 demo — bolt a lookup on, hope it matters.
 
+**What these checks can and cannot promise.** They answer *"is the information there?"*. They cannot answer *"will
+the model use it?"*, and the entitlement case shows the gap is real: `rec_renewal_days` is the one field with
+marginal signal and leave-one-out keeps it, yet the `retention` class is 0/8 at the root, 0/8 after optimization,
+and 0/8 when the rule was written out by hand. The column carries the signal; the model does not exploit it. A user
+reading "carries signal" will assume otherwise unless the wording is careful, and only the first question is free.
+
+**Confirmed against the real model (2026-09-24).** The redundancy check called `rec_contract` redundant given
+`rec_renewal_days` - derived from arithmetic, no model calls. Removing it from the prompt and re-evaluating: training
+0.802 -> 0.812, hold-out 0.792 -> 0.792, two template tokens cheaper. The advice held, on a field a human would
+probably have kept.
+
 **Tier 3 — the existing pilot, with the step on.** Twelve rows, real added latency and cost per row, folded into
 the run's cost projection so the number the user approves includes enrichment.
 
