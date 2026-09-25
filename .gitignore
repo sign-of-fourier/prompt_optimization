@@ -12,3 +12,7 @@ __pycache__/
 *.egg-info/
 *.pyc
 .pytest_cache/
+
+# HubSpot CLI: personal access key, never ours to commit
+hubspot.config.yml
+.hs-cache/
