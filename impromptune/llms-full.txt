@@ -234,7 +234,7 @@ Request: {summary}
 
  A run of this shape — 50 rows, two prompts, ten rounds — is roughly a thousand billed model calls, about a cent and a half on small models. The pilot is a fraction of that, and it runs first for exactly that reason. The projected cost is shown before you start, and every run carries a hard dollar budget that stops it.
 
- Every evaluation call runs at temperature 0. Otherwise two evaluations of the same prompt disagree and the search chases noise. Variety in the rewrites comes from the reflection model's own temperature, which is a separate setting.
+ Every evaluation call runs at temperature 0. It reduces the disagreement between two evaluations of the same prompt; it does not remove it, because some providers are not deterministic at temperature 0 even so. That is precisely why the pilot measures the disagreement instead of assuming it away. Variety in the rewrites comes from the reflection model's own temperature, which is a separate setting.
 
 
 ---
@@ -449,7 +449,7 @@ The rows the reflection model sees, and the rows a rewrite must beat its parent 
 Rounds cap the work, max spend caps the money, and “stop after N rounds without improvement” stops a search that has plateaued. All three are live at once; whichever comes first wins.
 
 ### Reflection model and temperature
-Reflection is the one place where variety helps, so it has its own temperature. Evaluation is always temperature 0 — otherwise the same prompt scores differently twice and the search chases noise.
+Reflection is the one place where variety helps, so it has its own temperature. Evaluation is always temperature 0, which narrows — but does not close — the gap between two evaluations of the same prompt: several providers still answer differently at temperature 0. The pilot measures that gap so you can read a result against it.
 
 ### What the reflector is told
 A short written critique from a model that reads the trace (the default), a template you write, or just the expected answer and the scores. The critique costs a call per failure and usually earns it.

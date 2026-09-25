@@ -82,7 +82,7 @@ Request: {summary}</code></pre></div></div>
   <div class="wrap">
     <h2>What it costs</h2>
     <p>A run of this shape &mdash; 50 rows, two prompts, ten rounds &mdash; is roughly a thousand billed model calls, about <strong>a cent and a half</strong> on small models. The pilot is a fraction of that, and it runs first for exactly that reason. The projected cost is shown before you start, and every run carries a hard dollar budget that stops it.</p>
-    <div class="callout"><strong>Every evaluation call runs at temperature 0.</strong> Otherwise two evaluations of the same prompt disagree and the search chases noise. Variety in the <em>rewrites</em> comes from the reflection model's own temperature, which is a separate setting.</div>
+    <div class="callout"><strong>Every evaluation call runs at temperature 0.</strong> It reduces the disagreement between two evaluations of the same prompt; it does not remove it, because some providers are not deterministic at temperature 0 even so. That is precisely why the pilot <em>measures</em> the disagreement instead of assuming it away. Variety in the <em>rewrites</em> comes from the reflection model's own temperature, which is a separate setting.</div>
   </div>
 </section>
 

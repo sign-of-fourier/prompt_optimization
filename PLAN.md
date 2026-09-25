@@ -389,9 +389,12 @@ findings for a task where there was something to find. Writing a marketing page 
 is cheaper than the alternative, which is a customer discovering it for us.
 
 **Two things this exposed, worth keeping in view.** Hold-out root scores differed between two runs over the same
-rows with the same seed and temperature 0 (0.900 vs 1.000), which is either a split that is not seeded or provider
-non-determinism - it wants a look. And a 10-row hold-out cannot support any claim, so the library's sample dataset
-is too small to demonstrate the product with; that is a template problem, not an optimizer problem.
+rows with the same seed and temperature 0 (0.900 vs 1.000). That is Nova being non-deterministic at temperature 0,
+which is already known here - not an unseeded split. It is also the case for the pilot's noise measurement: the
+disagreement is real, it is provider behaviour, and the only defence is to measure it rather than assume it away.
+The docs were corrected to stop implying that temperature 0 buys determinism. And a 10-row hold-out cannot support
+any claim, so the library's sample dataset is too small to demonstrate the product with; that is a template
+problem, not an optimizer problem.
 
 ## Not in v0
 
