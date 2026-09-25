@@ -47,10 +47,10 @@
 <section id="loop">
   <div class="wrap">
     <h2>The loop</h2>
-    <div class="step"><div class="n">1</div><h3>Pick a parent</h3><p>One prompt set from the current best group.</p></div>
-    <div class="step"><div class="n">2</div><h3>Reflect</h3><p>A reflection model is shown a handful of that parent's failures &mdash; the inputs, the expected answer, what came back &mdash; and asked to rewrite <em>one</em> of the prompts so those failures stop. One prompt at a time, so that when something improves you know which change did it.</p></div>
-    <div class="step"><div class="n">3</div><h3>Gate</h3><p>The rewrite is evaluated on the same small batch of rows the parent was judged on. If it does not beat its parent there, it is discarded. This is what keeps a full evaluation &mdash; the expensive part &mdash; for candidates that have shown something.</p></div>
-    <div class="step"><div class="n">4</div><h3>Evaluate and record</h3><p>Survivors are evaluated on the full training set and join the tree. Everything is kept: the prompts, the diff against the parent, the rows the reflector saw, the scores.</p></div>
+    <div class="step"><div class="n">1</div><div><h3>Pick a parent</h3><p>One prompt set from the current best group.</p></div></div>
+    <div class="step"><div class="n">2</div><div><h3>Reflect</h3><p>A reflection model is shown a handful of that parent's failures &mdash; the inputs, the expected answer, what came back &mdash; and asked to rewrite <em>one</em> of the prompts so those failures stop. One prompt at a time, so that when something improves you know which change did it.</p></div></div>
+    <div class="step"><div class="n">3</div><div><h3>Gate</h3><p>The rewrite is evaluated on the same small batch of rows the parent was judged on. If it does not beat its parent there, it is discarded. This is what keeps a full evaluation &mdash; the expensive part &mdash; for candidates that have shown something.</p></div></div>
+    <div class="step"><div class="n">4</div><div><h3>Evaluate and record</h3><p>Survivors are evaluated on the full training set and join the tree. Everything is kept: the prompts, the diff against the parent, the rows the reflector saw, the scores.</p></div></div>
   </div>
 </section>
 

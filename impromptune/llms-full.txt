@@ -86,6 +86,17 @@ Accuracy against prompt length. Sometimes the shortest prompt within a point of 
 ### A per-class table
 Aggregate accuracy hides the class that is 0 for 8. The breakdown is on the run page, because an average that moved for one reason is not an improvement.
 
+### What that looks like when the answer is “no”
+
+ Four optimization runs of our own ticket-triage template, 25 September 2026: 50 rows split 40 train / 10 held out, Nova Micro evaluating, Nova Lite reflecting, ten rounds, four seeds. Eight tenths of a cent in total.
+
+ [figure: The studio's run list: five runs with their best training score, their hold-out score, and the root score of each in brackets]
+ The run list, unedited. Best is the training score of the chosen prompt, hold-out is that prompt on rows the search never saw, and the root score of each is in brackets. Newest first, so the baseline run is the bottom row.
+
+ The best training score beat the starting prompt in two of the four runs. The hold-out score beat it in none of them, and fell in two — 0.900 to 0.600, and 1.000 to 0.700. In that second run the prompt the search preferred had grown from 58 template tokens to 437: seven and a half times longer, for nothing.
+
+ With ten held-out rows the standard error is 0.10 to 0.15, so none of those moves is significant in either direction, and the honest summary of the day is “50 rows was not enough for the search to find anything”. We are showing it because it is the product working. The alternative — reading the training column, shipping the longer prompt and calling it a 7-point gain — is the thing this studio exists to stop you doing. For a task where there was something to find, and a measured win with it, see the [compression findings](https://promptcompression.ai/findings).
+
 ## What this is not
 
 ### Not fine-tuning

@@ -358,6 +358,41 @@ Not a rewrite. A discipline plus a small amount of new code.
 
 ---
 
+## Documentation, and what it cost us to be honest (2026-09-25)
+
+The host served the signed-in canvas at `/`, so the login card was the landing page. The canvas moved to `/app/`
+and the root became a static site: `impromptune/index.html` plus ten pages under `impromptune/docs/`, in
+`gen-site.py` alongside the other two hosts. A vocabulary pass over the canvas came first - the palette said
+"Module", the help text said "step" for a prompt, and new nodes were named `step`, `step2`, all of which
+contradicts `GLOSSARY.md`. Eight in-app hints (`web/src/Hint.jsx`), each a preview of one doc section plus a link
+to it; `tests/test_hints.py` holds the budget at eight and asserts every anchor resolves.
+
+**The landing page needed a measured before/after, and the measurement said no.** Four optimization runs of the
+`ticket-triage` template (50 rows, 40/10 split, Nova Micro evaluating, Nova Lite reflecting, 10 rounds, seeds 0-3)
+plus a baseline run, $0.008 in total, on the live studio under the account `docs@quantecarlo.com`:
+
+| run | best (train) | root (train) | best (hold-out) | root (hold-out) |
+|---|---|---|---|---|
+| baseline | 0.825 | 0.825 | 0.900 | 0.900 |
+| seed 0 | 0.875 | 0.800 | 0.700 | 1.000 |
+| seed 1 | 0.750 | 0.750 | 1.000 | 1.000 |
+| seed 2 | 0.825 | 0.825 | 0.800 | 0.800 |
+| seed 3 | 0.900 | 0.825 | 0.600 | 0.900 |
+
+Training improved twice; the hold-out improved never and fell twice. Seed 0's preferred prompt had grown from 58
+template tokens to 437 - 7.5x - for a 30-point hold-out *loss*. With n=10 held out the standard error is 0.10-0.15,
+so nothing here is significant in either direction, and the real finding is that 50 rows is too small a task for
+the search to have anything to find.
+
+The page says so, with the run list screenshotted (`impromptune/img/runs-table.png`), and links to the compression
+findings for a task where there was something to find. Writing a marketing page that reports our own null result
+is cheaper than the alternative, which is a customer discovering it for us.
+
+**Two things this exposed, worth keeping in view.** Hold-out root scores differed between two runs over the same
+rows with the same seed and temperature 0 (0.900 vs 1.000), which is either a split that is not seeded or provider
+non-determinism - it wants a look. And a 10-row hold-out cannot support any claim, so the library's sample dataset
+is too small to demonstrate the product with; that is a template problem, not an optimizer problem.
+
 ## Not in v0
 
 Stated so the scope cannot drift: the builder agent, Bedrock Flows export and its parity gate, Modal / GPU, RDS,

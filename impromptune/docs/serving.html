@@ -77,9 +77,9 @@
   <div class="wrap">
     <h2>Outcomes, and the loop that closes</h2>
     <p>A trace says what the program answered. An <strong>outcome</strong> says what happened next: an agent reassigned the ticket, a customer replied, a reviewer corrected it. A trace plus an outcome is a <strong>label</strong>.</p>
-    <div class="step"><div class="n">1</div><h3>Record outcomes</h3><p>Through the API, or by hand in the traces list. The latest correction on a trace is the one that counts.</p></div>
-    <div class="step"><div class="n">2</div><h3>Promote them</h3><p>Turn labelled traces into a dataset: real inputs, real answers, each row carrying the trace it came from, the version that produced it, when it was captured and where the label came from.</p></div>
-    <div class="step"><div class="n">3</div><h3>Run again</h3><p>Optimize against the traffic you actually get rather than the fifty examples you wrote at the start. This is the only part of the product that gets better while you are not looking.</p></div>
+    <div class="step"><div class="n">1</div><div><h3>Record outcomes</h3><p>Through the API, or by hand in the traces list. The latest correction on a trace is the one that counts.</p></div></div>
+    <div class="step"><div class="n">2</div><div><h3>Promote them</h3><p>Turn labelled traces into a dataset: real inputs, real answers, each row carrying the trace it came from, the version that produced it, when it was captured and where the label came from.</p></div></div>
+    <div class="step"><div class="n">3</div><div><h3>Run again</h3><p>Optimize against the traffic you actually get rather than the fifty examples you wrote at the start. This is the only part of the product that gets better while you are not looking.</p></div></div>
     <div class="callout"><strong>Corrections are a biased sample.</strong> People correct what is wrong and stay silent about what is right, so a dataset built only from corrections is a dataset of failures. Mix promoted rows with a sample of uncorrected traces, or the optimizer will cheerfully learn that everything is an escalation.</div>
   </div>
 </section>

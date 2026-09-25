@@ -54,7 +54,7 @@
 <section id="first-run">
   <div class="wrap">
     <h2>Or build it in six moves</h2>
-    <div class="step"><div class="n">1</div><h3>Two prompts on the canvas</h3>
+    <div class="step"><div class="n">1</div><div><h3>Two prompts on the canvas</h3>
       <p>Drag <strong>Prompt</strong> from the palette twice. Click the first, name it <code>summarize</code>, and give it a template. Words in <code>{braces}</code> are placeholders filled from your dataset's columns:</p>
       <pre><code>Read this customer message and state in one short line what the
 customer wants and which product or order it concerns.
@@ -64,17 +64,17 @@ Message: {message}</code></pre>
       <pre><code>Assign this support request to one queue: billing, shipping,
 refund, bug, account, or other.
 
-Request: {summary}</code></pre></div>
-    <div class="step"><div class="n">2</div><h3>Connect them</h3>
-      <p>Drag from the right dot of <code>summarize</code> to the left dot of <code>route</code>. Click the new edge and map <code>{summary}</code> to the <code>summary</code> field. Every prompt can also read the dataset columns directly, so <code>{message}</code> would work in either one.</p></div>
-    <div class="step"><div class="n">3</div><h3>Say what to grade</h3>
-      <p>The prompt with no outgoing edge is the one Evaluate grades &mdash; here <code>route</code>. Click the <strong>Evaluate</strong> block and point an exact-match scorer at the output field <code>queue</code>. <a href="/docs/evaluate">More on scorers &rarr;</a></p></div>
-    <div class="step"><div class="n">4</div><h3>Load labelled rows</h3>
-      <p>On the <strong>Data</strong> tab, load the sample: 50 tickets, each a <code>message</code> and the <code>queue</code> it belongs in. Map <code>{message}</code> to the message column and choose <code>queue</code> as the label. <strong>Check data</strong> validates the wiring. <a href="/docs/data">More on datasets &rarr;</a></p></div>
-    <div class="step"><div class="n">5</div><h3>Run the pilot first</h3>
-      <p>The pilot runs your prompts as written on twelve rows, twice, plus one rewrite. That gives you three numbers before you commit: the <strong>baseline</strong> score, the <strong>noise</strong> between two identical evaluations, and the <strong>projected cost</strong> of the full run. If the baseline is already near the ceiling, or the noise is bigger than the improvement you are hoping for, stop here &mdash; you have learned something for a fraction of a cent.</p></div>
-    <div class="step"><div class="n">6</div><h3>Search, then publish</h3>
-      <p>Two rounds is plenty for a first look. Watch the best-so-far curve and the tree; click any node to read its prompt diffed against its parent. When you like one, <strong>Publish</strong> it as a version. <a href="/docs/optimization#reading">How to read a run &rarr;</a> &middot; <a href="/docs/serving">Publishing and serving &rarr;</a></p></div>
+Request: {summary}</code></pre></div></div>
+    <div class="step"><div class="n">2</div><div><h3>Connect them</h3>
+      <p>Drag from the right dot of <code>summarize</code> to the left dot of <code>route</code>. Click the new edge and map <code>{summary}</code> to the <code>summary</code> field. Every prompt can also read the dataset columns directly, so <code>{message}</code> would work in either one.</p></div></div>
+    <div class="step"><div class="n">3</div><div><h3>Say what to grade</h3>
+      <p>The prompt with no outgoing edge is the one Evaluate grades &mdash; here <code>route</code>. Click the <strong>Evaluate</strong> block and point an exact-match scorer at the output field <code>queue</code>. <a href="/docs/evaluate">More on scorers &rarr;</a></p></div></div>
+    <div class="step"><div class="n">4</div><div><h3>Load labelled rows</h3>
+      <p>On the <strong>Data</strong> tab, load the sample: 50 tickets, each a <code>message</code> and the <code>queue</code> it belongs in. Map <code>{message}</code> to the message column and choose <code>queue</code> as the label. <strong>Check data</strong> validates the wiring. <a href="/docs/data">More on datasets &rarr;</a></p></div></div>
+    <div class="step"><div class="n">5</div><div><h3>Run the pilot first</h3>
+      <p>The pilot runs your prompts as written on twelve rows, twice, plus one rewrite. That gives you three numbers before you commit: the <strong>baseline</strong> score, the <strong>noise</strong> between two identical evaluations, and the <strong>projected cost</strong> of the full run. If the baseline is already near the ceiling, or the noise is bigger than the improvement you are hoping for, stop here &mdash; you have learned something for a fraction of a cent.</p></div></div>
+    <div class="step"><div class="n">6</div><div><h3>Search, then publish</h3>
+      <p>Two rounds is plenty for a first look. Watch the best-so-far curve and the tree; click any node to read its prompt diffed against its parent. When you like one, <strong>Publish</strong> it as a version. <a href="/docs/optimization#reading">How to read a run &rarr;</a> &middot; <a href="/docs/serving">Publishing and serving &rarr;</a></p></div></div>
   </div>
 </section>
 
