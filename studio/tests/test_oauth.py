@@ -51,7 +51,8 @@ def _provider_app() -> FastAPI:
 
     @app.get("/whoami/{tok}")
     async def whoami(tok: str):
-        return {"hub_id": 424242}
+        # a provider is the only authority on what it granted, and it can be less than was asked for
+        return {"hub_id": 424242, "scopes": ["oauth", "things.read", "extra.granted"]}
 
     return app
 
@@ -115,6 +116,18 @@ def test_an_expired_state_is_refused(provider, con):
     con.commit()
     with pytest.raises(O.OAuthError):
         asyncio.run(O.finish(con, state, "good-code"))
+
+
+def test_the_scopes_recorded_are_the_ones_granted(provider, con):
+    """Not the ones we asked for. A user can decline an optional scope and an app can be configured for fewer than
+    the client requests, so recording the request as if it were the grant makes the scope check validate a wish."""
+    from urllib.parse import parse_qs, urlparse
+    url = O.start(con, "user-7", "fake")
+    asked = parse_qs(urlparse(url).query)["scope"][0].split()
+    conn = asyncio.run(O.finish(con, parse_qs(urlparse(url).query)["state"][0], "good-code"))
+    assert asked == ["oauth", "things.read"]
+    assert conn["scopes"].split() == ["oauth", "things.read", "extra.granted"]
+    assert conn["scopes"] != " ".join(asked)
 
 
 def test_tokens_are_encrypted_and_never_listed(provider, con):

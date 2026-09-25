@@ -57,7 +57,7 @@ PROVIDERS: dict[str, Provider] = {
         label="HubSpot",
         authorize_url="https://app.hubspot.com/oauth/authorize",
         token_url="https://api.hubspot.com/oauth/v3/token",   # v1 is deprecated; new integrations use v3
-        scopes=["oauth", "crm.objects.tickets.read"],
+        scopes=["oauth", "crm.objects.contacts.read"],
         client_id_env="HUBSPOT_CLIENT_ID",
         client_secret_env="HUBSPOT_CLIENT_SECRET",
         account_url="https://api.hubspot.com/oauth/v1/access-tokens/{token}",
@@ -97,19 +97,26 @@ async def _post_token(p: Provider, form: dict[str, str]) -> dict[str, Any]:
     return r.json()
 
 
-async def _account(p: Provider, access_token: str) -> str | None:
+async def _token_info(p: Provider, access_token: str) -> tuple[str | None, list[str] | None]:
+    """Which account this token is for, and **which scopes were actually granted**.
+
+    The distinction matters: what we put in the authorize URL is what we asked for, and recording that as if it were
+    the grant makes `step_validation.check_scopes` compare a manifest against a wish. The provider is the only
+    authority on what was given - a user can decline an optional scope, and an app can be configured for fewer than
+    the client requests."""
     if not p.account_url:
-        return None
+        return None, None
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(p.account_url.format(token=access_token))
         if r.status_code < 400:
             d = r.json()
             v = d.get("hub_id") or d.get("account_id") or d.get("portalId")
-            return str(v) if v is not None else None
+            granted = d.get("scopes") if isinstance(d.get("scopes"), list) else None
+            return (str(v) if v is not None else None), granted
     except Exception:
         pass       # naming the account is a nicety; failing to do it must not fail the connection
-    return None
+    return None, None
 
 
 def _store_tokens(tok: dict[str, Any]) -> tuple[str, float | None]:
@@ -124,11 +131,13 @@ async def finish(con, state: str, code: str) -> dict[str, Any]:
         raise OAuthError("this authorization link has expired or was already used; start again")
     p = PROVIDERS[st["provider"]]
     tok = await _post_token(p, {"grant_type": "authorization_code", "redirect_uri": redirect_uri(p.name), "code": code})
-    account = await _account(p, tok.get("access_token", ""))
+    account, granted = await _token_info(p, tok.get("access_token", ""))
     enc, expires = _store_tokens(tok)
+    # what was granted, falling back to what we asked for only when the provider will not say
+    scopes = granted if granted is not None else (tok.get("scope") or "").split() or p.scopes
     return store.create_connection(con, user_id=st["user_id"], provider=p.name, account=account,
                                    label=f"{p.label}{' · ' + account if account else ''}", tokens=enc,
-                                   expires=expires, scopes=" ".join(p.scopes))
+                                   expires=expires, scopes=" ".join(scopes))
 
 
 async def access_token(con, conn: dict) -> str:
