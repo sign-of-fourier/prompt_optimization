@@ -61,10 +61,14 @@ async def _flow():
             nid = tr["nodes"][-1]["id"]; nd = (await c.get(f"/runs/{rid}/nodes/{nid}")).json(); assert "node" in nd
             r = await c.get(f"/projects/{pid}/cost", params={"dataset_id": did}); assert r.json()["assumptions"]["full_rows"] == 12
             # bundles: the library lists the checked-in examples; a clone is an ordinary project with its dataset attached
-            ex = (await c.get("/examples")).json()
+            lib = (await c.get("/examples")).json()
+            ex = lib["entries"]
             assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement"]
             assert ex[0]["rows"] == 50 and ex[1]["goal"] == "compress" and ex[2]["rows"] == 120
             assert ex[2]["modules"] == 1 and ex[2]["steps"] == 1 and ex[0]["modules"] == 2 and ex[0]["steps"] == 0
+            # the library screen filters on these, and the entitlement entry says what it needs before it will run
+            assert "classify" in lib["tags"] and all(e["tags"] and e["description"] and e["updated"] for e in ex)
+            assert ex[2]["requires"] and not ex[0]["requires"]
             r = await c.post("/examples/ticket-triage/clone"); assert r.status_code == 200, r.text
             cl = r.json(); assert cl["dataset"]["n_rows"] == 50
             cp = (await c.get(f"/projects/{cl['id']}")).json()

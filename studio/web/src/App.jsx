@@ -5,6 +5,7 @@ import DataPanel from './DataPanel.jsx'
 import { OptimizerPanel } from './panels.jsx'
 import RunView from './RunView.jsx'
 import Serving from './Serving.jsx'
+import Library from './Library.jsx'
 import KeysPanel from './KeysPanel.jsx'
 import Tutorial, { tutorialVisible } from './Tutorial.jsx'
 import { NAME, SITE_URL, COMPANY_URL } from './brand.js'
@@ -67,13 +68,20 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
   const [pid, setPid] = useState(null)
   const refresh = useCallback(() => api.get('/projects').then(setProjects), [])
   useEffect(() => { refresh() }, [refresh])
-  const [examples, setExamples] = useState([])
   const [err, setErr] = useState('')
   const fileRef = useRef(null)
-  useEffect(() => { api.get('/examples').then(setExamples).catch(() => {}) }, [])
+  // #library or #library/<slug> opens the library directly, so the marketing site can link at one entry
+  const hash = () => (location.hash || '').replace(/^#/, '')
+  const [view, setView] = useState(hash().startsWith('library') ? 'library' : 'projects')
+  const [deepLink, setDeepLink] = useState(hash().split('/')[1] || null)
+  useEffect(() => {
+    const on = () => { const h = hash(); setView(h.startsWith('library') ? 'library' : 'projects'); setDeepLink(h.split('/')[1] || null) }
+    window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on)
+  }, [])
+  const openLibrary = () => { location.hash = 'library'; setView('library') }
+  const closeLibrary = () => { location.hash = ''; setView('projects') }
   const create = async () => { const r = await api.post('/projects', { ...EMPTY, name: 'untitled' }); await refresh(); setPid(r.id) }
   const remove = async p => { if (window.confirm(`Delete project "${p.name}" and its datasets and runs?`)) { await api.del(`/projects/${p.id}`); refresh() } }
-  const clone = async ex => { setErr(''); try { const r = await api.post(`/examples/${ex.slug}/clone`); await refresh(); setPid(r.id) } catch (e) { setErr(e.message) } }
   const importFile = async file => {
     setErr('')
     try { const b = JSON.parse(await file.text()); const r = await api.post('/projects/import', b); await refresh(); setPid(r.id) }
@@ -84,34 +92,25 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
     <div className="shell">
       <div className="top"><div className="brand"><span>{NAME}</span></div><a className="muted" style={{ fontSize: 12.5 }} href={SITE_URL}>Why compress</a><a className="muted" style={{ fontSize: 12.5 }} href={COMPANY_URL}>About</a>
         <div className="grow" /><KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button></div>
-      <div className="page">
+      {view === 'library'
+        ? <Library deepLink={deepLink} onBack={closeLibrary} onOpen={async id => { await refresh(); closeLibrary(); setPid(id) }} />
+        : <div className="page">
         {!models.house_keys && models.models.length === 0 && <div className="card" style={{ borderColor: 'var(--accent2)' }}><b>Add an endpoint to run anything.</b> Your account runs on your own model credentials. <a href="#" onClick={e => { e.preventDefault(); onKeys() }}>Add one under Endpoints &amp; keys</a>.</div>}
         <div className="row" style={{ marginBottom: 14 }}><h2 style={{ margin: 0 }}>Projects</h2><div className="grow" />
           <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = '' }} />
           <button title="A project file exported from the studio: program, settings and dataset" onClick={() => fileRef.current.click()}>Import</button>
+          <button onClick={openLibrary}>Library</button>
           <button className="primary" onClick={create}>New project</button></div>
         {err && <div className="err">{err}</div>}
-        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompt modules), a dataset, and the runs that optimized it. Start from an example below, or from an empty canvas with the tutorial.</p>}
+        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompt modules), a dataset, and the runs that optimized it.
+          {' '}<a href="#" onClick={e => { e.preventDefault(); openLibrary() }}>Start from a template</a>, or from an empty canvas with the tutorial.</p>}
         {projects.map(p => (
           <div className="card row" key={p.id} style={{ cursor: 'pointer' }} onClick={() => setPid(p.id)}>
             <b>{p.name}</b><span className="muted">updated {new Date(p.updated * 1000).toLocaleString()}</span>
             <div className="grow" /><button className="small" title="Delete project" onClick={e => { e.stopPropagation(); remove(p) }}>Delete</button>
           </div>
         ))}
-        {examples.length > 0 && <>
-          <h3 style={{ margin: '26px 0 4px' }}>Examples</h3>
-          <p className="muted" style={{ margin: '0 0 12px' }}>Ready-made projects, dataset included. Adding one copies it into your projects; edit and run it like your own.</p>
-          <div className="grid2">
-            {examples.map(ex => (
-              <div className="card" key={ex.slug}>
-                <div className="row"><b>{ex.name}</b><span className="pill">{ex.goal === 'compress' ? 'compression' : 'accuracy'}</span></div>
-                <p className="muted" style={{ margin: '6px 0 10px', fontSize: 13 }}>{ex.blurb}</p>
-                <div className="row"><span className="muted" style={{ fontSize: 12 }}>{ex.modules} prompt{ex.modules === 1 ? '' : 's'}{ex.steps ? ` · ${ex.steps} external step${ex.steps === 1 ? '' : 's'}` : ''} · {ex.rows} rows{ex.dataset ? ` · ${ex.dataset}` : ''}</span><div className="grow" /><button className="small primary" onClick={() => clone(ex)}>Add to my projects</button></div>
-              </div>
-            ))}
-          </div>
-        </>}
-      </div>
+      </div>}
     </div>
   )
 }

@@ -3,6 +3,17 @@
   "name": "Ticket triage with customer records",
   "order": 3,
   "blurb": "The same triage task, but the right queue depends on who is asking: an enterprise customer with open tickets is an escalation, a refund near contract renewal is a retention case. An external step fetches the record. A prompt that never sees it cannot get past 83%, at any length.",
+  "description": "Routing where the right answer depends on who is asking: an enterprise customer with open tickets is an escalation, a refund near contract renewal is a retention case. An external step fetches the customer record before the prompts run. The labels depend jointly on the message and the record, so a prompt that never sees the record cannot get past 83% at any length - the ceiling is computed from the labelling rule, not asserted.",
+  "tags": [
+    "classify",
+    "external step",
+    "advanced"
+  ],
+  "requires": [
+    "A key for the customer records step (Build tab -> the rec node)",
+    "Fetch and freeze the step's data onto the dataset before running"
+  ],
+  "updated": "2026-09-23",
   "spec": {
     "name": "Ticket triage with records",
     "modules": [
@@ -10,7 +21,13 @@
         "id": "route",
         "template": "Route this support ticket to one queue.\n\nTicket: {message}\n\nCustomer: plan {rec_plan}, {rec_open_tickets} other open tickets, contract {rec_contract}, {rec_renewal_days} days to renewal.\n\nQueues: billing, refund, bug, account, shipping, other, escalation, retention.",
         "description": "routes a support ticket to a queue, using the customer's record",
-        "schema_fields": [{ "name": "queue", "type": "string", "description": "one of the queues listed" }],
+        "schema_fields": [
+          {
+            "name": "queue",
+            "type": "string",
+            "description": "one of the queues listed"
+          }
+        ],
         "model": null,
         "max_tokens": 64
       }
@@ -20,7 +37,9 @@
         "id": "rec",
         "manifest": "records@1.0.0",
         "manifest_sha": "",
-        "inputs": { "customer_id": "customer_id" },
+        "inputs": {
+          "customer_id": "customer_id"
+        },
         "credential_id": null,
         "tunables": {},
         "enabled": true
@@ -32,28 +51,62 @@
     "eval_model": "us.amazon.nova-micro-v1:0",
     "evaluate": {
       "label_column": "queue",
-      "scorers": [{ "type": "exact_match", "field": "queue", "normalize": true }],
+      "scorers": [
+        {
+          "type": "exact_match",
+          "field": "queue",
+          "normalize": true
+        }
+      ],
       "token_count": true,
-      "objective": { "accuracy": 1.0 },
+      "objective": {
+        "accuracy": 1.0
+      },
       "pareto": {}
     },
     "optimizer": {
-      "goal": "accuracy", "engine": "gepa", "mode": "weighted",
-      "bo": { "q": 2, "pca": 4, "acquisition": "qei" },
-      "parents_per_round": 1, "children": 1, "minibatch": 5, "rounds": 8,
-      "no_improvement_rounds": 4, "max_usd": 0.5, "max_calls": null,
-      "reflect_model": "us.amazon.nova-lite-v1:0", "reflect_temperature": 1.0,
+      "goal": "accuracy",
+      "engine": "gepa",
+      "mode": "weighted",
+      "bo": {
+        "q": 2,
+        "pca": 4,
+        "acquisition": "qei"
+      },
+      "parents_per_round": 1,
+      "children": 1,
+      "minibatch": 5,
+      "rounds": 8,
+      "no_improvement_rounds": 4,
+      "max_usd": 0.5,
+      "max_calls": null,
+      "reflect_model": "us.amazon.nova-lite-v1:0",
+      "reflect_temperature": 1.0,
       "feedback": "critic",
       "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
-      "critic_model": null, "eval_rows": null, "holdout_frac": 0.2, "seed": 0
+      "critic_model": null,
+      "eval_rows": null,
+      "holdout_frac": 0.2,
+      "seed": 0
     },
     "mutate": null,
-    "layout": { "route": { "x": 320, "y": 120 }, "step:rec": { "x": 60, "y": -40 } }
+    "layout": {
+      "route": {
+        "x": 320,
+        "y": 120
+      },
+      "step:rec": {
+        "x": 60,
+        "y": -40
+      }
+    }
   },
   "dataset": {
     "name": "tickets-entitlement.jsonl",
     "sample": "tickets-entitlement.jsonl",
-    "input_map": { "message": "message" },
+    "input_map": {
+      "message": "message"
+    },
     "label_column": "queue"
   }
 }

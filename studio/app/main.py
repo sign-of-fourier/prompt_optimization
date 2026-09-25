@@ -233,7 +233,9 @@ def delete_project(pid: str, request: Request, user=auth.User):
 
 @app.get("/examples")
 def list_examples(user=auth.User):
-    return B.list_examples()
+    """The library. Curated by us - there is no submission path - so the repo is the registry and shipping a
+    template is a deploy, not a moderation queue."""
+    return {"entries": B.list_examples(), "tags": B.tags()}
 
 
 @app.post("/examples/{slug}/clone")

@@ -36,8 +36,12 @@ class BundleDataset(BaseModel):
 class Bundle(BaseModel):
     bundle: int = FORMAT
     name: str
-    blurb: str = ""
-    order: int = 100                             # library listing position
+    blurb: str = ""                              # one line, on the card
+    description: str = ""                        # a few sentences, in the detail view
+    tags: list[str] = Field(default_factory=list)
+    requires: list[str] = Field(default_factory=list)   # what the user must have before this works
+    updated: str = ""                            # ISO date; the library sorts newest first within a tag
+    order: int = 100                             # tiebreak for entries we want pinned
     spec: ProjectSpec
     dataset: BundleDataset | None = None
 
@@ -68,15 +72,24 @@ def list_examples() -> list[dict[str, Any]]:
         b = Bundle.model_validate_json(p.read_text())
         rows = b.rows()
         # "modules" and "steps" are different things now: prompts the optimizer rewrites, and external steps it does not
-        out.append({"slug": p.stem, "name": b.name, "blurb": b.blurb, "order": b.order,
+        out.append({"slug": p.stem, "name": b.name, "blurb": b.blurb, "description": b.description, "tags": b.tags,
+                    "requires": b.requires, "updated": b.updated, "order": b.order,
                     "modules": len(b.spec.modules), "steps": len(b.spec.steps),
-                    "rows": len(rows) if rows else 0, "goal": b.spec.optimizer.goal, "dataset": b.dataset.name if b.dataset else None})
+                    "rows": len(rows) if rows else 0, "goal": b.spec.optimizer.goal, "dataset": b.dataset.name if b.dataset else None,
+                    "eval_model": b.spec.eval_model, "rounds": b.spec.optimizer.rounds})
     return sorted(out, key=lambda e: (e["order"], e["name"]))
+
+
+def tags() -> list[str]:
+    """Every tag in the library, most used first: the filter chips are derived, never hand-maintained."""
+    from collections import Counter
+    c = Counter(t for e in list_examples() for t in e["tags"])
+    return [t for t, _ in c.most_common()]
 
 
 # ---- export / import ----------------------------------------------------------------------
 
-def export_bundle(con, project: dict, dataset: dict | None, *, templates: dict[str, str] | None = None, blurb: str = "") -> Bundle:
+def export_bundle(con, project: dict, dataset: dict | None, *, templates: dict[str, str] | None = None, blurb: str = "") -> Bundle:  # noqa: E501
     """`project` / `dataset` are db rows (spec already parsed). `templates` (module id -> template), e.g. a run's best
     node, replaces the templates of the spec - the way to bundle 'the optimized prompts'."""
     spec = ProjectSpec.model_validate(project["spec"])

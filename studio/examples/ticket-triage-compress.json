@@ -1,126 +1,134 @@
 {
- "bundle": 1,
- "name": "Ticket triage · compress the optimized prompts",
- "blurb": "Same program, starting from the 276-token prompts an accuracy run produced. Goal: Compress, with template_tokens weighted −0.002. Shows the accuracy-vs-tokens front; the walkthrough on promptcompression.ai/example is this project.",
- "order": 2,
- "spec": {
-  "name": "Ticket triage · compress the optimized prompts",
-  "modules": [
-   {
-    "id": "summarize",
-    "template": "Read this customer message and state in one short line what the customer wants and which product or order it concerns, capturing the urgency and nature of the request (feature or bug). If relevant, also include the queue it belongs to based on the issue.\n\nMessage: {message}",
-    "description": "summarizes what a customer wants in one line",
-    "schema_fields": [
-     {
-      "name": "summary",
-      "type": "string",
-      "description": "one line",
-      "enum": null
-     }
-    ],
-    "model": null,
-    "max_tokens": 512
-   },
-   {
-    "id": "route",
-    "template": "Assign this support request to one of the following queues: billing, shipping, refund, bug, account, upgrade, or other. Consider the specific needs of the request such as urgency, product feature, or account management.\n\nRequest: {summary}\n\nGuidelines:\n1. If the request involves billing issues, assign to 'billing'.\n2. If the request pertains to shipping problems, assign to 'shipping'.\n3. If the request is about a refund, assign to 'refund'.\n4. If the request identifies a bug or software issue, assign to 'bug'.\n5. If the request is about account management or settings, assign to 'account'.\n6. If the request is about upgrading a service or feature, assign to 'upgrade'.\n7. For any other requests not fitting the above categories, assign to 'other'.\n\nEnsure the summary clearly identifies the nature of the request to facilitate accurate routing.",
-    "description": "assigns a support request to a queue",
-    "schema_fields": [
-     {
-      "name": "queue",
-      "type": "string",
-      "description": "",
-      "enum": null
-     }
-    ],
-    "model": null,
-    "max_tokens": 256
-   }
+  "bundle": 1,
+  "name": "Ticket triage \u00b7 compress the optimized prompts",
+  "blurb": "Same program, starting from the 276-token prompts an accuracy run produced. Goal: Compress, with template_tokens weighted \u22120.002. Shows the accuracy-vs-tokens front; the walkthrough on promptcompression.ai/example is this project.",
+  "description": "The same triage task with the objective changed: keep the accuracy, spend fewer tokens. The rewriter is asked for a SHORTER prompt and the objective carries a negative weight on template tokens, so the run reports a front - accuracy against length - rather than a single number.",
+  "tags": [
+    "classify",
+    "compression",
+    "cost"
   ],
-  "edges": [
-   {
-    "source": "summarize",
-    "target": "route",
-    "name": "",
-    "mapping": {
-     "summary": "summary"
+  "requires": [],
+  "updated": "2026-09-22",
+  "order": 2,
+  "spec": {
+    "name": "Ticket triage \u00b7 compress the optimized prompts",
+    "modules": [
+      {
+        "id": "summarize",
+        "template": "Read this customer message and state in one short line what the customer wants and which product or order it concerns, capturing the urgency and nature of the request (feature or bug). If relevant, also include the queue it belongs to based on the issue.\n\nMessage: {message}",
+        "description": "summarizes what a customer wants in one line",
+        "schema_fields": [
+          {
+            "name": "summary",
+            "type": "string",
+            "description": "one line",
+            "enum": null
+          }
+        ],
+        "model": null,
+        "max_tokens": 512
+      },
+      {
+        "id": "route",
+        "template": "Assign this support request to one of the following queues: billing, shipping, refund, bug, account, upgrade, or other. Consider the specific needs of the request such as urgency, product feature, or account management.\n\nRequest: {summary}\n\nGuidelines:\n1. If the request involves billing issues, assign to 'billing'.\n2. If the request pertains to shipping problems, assign to 'shipping'.\n3. If the request is about a refund, assign to 'refund'.\n4. If the request identifies a bug or software issue, assign to 'bug'.\n5. If the request is about account management or settings, assign to 'account'.\n6. If the request is about upgrading a service or feature, assign to 'upgrade'.\n7. For any other requests not fitting the above categories, assign to 'other'.\n\nEnsure the summary clearly identifies the nature of the request to facilitate accurate routing.",
+        "description": "assigns a support request to a queue",
+        "schema_fields": [
+          {
+            "name": "queue",
+            "type": "string",
+            "description": "",
+            "enum": null
+          }
+        ],
+        "model": null,
+        "max_tokens": 256
+      }
+    ],
+    "edges": [
+      {
+        "source": "summarize",
+        "target": "route",
+        "name": "",
+        "mapping": {
+          "summary": "summary"
+        },
+        "default": false
+      }
+    ],
+    "entry": null,
+    "max_steps": 8,
+    "eval_model": "us.amazon.nova-micro-v1:0",
+    "evaluate": {
+      "label_column": "answer",
+      "scorers": [
+        {
+          "type": "exact_match",
+          "name": "",
+          "field": "queue",
+          "normalize": true,
+          "pattern": null,
+          "tolerance": 0.0,
+          "rubric": "",
+          "judge_model": null
+        }
+      ],
+      "token_count": true,
+      "objective": {
+        "accuracy": 1.0,
+        "template_tokens": -0.002
+      },
+      "pareto": {}
     },
-    "default": false
-   }
-  ],
-  "entry": null,
-  "max_steps": 8,
-  "eval_model": "us.amazon.nova-micro-v1:0",
-  "evaluate": {
-   "label_column": "answer",
-   "scorers": [
-    {
-     "type": "exact_match",
-     "name": "",
-     "field": "queue",
-     "normalize": true,
-     "pattern": null,
-     "tolerance": 0.0,
-     "rubric": "",
-     "judge_model": null
+    "optimizer": {
+      "goal": "compress",
+      "engine": "gepa",
+      "mode": "weighted",
+      "bo": {
+        "q": 2,
+        "pca": 4,
+        "acquisition": "qei"
+      },
+      "parents_per_round": 1,
+      "children": 1,
+      "minibatch": 5,
+      "rounds": 10,
+      "no_improvement_rounds": 4,
+      "max_usd": 2.0,
+      "max_calls": null,
+      "reflect_model": "us.amazon.nova-lite-v1:0",
+      "reflect_temperature": 1.0,
+      "feedback": "critic",
+      "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
+      "critic_model": null,
+      "eval_rows": null,
+      "holdout_frac": 0.2,
+      "seed": 0
+    },
+    "mutate": null,
+    "layout": {
+      "summarize": {
+        "x": 186.85664146868248,
+        "y": 135.314524838013
+      },
+      "route": {
+        "x": 422.7562095032398,
+        "y": -14.708963282937354
+      },
+      "__evaluate__": {
+        "x": 641.2880669546436,
+        "y": -117.10502159827213
+      }
     }
-   ],
-   "token_count": true,
-   "objective": {
-    "accuracy": 1.0,
-    "template_tokens": -0.002
-   },
-   "pareto": {}
   },
-  "optimizer": {
-   "goal": "compress",
-   "engine": "gepa",
-   "mode": "weighted",
-   "bo": {
-    "q": 2,
-    "pca": 4,
-    "acquisition": "qei"
-   },
-   "parents_per_round": 1,
-   "children": 1,
-   "minibatch": 5,
-   "rounds": 10,
-   "no_improvement_rounds": 4,
-   "max_usd": 2.0,
-   "max_calls": null,
-   "reflect_model": "us.amazon.nova-lite-v1:0",
-   "reflect_temperature": 1.0,
-   "feedback": "critic",
-   "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
-   "critic_model": null,
-   "eval_rows": null,
-   "holdout_frac": 0.2,
-   "seed": 0
-  },
-  "mutate": null,
-  "layout": {
-   "summarize": {
-    "x": 186.85664146868248,
-    "y": 135.314524838013
-   },
-   "route": {
-    "x": 422.7562095032398,
-    "y": -14.708963282937354
-   },
-   "__evaluate__": {
-    "x": 641.2880669546436,
-    "y": -117.10502159827213
-   }
+  "dataset": {
+    "name": "tickets.jsonl (sample)",
+    "rows": null,
+    "sample": "tickets.jsonl",
+    "input_map": {
+      "message": "message"
+    },
+    "label_column": "queue",
+    "omitted": null
   }
- },
- "dataset": {
-  "name": "tickets.jsonl (sample)",
-  "rows": null,
-  "sample": "tickets.jsonl",
-  "input_map": {
-   "message": "message"
-  },
-  "label_column": "queue",
-  "omitted": null
- }
 }
