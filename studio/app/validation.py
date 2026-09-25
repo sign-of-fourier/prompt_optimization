@@ -350,7 +350,9 @@ def project_cost(spec: ProjectSpec, n_rows: int, *, avg_steps: float | None = No
     else:
         eval_usd = usd(spec.eval_model, total_eval_rollouts, avg_in or 800, avg_out or 80)
     reflect_usd = usd(o.reflect_model, calls["reflect"], reflect_in, reflect_out)
-    critic_usd = usd(o.critic_model or o.reflect_model, calls["critic"], 1500, 200)
+    # the critic reads the example plus the template it reviews (chars/4 ~ tokens, the longest rewritable one)
+    rewritable = [m for m in spec.modules if spec.mutate is None or m.id in spec.mutate] or spec.modules
+    critic_usd = usd(o.critic_model or o.reflect_model, calls["critic"], 1500 + max(len(m.template) for m in rewritable) / 4, 200)
     worst = dict(calls)
     if _has_cycle(spec) and avg_steps and avg_steps < spec.max_steps:
         f = spec.max_steps / steps

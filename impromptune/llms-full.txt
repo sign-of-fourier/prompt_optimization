@@ -452,7 +452,7 @@ Rounds cap the work, max spend caps the money, and “stop after N rounds withou
 Reflection is the one place where variety helps, so it has its own temperature. Evaluation is always temperature 0, which narrows — but does not close — the gap between two evaluations of the same prompt: several providers still answer differently at temperature 0. The pilot measures that gap so you can read a result against it.
 
 ### What the reflector is told
-A short written critique from a model that reads the trace (the default), a template you write, or just the expected answer and the scores. The critique costs a call per failure and usually earns it.
+A short written critique from a model that reads the prompt and the trace (the default), a template you write, or just the expected answer and the scores. The critique costs a call per failure and usually earns it.
 
 ## Reading a run without fooling yourself
 

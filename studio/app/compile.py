@@ -77,12 +77,16 @@ def build_task(spec: ProjectSpec, dataset: Dataset, client: ModelClient, *, judg
 
 # ---- feedback ----------------------------------------------------------------------
 
+# The critic sees the prompt it reviews: a single-step program writes no trace, so without {prompt} it was asked what
+# a prompt "should do differently" without ever reading it, and its notes came back as generic missing guidance.
 CRITIC_PROMPT = (
     "You are reviewing one run of a multi-step LLM program on one example, to help a prompt engineer improve the "
-    "prompt of the step named '{module}'.\n\nExample inputs:\n{inputs}\n\nExpected answer: {expected}\n\n"
+    "prompt of the step named '{module}'.\n\nThe '{module}' step's prompt template:\n<prompt>\n{prompt}\n</prompt>\n\n"
+    "Example inputs:\n{inputs}\n\nExpected answer: {expected}\n\n"
     "What the program did (each step's input and output, in order):\n{trace}\n\nFinal output: {output}\nMetrics: {metrics}\n\n"
     "Write 2-4 sentences of concrete, specific feedback about what the '{module}' step got wrong or right on this "
-    "example and what its prompt should do differently. Name the failure, not the fix in general terms."
+    "example. If it got it wrong, quote the sentence or rule in its prompt that led there, or say that nothing in the "
+    "prompt covers this case, and say what that text should do differently. Name the failure, not the fix in general terms."
 )
 
 
@@ -109,7 +113,8 @@ COMPRESS_REFLECT_PROMPT = (
 
 COMPRESS_CRITIC_PROMPT = (
     "You are reviewing one run of a multi-step LLM program on one example, to help a prompt engineer make the prompt "
-    "of the step named '{module}' SHORTER without losing accuracy.\n\nExample inputs:\n{inputs}\n\nExpected answer: {expected}\n\n"
+    "of the step named '{module}' SHORTER without losing accuracy.\n\nThe '{module}' step's prompt template:\n<prompt>\n{prompt}\n</prompt>\n\n"
+    "Example inputs:\n{inputs}\n\nExpected answer: {expected}\n\n"
     "What the program did (each step's input and output, in order):\n{trace}\n\nFinal output: {output}\nMetrics: {metrics}\n\n"
     "Write 2-3 sentences: if the example failed, name the one rule the '{module}' prompt needs to fix it; if it passed, "
     "say so and name any wording in that step's prompt this example shows to be unnecessary. Do not suggest additions "
@@ -179,8 +184,9 @@ class Critique(Op):
                 continue
             trace_txt = "\n".join(f"[{m} #{v.get('step_idx', 0)}] input: {str(v.get('input', ''))[:800]}\n  output: {str(v.get('output', ''))[:400]}"
                                   for m in (r.trace or {}) if not m.startswith("_") for v in trace_visits(r, m)) or "(single step)"
-            text = self.prompt.format(module=self.module or tree.task.root.entry, inputs=json.dumps(ex.inputs, default=str)[:2000],
-                                        expected=ex.answer, trace=trace_txt, output=(r.output or "")[:800], metrics=json.dumps(r.metrics))
+            text = self.prompt.format(module=self.module or tree.task.root.entry, prompt=self.expander.target(node).template,
+                                      inputs=json.dumps(ex.inputs, default=str)[:2000],
+                                      expected=ex.answer, trace=trace_txt, output=(r.output or "")[:800], metrics=json.dumps(r.metrics))
             try:
                 note = (await self.client.complete(text, config=self.config, schema=CriticNote)).parsed_as(CriticNote).feedback
             except Exception as e:  # the critic is advisory; a failed note falls back to templated feedback

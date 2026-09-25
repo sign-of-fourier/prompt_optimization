@@ -142,6 +142,12 @@ def test_end_to_end_run_with_critic_and_round_robin():
     assert all(n.prompt.edges == tree.root.prompt.edges for n in reflected)
     metas = [p for p in client._mock.calls if "Feedback:" in p]
     assert metas and all("dropped the city name" in m for m in metas)
+    # the critic reads the template of the step it reviews, in round-robin order
+    critics = [p for p in client._mock.calls if p.startswith("You are reviewing one run")]
+    templates = {m.id: m.template for m in s.modules}
+    assert critics and all("<prompt>" in p for p in critics)
+    for mod in ("extract", "shorten", "check"):
+        assert any(f"step named '{mod}'" in p and templates[mod] in p for p in critics)
     # gate: minibatch evaluation happened; accepted children got the full set
     assert all(n.evaluation is not None for n in reflected)
     assert tree.root.evaluation.metrics["steps"] == 7.0
@@ -195,7 +201,7 @@ def test_compress_goal_swaps_reflection_and_records_template_tokens():
     assert metas and all("SHORTER prompt template" in p and "template tokens:" in p for p in metas)
     assert all("add concrete rules" not in p for p in metas)
     critics = [p for p in client._mock.calls if "SHORTER without losing accuracy" in p]
-    assert critics
+    assert critics and all("Extract the key fact from: {text}{prev}" in p for p in critics)
     # correct rows count as successes even though the token penalty keeps every row's objective below 1
     from app.compile import correct_rows_pass
     passed = correct_rows_pass(s.evaluate.objective)
