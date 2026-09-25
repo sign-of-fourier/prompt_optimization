@@ -89,7 +89,7 @@ def spec(**over) -> ProjectSpec:
         name="triage",
         modules=[ModuleSpec(id="route", template="Queue for: {message}. Plan {rec_plan}, open {rec_open_tickets}.",
                             description="routes a ticket", schema_fields=[])],
-        steps=[StepSpec(id="rec", manifest="rec@1.0.0", inputs={"customer_id": "customer_id"}, credential_id="cred1")],
+        steps=[StepSpec(id="rec", manifest="rec@1.0.0", inputs={"customer_id": "customer_id"}, credential="step:cred1")],
         evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match")], label_column="queue"),
     )
     base.update(over)
@@ -102,21 +102,21 @@ def test_call_success_missing_and_failures(server):
     m = X.load_manifest("rec@1.0.0")
     assert m is not None and X.load_manifest("rec@9.9.9") is None   # a version that moved is not silently accepted
 
-    out, met = asyncio.run(X.call(m, {"customer_id": "C1"}, secret=KEY))
+    out, met = asyncio.run(X.call(m, {"customer_id": "C1"}, token=KEY))
     assert out == {"plan": "enterprise", "open_tickets": 3, "score": 10}
     assert met["usd"] == 0.001 and met["latency_s"] >= 0 and met["missing"] == 0.0
 
     # "no record" is a declared answer, not a failure: production is full of unknown ids
-    out, met = asyncio.run(X.call(m, {"customer_id": "NOPE"}, secret=KEY))
+    out, met = asyncio.run(X.call(m, {"customer_id": "NOPE"}, token=KEY))
     assert out is None and met["missing"] == 1.0
 
     for cid, fragment in [("BOOM", "500"), ("WRONG", "missing the declared field"), ("BADENUM", "not one of")]:
         with pytest.raises(X.StepError) as e:
-            asyncio.run(X.call(m, {"customer_id": cid}, secret=KEY))
+            asyncio.run(X.call(m, {"customer_id": cid}, token=KEY))
         assert fragment in str(e.value)
 
     with pytest.raises(X.StepError) as e:
-        asyncio.run(X.call(m, {"customer_id": "C1"}, secret="wrong"))
+        asyncio.run(X.call(m, {"customer_id": "C1"}, token="wrong"))
     assert "credential" in str(e.value)
 
 
@@ -126,7 +126,7 @@ def test_enrich_freezes_caches_and_survives_a_failure(server):
     sp = spec()
     rows = [{"message": "m", "customer_id": c} for c in ["C1", "C2", "C1", "C1", "NOPE", "BOOM"]]
     CALLS.clear()
-    out, rep = asyncio.run(X.enrich(sp, sp.steps[0], rows, secret=KEY))
+    out, rep = asyncio.run(X.enrich(sp, sp.steps[0], rows, token=KEY))
 
     # six rows, four distinct ids: the declared cache key means four calls, not six
     assert len(CALLS) == 4 and rep["calls"] == 4 and rep["cached"] == 2
@@ -163,7 +163,7 @@ def test_static_checks(server):
     rep = ValidationReport(); SV.check_steps(bad, cols, rep)
     assert any("not mapped" in i.message for i in rep.issues if i.level == "error")
 
-    bad = spec(); bad.steps[0].credential_id = None
+    bad = spec(); bad.steps[0].credential = None
     rep = ValidationReport(); SV.check_steps(bad, cols, rep)
     assert any("credential" in i.message for i in rep.issues if i.level == "error")
 
@@ -284,3 +284,72 @@ def test_a_noisy_field_does_not_look_useful_just_for_having_many_values(server):
     assert redundant and "rec_score" in redundant[0].data["redundant"]     # noise, however many values it has
     kept = [i.message for i in rep.issues if "cannot replace it" in i.message]
     assert any("rec_plan" in k for k in kept)                              # and the field that decides the label stays
+
+
+# ---- a step authorised by an OAuth grant --------------------------------------------------------
+
+def _oauth_manifest():
+    """The same records service, but declaring that it acts on the user's own account."""
+    import json
+    d = X.steps_dir()
+    (d / "hs.json").write_text(json.dumps({
+        "step": 1, "id": "hs", "version": "1.0.0", "name": "HubSpot tickets",
+        "transport": json.loads(X.load_manifest("rec@1.0.0").transport.model_dump_json()),
+        "auth": {"kind": "oauth", "provider": "hubspot", "scopes": ["oauth", "crm.objects.tickets.read"]},
+        "missing": {"status": 404}, "inputs": [{"name": "customer_id", "required": True}],
+        "outputs": [{"name": "plan"}, {"name": "open_tickets", "type": "number"}, {"name": "score", "type": "number"}],
+        "cacheable": True, "cache_key": ["customer_id"],
+    }))
+    return X.load_manifest("hs@1.0.0")
+
+
+def _oauth_spec(credential):
+    from app.models import EvaluateSpec, ModuleSpec, ProjectSpec, ScorerSpec, StepSpec
+    return ProjectSpec(name="t", modules=[ModuleSpec(id="route", template="{message} {hs_plan}", description="routes")],
+                       steps=[StepSpec(id="hs", manifest="hs@1.0.0", inputs={"customer_id": "customer_id"}, credential=credential)],
+                       evaluate=EvaluateSpec(scorers=[ScorerSpec()], label_column="queue"))
+
+
+def test_the_token_is_fetched_for_every_call_not_once(server):
+    """An access token lasts thirty minutes; an enrichment can outlive it. The step must ask for a token per call so
+    the refresh inside `oauth.access_token` gets its chance, rather than pinning one value at the top of the run."""
+    m = _oauth_manifest()
+    asked = []
+
+    async def token():
+        asked.append(1)
+        return KEY
+
+    rows = [{"message": "m", "customer_id": c} for c in ["C1", "C2", "C3"]]
+    out, rep = asyncio.run(X.enrich(_oauth_spec("conn:abc"), _oauth_spec("conn:abc").steps[0], rows, token=token))
+    assert rep["calls"] == 3 and len(asked) == 3          # once per call, not once per run
+    assert out[0]["hs_plan"] == "enterprise"
+
+
+def test_an_oauth_step_demands_a_connection_not_a_pasted_key(server):
+    _oauth_manifest()
+    cols = ["message", "customer_id", "queue"]
+    for cred in (None, "step:some-key"):
+        rep = ValidationReport(); SV.check_steps(_oauth_spec(cred), cols, rep)
+        assert any("acts on your own hubspot account" in i.message for i in rep.issues if i.level == "error")
+    rep = ValidationReport(); SV.check_steps(_oauth_spec("conn:abc"), cols, rep)
+    assert not [i for i in rep.issues if i.level == "error"]
+
+
+def test_missing_scopes_are_caught_before_anything_is_spent(server):
+    _oauth_manifest()
+    spec = _oauth_spec("conn:abc")
+    full = {"id": "abc", "provider": "hubspot", "scopes": "oauth crm.objects.tickets.read"}
+
+    rep = ValidationReport(); SV.check_scopes(spec, [full], rep)
+    assert not rep.issues
+
+    rep = ValidationReport(); SV.check_scopes(spec, [{**full, "scopes": "oauth"}], rep)
+    e = [i for i in rep.issues if i.level == "error"]
+    assert e and e[0].data["missing"] == ["crm.objects.tickets.read"] and "reconnect" in e[0].message
+
+    rep = ValidationReport(); SV.check_scopes(spec, [{**full, "provider": "salesforce"}], rep)
+    assert any("but points at a salesforce one" in i.message for i in rep.issues if i.level == "error")
+
+    rep = ValidationReport(); SV.check_scopes(spec, [], rep)
+    assert any("no longer exists" in i.message for i in rep.issues if i.level == "error")

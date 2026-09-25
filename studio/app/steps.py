@@ -64,6 +64,8 @@ class Manifest(BaseModel):
     name: str = ""
     blurb: str = ""
     transport: Transport
+    # {"kind": "bearer"} - a key the user pastes; {"kind": "oauth", "provider": "hubspot", "scopes": [...]} - a grant
+    # the user makes on the provider's own consent screen, which this studio then refreshes on their behalf
     auth: dict[str, Any] = Field(default_factory=dict)
     missing: dict[str, Any] = Field(default_factory=dict)   # how this service says "no record"
     inputs: list[StepField] = Field(default_factory=list)
@@ -72,6 +74,14 @@ class Manifest(BaseModel):
     cache_key: list[str] = Field(default_factory=list)
     price_usd_per_call: float = 0.0
     tunables: list[StepField] = Field(default_factory=list)
+
+    @property
+    def oauth_provider(self) -> str | None:
+        return self.auth.get("provider") if self.auth.get("kind") == "oauth" else None
+
+    @property
+    def required_scopes(self) -> list[str]:
+        return list(self.auth.get("scopes") or [])
 
     @property
     def ref(self) -> str:
@@ -99,7 +109,8 @@ def list_manifests() -> list[dict[str, Any]]:
         m = Manifest.model_validate_json(p.read_text())
         out.append({"ref": m.ref, "id": m.id, "version": m.version, "name": m.name or m.id, "blurb": m.blurb,
                     "inputs": [f.name for f in m.inputs], "outputs": [f.name for f in m.outputs],
-                    "cacheable": m.cacheable, "price_usd_per_call": m.price_usd_per_call})
+                    "cacheable": m.cacheable, "price_usd_per_call": m.price_usd_per_call,
+                    "auth": m.auth.get("kind", ""), "provider": m.oauth_provider, "scopes": m.required_scopes})
     return out
 
 
@@ -134,13 +145,28 @@ class StepError(Exception):
     pass
 
 
-async def call(m: Manifest, inputs: dict[str, Any], *, secret: str = "", client: httpx.AsyncClient | None = None
+Token = "str | Callable[[], Awaitable[str]] | None"
+
+
+async def _bearer(token) -> str:
+    """`token` is a string for a pasted key, or an awaitable-returning callable for an OAuth grant. It has to be the
+    second kind for OAuth: an access token lasts thirty minutes, so the value must be fetched per call and the
+    refresh must happen inside that fetch, not once at the top of an enrichment over six hundred rows."""
+    if token is None:
+        return ""
+    if isinstance(token, str):
+        return token
+    return await token()
+
+
+async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx.AsyncClient | None = None
                ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """One call. Returns (outputs or None when the service says "no record", metrics). Raises StepError for a real
     failure - a timeout, a 5xx, a response that does not match the declared schema - which the caller turns into one
     bad row, never a dead run."""
     t = m.transport
-    headers = {"Authorization": f"Bearer {secret}"} if m.auth.get("kind") == "bearer" and secret else {}
+    bearer = await _bearer(token) if m.auth.get("kind") in ("bearer", "oauth") else ""
+    headers = {"Authorization": f"Bearer {bearer}"} if bearer else {}
     own = client is None
     client = client or httpx.AsyncClient(timeout=t.timeout_s)
     t0 = time.perf_counter()
@@ -187,7 +213,7 @@ async def call(m: Manifest, inputs: dict[str, Any], *, secret: str = "", client:
 
 # ---- enrichment: frozen onto the rows ----------------------------------------------------------
 
-async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], *, secret: str = "",
+async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], *, token=None,
                  max_concurrency: int = 4) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run `step` over every row once and return (new rows with the step's columns added, a report).
 
@@ -216,7 +242,7 @@ async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], 
                 inflight[key] = fut
             async with sem:
                 try:
-                    out, met = await call(m, args, secret=secret, client=client)
+                    out, met = await call(m, args, token=token, client=client)
                     res = (out, met, None)
                 except StepError as e:
                     res = (None, None, str(e))

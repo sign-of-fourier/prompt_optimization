@@ -60,7 +60,7 @@ class MissingInputs(ValueError):
 
 
 async def serve(spec: ProjectSpec, inputs: dict[str, Any], *, access: Access, mock=None, on_call=None,
-                secrets: dict[str, str] | None = None) -> dict[str, Any]:
+                tokens: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run one request through the pinned program. Raises MissingInputs; model and step errors propagate to the
     caller so the route can record them on the trace.
 
@@ -81,7 +81,7 @@ async def serve(spec: ProjectSpec, inputs: dict[str, Any], *, access: Access, mo
         if m is None:
             raise X.StepError(f"this version pins step {st.manifest!r}, which is not installed here")
         args = {name: inputs.get(col) for name, col in st.inputs.items()}
-        out, met = await X.call(m, args, secret=(secrets or {}).get(st.id, ""))
+        out, met = await X.call(m, args, token=(tokens or {}).get(st.id))
         step_metrics.update({f"step.{st.id}.{k}": v for k, v in met.items()})
         for f in m.outputs:
             step_out[X.column(st.id, f.name)] = (out or {}).get(f.name)

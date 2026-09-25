@@ -31,6 +31,29 @@ PERMUTATIONS = 200
 
 # ---- tier 0: static -----------------------------------------------------------------------------
 
+def check_scopes(spec: ProjectSpec, connections: list[dict], rep: ValidationReport) -> None:
+    """An OAuth step declares the scopes it needs; the grant records what was actually given. Comparing them here
+    turns a 403 on row 1 of an enrichment into a sentence before anything is spent."""
+    by_id = {c["id"]: c for c in connections}
+    for s in spec.steps:
+        if not s.enabled or not (s.credential or "").startswith("conn:"):
+            continue
+        m = load_manifest(s.manifest)
+        if m is None or not m.oauth_provider:
+            continue
+        conn = by_id.get(s.credential.split(":", 1)[1])
+        if conn is None:
+            rep.add("error", "step", "the connection this step points at no longer exists; connect again", where=s.id)
+            continue
+        if conn["provider"] != m.oauth_provider:
+            rep.add("error", "step", f"this step needs a {m.oauth_provider} connection but points at a {conn['provider']} one", where=s.id)
+            continue
+        missing = [x for x in m.required_scopes if x not in (conn.get("scopes") or "").split()]
+        if missing:
+            rep.add("error", "step", f"the {conn['provider']} connection was not granted {missing}: reconnect and approve "
+                                     f"those permissions", where=s.id, missing=missing)
+
+
 def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationReport) -> None:
     from bpto import Prompt
     seen_out: dict[str, str] = {}
@@ -58,7 +81,10 @@ def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationRe
             if col in seen_out:
                 rep.add("error", "step", f"two steps both provide {col!r} ({seen_out[col]} and {s.id})", where=s.id)
             seen_out[col] = s.id
-        if m.auth.get("kind") and not s.credential_id:
+        if m.oauth_provider and not (s.credential or "").startswith("conn:"):
+            rep.add("error", "step", f"this step acts on your own {m.oauth_provider} account: connect it under "
+                                     f"Models & keys, or from this step", where=s.id)
+        elif m.auth.get("kind") and not s.credential:
             rep.add("error", "step", "this step needs a credential; none is selected", where=s.id)
         used = set()
         for mod in spec.modules:

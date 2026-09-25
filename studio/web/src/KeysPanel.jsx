@@ -1,6 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
 
+// Keys pasted for external steps. Added on the step node, where you discover you need one - listed here so there is
+// one screen that shows everything the account has handed out, and one place to revoke it.
+function StepKeys() {
+  const [keys, setKeys] = useState([])
+  const load = () => api.get('/step-credentials').then(setKeys).catch(() => {})
+  useEffect(() => { load() }, [])
+  if (keys.length === 0) return null
+  return (
+    <div style={{ marginTop: 14 }}>
+      <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Step keys <span className="pill">external steps</span></h3>
+      <div className="help">Added on a step in the Build canvas. Revoking one here leaves the step wired but unauthorised.</div>
+      {keys.map(k => <div className="card row" key={k.id}><b>{k.label}</b>
+        <span className="muted" style={{ fontSize: 12 }}>added {new Date(k.created * 1000).toLocaleDateString()}</span>
+        <div className="grow" /><button className="small danger" onClick={async () => { await api.del(`/step-credentials/${k.id}`); load() }}>Revoke</button></div>)}
+    </div>
+  )
+}
+
 // Workspace keys for the serving endpoint. Model credentials (above) are what the studio calls out with; these are
 // what calls the studio in. Shown once, stored as a sha256.
 function ApiKeys() {
@@ -146,6 +164,7 @@ export default function KeysPanel({ models, features = {}, onClose }) {
           {form.provider === 'bedrock' && <div className="help">An IAM user or role with <code>bedrock:InvokeModel</code> on the models you list. The site's own Bedrock access is a bearer token; yours is a key pair.</div>}
         </div>}
 
+        {features.v0 && <StepKeys />}
         {features.v0 && <ApiKeys />}
         {features.v0 && <Connections />}
 

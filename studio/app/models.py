@@ -43,9 +43,19 @@ class StepSpec(BaseModel):
     manifest: str                  # "records@1.0.0"
     manifest_sha: str = ""         # filled when a version is published: the pin is the declaration, not the name
     inputs: dict[str, str] = Field(default_factory=dict)   # step input name -> dataset column
-    credential_id: str | None = None
+    # A typed reference, because a step can be authorised two different ways and two nullable fields would mean four
+    # states with two of them nonsense: "step:<id>" is a secret the user pasted, "conn:<id>" an OAuth grant.
+    credential: str | None = None
     tunables: dict[str, Any] = Field(default_factory=dict)  # declared by the manifest, passed through, not optimized
     enabled: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_credential_id(cls, v):
+        """Specs written before OAuth-backed steps carry `credential_id`, which always meant a pasted secret."""
+        if isinstance(v, dict) and v.get("credential_id") and not v.get("credential"):
+            v = {**v, "credential": f"step:{v['credential_id']}"}
+        return v
 
 
 ScorerType = Literal["exact_match", "contains", "token_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free"]

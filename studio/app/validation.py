@@ -362,7 +362,8 @@ def project_cost(spec: ProjectSpec, n_rows: int, *, avg_steps: float | None = No
 
 # ---- entry point ---------------------------------------------------------------------
 
-def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[str, str]) -> ValidationReport:
+def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[str, str],
+                    connections: list[dict] | None = None) -> ValidationReport:
     rep = ValidationReport()
     check_graph(spec, rep)
     from .datasets import columns
@@ -371,8 +372,9 @@ def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: di
     rep.summary.update(check_labels(spec, rows, input_map, rep))
     if spec.steps:
         # external steps: the wiring (tier 0), then arithmetic over the frozen columns (tier 2). No model calls.
-        from .step_validation import age_note, check_coverage, check_frozen, check_signal, check_steps
+        from .step_validation import age_note, check_coverage, check_frozen, check_scopes, check_signal, check_steps
         check_steps(spec, cols, rep)
+        check_scopes(spec, connections or [], rep)
         check_frozen(spec, cols, rep)
         check_coverage(spec, rows, rep)
         check_signal(spec, rows, spec.evaluate.label_column, rep)

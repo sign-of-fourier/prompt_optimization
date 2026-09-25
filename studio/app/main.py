@@ -373,7 +373,7 @@ def _spec_and_data(request, pid, body, user):
 def validate(pid: str, body: ValidateBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
-    rep = validate_static(spec, rows, d["input_map"])
+    rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
     return {"report": rep.model_dump(), "ok": rep.ok}
 
 
@@ -381,7 +381,7 @@ def validate(pid: str, body: ValidateBody, request: Request, user=auth.User):
 async def pilot(pid: str, body: ValidateBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
-    rep = validate_static(spec, rows, d["input_map"])
+    rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
     if not rep.ok:
         raise HTTPException(400, "fix the static validation errors first")
     mock = MOCK_DEFAULT if body.mock is None else body.mock
@@ -426,7 +426,7 @@ class RunBody(BaseModel):
 async def start_run(pid: str, body: RunBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
-    rep = validate_static(spec, rows, d["input_map"])
+    rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
     if not rep.ok:
         raise HTTPException(400, {"message": "validation errors", "issues": [i.model_dump() for i in rep.issues if i.level == "error"]})
     v = db.row(request.app.state.db.execute("select pilot from validations where project_id=? and dataset_id=? order by created desc limit 1", (pid, d["id"])).fetchone())
@@ -696,7 +696,7 @@ async def serve_version(vid: str, body: ServeBody, request: Request, user=Depend
         _check_models(spec, access)
     on_call = db.usage_logger(con, user["id"], access.tier, v["project_id"])
     try:
-        out = await serving.serve(spec, body.inputs, access=access, on_call=on_call, secrets=_step_secrets(con, user, spec),
+        out = await serving.serve(spec, body.inputs, access=access, on_call=on_call, tokens=_step_tokens(con, user, spec),
                                   mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None)
     except serving.MissingInputs as e:
         raise HTTPException(400, str(e))
@@ -806,14 +806,24 @@ def promote_traces(pid: str, body: PromoteBody, request: Request, user=auth.User
 
 # ---- external steps (v0, flag-gated) ----------------------------------------------------------
 
-def _step_secrets(con, user: dict, spec: ProjectSpec) -> dict[str, str]:
-    """step id -> its decrypted secret, for the steps this spec enables."""
-    out = {}
+def _step_tokens(con, user: dict, spec: ProjectSpec) -> dict[str, Any]:
+    """step id -> how to authorise its calls: a string for a pasted key, a callable for an OAuth grant.
+
+    A callable rather than a token, because an OAuth access token lasts thirty minutes and an enrichment over six
+    hundred rows outlives it. Every call goes through `oauth.access_token`, which refreshes when it needs to."""
+    out: dict[str, Any] = {}
     for st in spec.steps:
-        if st.enabled and st.credential_id:
-            enc = store.step_secret(con, user["id"], st.credential_id)
+        if not (st.enabled and st.credential):
+            continue
+        kind, _, cid = st.credential.partition(":")
+        if kind == "step":
+            enc = store.step_secret(con, user["id"], cid)
             if enc:
                 out[st.id] = C.decrypt(enc).get("secret", "")
+        elif kind == "conn":
+            conn = store.get_connection(con, cid, user["id"])
+            if conn:
+                out[st.id] = (lambda c=conn: O.access_token(con, store.get_connection(con, c["id"])))
     return out
 
 
@@ -831,6 +841,8 @@ class StepCredentialBody(BaseModel):
 
 @app.get("/step-credentials")
 def list_step_credentials(request: Request, user=auth.User):
+    """Keys pasted for external steps. Listed here as well as on the step node, so Models & keys is the one screen
+    that shows everything the account has handed out."""
     _v0()
     return store.list_step_credentials(request.app.state.db, user["id"])
 
@@ -870,7 +882,7 @@ async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user
     m = X.load_manifest(st.manifest)
     if m is None:
         raise HTTPException(400, f"no manifest {st.manifest!r} is installed")
-    secret = _step_secrets(con, user, spec).get(sid, "")
+    token = _step_tokens(con, user, spec).get(sid)
     args: dict[str, Any] = {}
     if body.dataset_id:
         d = _dataset(request, body.dataset_id, user)
@@ -881,14 +893,14 @@ async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user
         args = {f.name: "probe" for f in m.inputs}
     out: dict[str, Any] = {"url": m.transport.url, "sent": args}
     try:
-        got, met = await X.call(m, args, secret=secret)
+        got, met = await X.call(m, args, token=token)
         out.update({"ok": True, "found": got is not None, "returned": got, "latency_s": met["latency_s"]})
     except X.StepError as e:
         return {**out, "ok": False, "error": str(e)}
     # ... and how it answers for something that does not exist
     unknown = {f.name: "__no_such_id__" for f in m.inputs}
     try:
-        got2, _ = await X.call(m, unknown, secret=secret)
+        got2, _ = await X.call(m, unknown, token=token)
         out["missing_behaviour"] = ("returns a record for an unknown id - the step cannot tell you what it does not know"
                                     if got2 is not None else f"status {m.missing.get('status', 404)}: {m.missing.get('means', 'no record')}")
         out["missing_ok"] = got2 is None
@@ -921,7 +933,7 @@ async def enrich_dataset(did: str, body: EnrichBody, request: Request, user=auth
     if missing:
         raise HTTPException(400, f"this dataset has no column {missing[0]!r} for the step to look up")
     try:
-        rows, report = await X.enrich(spec, st, _rows(d), secret=_step_secrets(con, user, spec).get(st.id, ""))
+        rows, report = await X.enrich(spec, st, _rows(d), token=_step_tokens(con, user, spec).get(st.id))
     except X.StepError as e:
         raise HTTPException(400, str(e))
     nid = db.new_id()

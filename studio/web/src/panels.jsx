@@ -210,24 +210,38 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
 export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose }) {
   const st = (spec.steps || []).find(x => x.id === id)
   const [creds, setCreds] = useState([])
+  const [conns, setConns] = useState([])
   const [secret, setSecret] = useState('')
   const [probe, setProbe] = useState(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { api.get('/step-credentials').then(setCreds).catch(() => {}) }, [])
+  const loadCreds = () => {
+    api.get('/step-credentials').then(setCreds).catch(() => {})
+    api.get('/connections').then(d => setConns(d.connections)).catch(() => {})
+  }
+  useEffect(() => { loadCreds(); const t = setInterval(loadCreds, 4000); return () => clearInterval(t) }, [])
   if (!st) return null
   const man = manifests.find(m => m.ref === st.manifest) || manifests.find(m => m.id === st.manifest.split('@')[0])
   const cols = (datasets[0] && datasets[0].columns) || []
   const set = patch => update(s => ({ ...s, steps: s.steps.map(x => x.id === id ? { ...x, ...patch } : x) }))
-  const addCred = async () => {
+  const oauth = man && man.provider
+  const mine = oauth ? conns.filter(c => c.provider === man.provider) : []
+  const chosen = (st.credential || '').startsWith('conn:') ? conns.find(c => 'conn:' + c.id === st.credential) : null
+
+  const addKey = async () => {
     if (!secret.trim()) return
     const c = await api.post('/step-credentials', { label: st.id + ' key', secret })
-    setSecret(''); setCreds(await api.get('/step-credentials')); set({ credential_id: c.id })
+    setSecret(''); loadCreds(); set({ credential: 'step:' + c.id })
   }
+  // the same consent flow as Models & keys, offered where you discover you need it
+  const connect = async () => { const r = await api.get(`/connect/${man.provider}`); window.open(r.url, '_blank', 'noopener') }
   const runProbe = async () => {
     setBusy(true); setProbe(null)
     try { setProbe(await api.post(`/projects/${pid}/steps/${id}/probe`, { dataset_id: datasets[0] && datasets[0].id })) }
     catch (e) { setProbe({ ok: false, error: e.message }) } finally { setBusy(false) }
   }
+  // a single connection for the provider is not a choice worth asking about
+  useEffect(() => { if (oauth && !chosen && mine.length === 1) set({ credential: 'conn:' + mine[0].id }) }, [oauth, mine.length])
+
   return (
     <div>
       <div className="row"><h3 className="grow" style={{ margin: 0 }}>Step · {st.id}</h3><button className="small" onClick={onClose}>×</button></div>
@@ -251,13 +265,29 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
       <label>What the prompts can then use</label>
       <div className="chips">{man ? man.outputs.map(o => <span className="chip" key={o}>{'{' + st.id + '_' + o + '}'}</span>) : <span className="muted">unknown manifest</span>}</div>
       <div className="help">Paste one of these into a prompt to use it. Fields no prompt mentions are still fetched
-        and still cost - the optimizer will happily drop the ones that do not change the answer.</div>
+        and still cost — the optimizer will happily drop the ones that do not change the answer.</div>
 
-      <label>Credential</label>
-      <select value={st.credential_id || ''} onChange={e => set({ credential_id: e.target.value || null })}>
-        <option value="">— none —</option>{creds.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-      <div className="row" style={{ marginTop: 6 }}><input type="password" placeholder="paste a key to add one" value={secret} onChange={e => setSecret(e.target.value)} />
-        <button className="small" onClick={addCred}>Add</button></div>
+      {oauth ? <>
+        <label>Authorisation</label>
+        <div className="help">This step acts on your own {man.provider} account, so it needs your permission rather
+          than a key: you approve it on {man.provider}'s consent screen and can revoke it from either side.
+          {man.scopes.length > 0 && <> It asks for <code>{man.scopes.join(', ')}</code>.</>}</div>
+        {chosen
+          ? <div className="row" style={{ marginTop: 6 }}><span className="ok">✓ connected as {chosen.label}</span>
+              <div className="grow" /><button className="small" onClick={connect}>Reconnect</button></div>
+          : <div className="row" style={{ marginTop: 6 }}>
+              {mine.length > 1 && <select className="grow" value={st.credential || ''} onChange={e => set({ credential: e.target.value })}>
+                <option value="">— choose an account —</option>{mine.map(c => <option key={c.id} value={'conn:' + c.id}>{c.label}</option>)}</select>}
+              <button className="primary" onClick={connect}>Connect {man.provider}</button>
+            </div>}
+      </> : <>
+        <label>Credential</label>
+        <select value={st.credential || ''} onChange={e => set({ credential: e.target.value || null })}>
+          <option value="">— none —</option>{creds.map(c => <option key={c.id} value={'step:' + c.id}>{c.label}</option>)}</select>
+        <div className="row" style={{ marginTop: 6 }}><input type="password" placeholder="paste a key to add one" value={secret} onChange={e => setSecret(e.target.value)} />
+          <button className="small" onClick={addKey}>Add</button></div>
+        <div className="help">Keys you add here are listed under Models &amp; keys, where you can revoke them.</div>
+      </>}
 
       <div className="row" style={{ marginTop: 12 }}>
         <button disabled={busy} onClick={runProbe}>{busy ? 'testing…' : 'Test this step'}</button>
