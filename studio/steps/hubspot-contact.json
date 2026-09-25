@@ -1,0 +1,89 @@
+{
+  "step": 1,
+  "id": "hubspot-contact",
+  "version": "1.0.0",
+  "name": "HubSpot contact lookup",
+  "blurb": "Look a customer up in HubSpot by email address: name, company, lifecycle stage and when they were created.",
+  "transport": {
+    "kind": "http",
+    "method": "POST",
+    "url": "https://api.hubapi.com/crm/v3/objects/contacts/search",
+    "timeout_s": 10.0,
+    "retries": 1,
+    "body": {
+      "filterGroups": [
+        {
+          "filters": [
+            {
+              "propertyName": "email",
+              "operator": "EQ",
+              "value": "{email}"
+            }
+          ]
+        }
+      ],
+      "properties": [
+        "email",
+        "firstname",
+        "lastname",
+        "company",
+        "lifecyclestage",
+        "createdate"
+      ],
+      "limit": 1
+    }
+  },
+  "auth": {
+    "kind": "either",
+    "provider": "hubspot",
+    "scopes": [
+      "oauth",
+      "crm.objects.contacts.read"
+    ]
+  },
+  "missing": {
+    "status": 404,
+    "empty_path": "results.0",
+    "means": "no contact with that email"
+  },
+  "inputs": [
+    {
+      "name": "email",
+      "type": "string",
+      "required": true,
+      "description": "the customer's email address"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "firstname",
+      "type": "string",
+      "path": "results.0.properties.firstname"
+    },
+    {
+      "name": "lastname",
+      "type": "string",
+      "path": "results.0.properties.lastname"
+    },
+    {
+      "name": "company",
+      "type": "string",
+      "path": "results.0.properties.company"
+    },
+    {
+      "name": "lifecyclestage",
+      "type": "string",
+      "path": "results.0.properties.lifecyclestage"
+    },
+    {
+      "name": "createdate",
+      "type": "string",
+      "path": "results.0.properties.createdate"
+    }
+  ],
+  "cacheable": true,
+  "cache_key": [
+    "email"
+  ],
+  "price_usd_per_call": 0.0
+}

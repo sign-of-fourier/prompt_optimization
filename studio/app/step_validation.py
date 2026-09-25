@@ -81,11 +81,21 @@ def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationRe
             if col in seen_out:
                 rep.add("error", "step", f"two steps both provide {col!r} ({seen_out[col]} and {s.id})", where=s.id)
             seen_out[col] = s.id
-        if m.oauth_provider and not (s.credential or "").startswith("conn:"):
-            rep.add("error", "step", f"this step acts on your own {m.oauth_provider} account: connect it under "
-                                     f"Models & keys, or from this step", where=s.id)
-        elif m.auth.get("kind") and not s.credential:
-            rep.add("error", "step", "this step needs a credential; none is selected", where=s.id)
+        # what counts as authorised depends on how the manifest says the step signs in (GLOSSARY.md)
+        cred, kind = s.credential or "", m.auth.get("kind")
+        if not m.needs_auth:
+            pass
+        elif kind == "oauth":
+            if not cred.startswith("conn:"):
+                rep.add("error", "step", f"this step acts on your own {m.oauth_provider} account, so it needs a "
+                                         f"connection rather than a key: connect it from this step, or under Models & keys",
+                        where=s.id)
+        elif kind in ("key", "bearer"):
+            if not cred.startswith("step:"):
+                rep.add("error", "step", "this step is not authorised: paste a step key for it", where=s.id)
+        elif not cred:
+            rep.add("error", "step", f"this step is not authorised: connect your {m.oauth_provider} account, or paste "
+                                     f"a step key", where=s.id)
         used = set()
         for mod in spec.modules:
             try:

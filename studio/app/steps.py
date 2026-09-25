@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,7 @@ class StepField(BaseModel):
     description: str = ""
     required: bool = False
     enum: list[str] | None = None
+    path: str = ""        # where to read it in the response: "results.0.properties.email". Default: a top-level field
 
 
 class Transport(BaseModel):
@@ -55,6 +57,9 @@ class Transport(BaseModel):
     url: str
     timeout_s: float = 5.0
     retries: int = 1
+    # The body to send, with "{input}" placeholders. Omitted, the inputs are sent as the body, which is what a
+    # service written for us accepts - and what no third-party API does. A real one wants its own shape.
+    body: dict[str, Any] | None = None
 
 
 class Manifest(BaseModel):
@@ -64,8 +69,10 @@ class Manifest(BaseModel):
     name: str = ""
     blurb: str = ""
     transport: Transport
-    # {"kind": "bearer"} - a key the user pastes; {"kind": "oauth", "provider": "hubspot", "scopes": [...]} - a grant
-    # the user makes on the provider's own consent screen, which this studio then refreshes on their behalf
+    # How the step signs in (GLOSSARY.md): {"kind": "key"} - a step key the user pastes; {"kind": "oauth",
+    # "provider": ..., "scopes": [...]} - a connection the user grants on the provider's consent screen;
+    # {"kind": "either", ...} - Connect when this server has app credentials for that provider, a key otherwise.
+    # "bearer" is accepted as an old spelling of "key": it named the transport rather than the thing.
     auth: dict[str, Any] = Field(default_factory=dict)
     missing: dict[str, Any] = Field(default_factory=dict)   # how this service says "no record"
     inputs: list[StepField] = Field(default_factory=list)
@@ -77,7 +84,17 @@ class Manifest(BaseModel):
 
     @property
     def oauth_provider(self) -> str | None:
-        return self.auth.get("provider") if self.auth.get("kind") == "oauth" else None
+        """The provider this step would connect to, for `oauth` and for `either`. Whether `either` actually offers
+        Connect depends on the server having app credentials, which only `main` knows."""
+        return self.auth.get("provider") if self.auth.get("kind") in ("oauth", "either") else None
+
+    @property
+    def needs_auth(self) -> bool:
+        return bool(self.auth.get("kind"))
+
+    @property
+    def may_use_key(self) -> bool:
+        return self.auth.get("kind") in ("key", "bearer", "either")
 
     @property
     def required_scopes(self) -> list[str]:
@@ -90,6 +107,42 @@ class Manifest(BaseModel):
     def sha(self) -> str:
         import hashlib
         return hashlib.sha256(self.model_dump_json().encode()).hexdigest()
+
+
+def render(template: Any, inputs: dict[str, Any]) -> Any:
+    """Substitute `{input}` placeholders through a body template. A string that is exactly one placeholder becomes
+    the value itself, so numbers and booleans survive; anything else is formatted into the string."""
+    if isinstance(template, str):
+        whole = re.fullmatch(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}", template)
+        if whole:
+            return inputs.get(whole.group(1))
+        try:
+            return template.format(**inputs)
+        except (KeyError, IndexError):
+            return template
+    if isinstance(template, dict):
+        return {k: render(v, inputs) for k, v in template.items()}
+    if isinstance(template, list):
+        return [render(v, inputs) for v in template]
+    return template
+
+
+def dig(body: Any, path: str) -> Any:
+    """Read a dotted path out of a response: `results.0.properties.email`. Missing anything returns None rather than
+    raising - an absent field is a fact about the answer, not a failure to read it."""
+    cur = body
+    for part in path.split("."):
+        if isinstance(cur, list):
+            if not part.isdigit() or int(part) >= len(cur):
+                return None
+            cur = cur[int(part)]
+        elif isinstance(cur, dict):
+            if part not in cur:
+                return None
+            cur = cur[part]
+        else:
+            return None
+    return cur
 
 
 def load_manifest(ref: str) -> Manifest | None:
@@ -165,7 +218,7 @@ async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx
     failure - a timeout, a 5xx, a response that does not match the declared schema - which the caller turns into one
     bad row, never a dead run."""
     t = m.transport
-    bearer = await _bearer(token) if m.auth.get("kind") in ("bearer", "oauth") else ""
+    bearer = await _bearer(token) if m.needs_auth else ""
     headers = {"Authorization": f"Bearer {bearer}"} if bearer else {}
     own = client is None
     client = client or httpx.AsyncClient(timeout=t.timeout_s)
@@ -174,7 +227,8 @@ async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx
         last: Exception | None = None
         for attempt in range(t.retries + 1):
             try:
-                r = await client.request(t.method, t.url, json=inputs, headers=headers, timeout=t.timeout_s)
+                payload = render(t.body, inputs) if t.body is not None else inputs
+                r = await client.request(t.method, render(t.url, inputs), json=payload, headers=headers, timeout=t.timeout_s)
                 break
             except Exception as e:                      # network-level: retry, then give up
                 last = e
@@ -195,11 +249,15 @@ async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx
             raise StepError("the response was not JSON")
         if not isinstance(body, dict):
             raise StepError(f"expected a JSON object, got {type(body).__name__}")
+        # a service can also answer "found nothing" with a 200 and an empty result
+        if m.missing.get("empty_path") and dig(body, m.missing["empty_path"]) in (None, [], {}):
+            return None, {**metrics, "missing": 1.0}
         out = {}
         for f in m.outputs:
-            if f.name not in body:
+            path = f.path or f.name
+            v = dig(body, path)
+            if v is None and dig(body, path.rsplit(".", 1)[0] if "." in path else "") is None and not f.path:
                 raise StepError(f"the response is missing the declared field {f.name!r}")
-            v = body[f.name]
             if v is not None and not isinstance(v, TYPES.get(f.type, object)):
                 raise StepError(f"field {f.name!r} should be {f.type}, got {type(v).__name__}")
             if f.enum and v not in f.enum:

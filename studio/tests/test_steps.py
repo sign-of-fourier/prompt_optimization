@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 import uvicorn
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app import steps as X
@@ -165,7 +166,7 @@ def test_static_checks(server):
 
     bad = spec(); bad.steps[0].credential = None
     rep = ValidationReport(); SV.check_steps(bad, cols, rep)
-    assert any("credential" in i.message for i in rep.issues if i.level == "error")
+    assert any("paste a step key" in i.message for i in rep.issues if i.level == "error")
 
     rep = ValidationReport(); SV.check_steps(spec(), cols + ["rec_plan"], rep)   # a column we did not put there
     assert any("collides" in i.message for i in rep.issues if i.level == "error")
@@ -353,3 +354,93 @@ def test_missing_scopes_are_caught_before_anything_is_spent(server):
 
     rep = ValidationReport(); SV.check_scopes(spec, [], rep)
     assert any("no longer exists" in i.message for i in rep.issues if i.level == "error")
+
+
+# ---- calling an API that was not written for us -------------------------------------------------
+
+HUBSPOT_SEEN: list[dict] = []
+
+
+def _hubspot_app():
+    """HubSpot's contact search, in the shape it actually has: a filter body in, a nested envelope out, and "not
+    found" expressed as a 200 with an empty list rather than a 404."""
+    app = FastAPI()
+
+    @app.post("/crm/v3/objects/contacts/search")
+    async def search(request: Request):
+        body = await request.json()
+        HUBSPOT_SEEN.append(body)
+        if request.headers.get("authorization") != f"Bearer {KEY}":
+            return JSONResponse({"status": "error", "message": "unauthorized"}, status_code=401)
+        email = body["filterGroups"][0]["filters"][0]["value"]
+        if email != "ada@example.com":
+            return {"total": 0, "results": []}
+        return {"total": 1, "results": [{"id": "701", "properties": {
+            "email": email, "firstname": "Ada", "lastname": "Lovelace", "company": "Analytical Engines",
+            "lifecyclestage": "customer", "createdate": "2026-01-02T00:00:00Z"}}]}
+
+    return app
+
+
+@pytest.fixture(scope="module")
+def hubspot():
+    import json
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+    srv = uvicorn.Server(uvicorn.Config(_hubspot_app(), host="127.0.0.1", port=port, log_level="error"))
+    threading.Thread(target=srv.run, daemon=True).start()
+    for _ in range(200):
+        if srv.started:
+            break
+        import time as _t; _t.sleep(0.02)
+    # the manifest that ships, with only its url redirected - and written to a directory this fixture owns, never
+    # to the repo's. A test that edits a shipped file is a worse bug than the one it is checking.
+    real = json.loads((Path(__file__).resolve().parent.parent / "steps" / "hubspot-contact.json").read_text())
+    assert real["transport"]["url"].startswith("https://api.hubapi.com"), "the shipped manifest was overwritten"
+    real["transport"]["url"] = f"http://127.0.0.1:{port}/crm/v3/objects/contacts/search"
+    d = Path(tempfile.mkdtemp())
+    (d / "hubspot-contact.json").write_text(json.dumps(real))
+    before = os.environ.get("STUDIO_STEPS")
+    os.environ["STUDIO_STEPS"] = str(d)
+    yield
+    srv.should_exit = True
+    if before is None:
+        os.environ.pop("STUDIO_STEPS", None)
+    else:
+        os.environ["STUDIO_STEPS"] = before
+
+
+def test_the_shipped_hubspot_manifest_against_hubspots_own_shapes(hubspot):
+    """The demo records service was written to fit our transport. A real API is not, and this is the manifest that
+    ships - only its url is redirected at a local stand-in with HubSpot's request and response shapes."""
+    m = X.load_manifest("hubspot-contact@1.0.0")
+    HUBSPOT_SEEN.clear()
+
+    out, met = asyncio.run(X.call(m, {"email": "ada@example.com"}, token=KEY))
+    assert out == {"firstname": "Ada", "lastname": "Lovelace", "company": "Analytical Engines",
+                   "lifecyclestage": "customer", "createdate": "2026-01-02T00:00:00Z"}
+    # the body template put our input where HubSpot expects it, rather than posting our own dict
+    assert HUBSPOT_SEEN[0]["filterGroups"][0]["filters"][0] == {"propertyName": "email", "operator": "EQ", "value": "ada@example.com"}
+    assert HUBSPOT_SEEN[0]["limit"] == 1 and "email" in HUBSPOT_SEEN[0]["properties"]
+
+    # "no contact" is a 200 with an empty list here, not a 404: a missing row, never a failed one
+    out, met = asyncio.run(X.call(m, {"email": "nobody@example.com"}, token=KEY))
+    assert out is None and met["missing"] == 1.0
+
+    with pytest.raises(X.StepError) as e:
+        asyncio.run(X.call(m, {"email": "ada@example.com"}, token="wrong"))
+    assert "credential" in str(e.value)
+
+
+def test_a_step_key_and_a_connection_are_both_offered_for_either(hubspot):
+    m = X.load_manifest("hubspot-contact@1.0.0")
+    assert m.auth["kind"] == "either" and m.oauth_provider == "hubspot" and m.may_use_key
+    sp = _oauth_spec(None)
+    sp.steps[0].manifest = "hubspot-contact@1.0.0"
+    sp.steps[0].inputs = {"email": "email"}
+    rep = ValidationReport(); SV.check_steps(sp, ["email", "queue"], rep)
+    msg = [i.message for i in rep.issues if i.level == "error"]
+    assert msg and "connect your hubspot account, or paste a step key" in msg[0]
+    for cred in ("step:k1", "conn:c1"):          # either is genuinely either
+        sp.steps[0].credential = cred
+        rep = ValidationReport(); SV.check_steps(sp, ["email", "queue"], rep)
+        assert not [i for i in rep.issues if i.level == "error"]
