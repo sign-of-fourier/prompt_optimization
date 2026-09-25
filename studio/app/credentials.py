@@ -36,13 +36,25 @@ DEFAULT_MODELS = {
 
 
 def _fernet() -> Fernet:
+    """The key that encrypts every secret the studio holds. Generated once and appended to `.env`.
+
+    It reads the file before writing, because `load_env` is what puts STUDIO_SECRET into the environment and any
+    process that skips it - a script, a test - would otherwise generate a *second* key and append it. `load_env`
+    uses setdefault, so the first line wins and everything encrypted under the second becomes unreadable. That
+    happened once here; the duplicate decrypted nothing and was removed.
+    """
     key = os.environ.get("STUDIO_SECRET")
+    env = Path(__file__).resolve().parent.parent / ".env"
+    if not key and env.exists():
+        for line in env.read_text().splitlines():
+            if line.strip().startswith("STUDIO_SECRET="):
+                key = line.split("=", 1)[1].strip()
+                break
     if not key:
         key = Fernet.generate_key().decode()
-        env = Path(__file__).resolve().parent.parent / ".env"
         with open(env, "a") as f:
             f.write(f"\nSTUDIO_SECRET={key}\n")
-        os.environ["STUDIO_SECRET"] = key
+    os.environ["STUDIO_SECRET"] = key
     return Fernet(key.encode())
 
 
