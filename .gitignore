@@ -16,3 +16,11 @@ __pycache__/
 # HubSpot CLI: personal access key, never ours to commit
 hubspot.config.yml
 .hs-cache/
+
+# Internal planning: kept local, deliberately not on the public remote. These are candid working documents
+# (the v0 plan and its recorded results, the load-bearing inventory, the external-steps design and its
+# asterisks). Code and docstrings still cite them by name; that reference is for us, not for a reader of the
+# published repo.
+/PLAN.md
+/INVENTORY.md
+/EXTERNAL-STEPS.md
