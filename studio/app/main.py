@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, credentials as C, db, labels as L, runs as R, serving, steps as X, store, tiers, versions as V
+from . import auth, bundles as B, credentials as C, db, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -935,6 +935,88 @@ async def enrich_dataset(did: str, body: EnrichBody, request: Request, user=auth
     con.commit()
     return {"id": nid, "name": name, "columns": cols, "n_rows": len(rows), "input_map": input_map,
             "label_column": d["label_column"], "report": report}
+
+# ---- connections: OAuth to someone else's system (v0, flag-gated) --------------------------------
+
+@app.get("/connections")
+def list_connections(request: Request, user=auth.User):
+    _v0()
+    return {"connections": store.list_connections(request.app.state.db, user["id"]),
+            "providers": [{"name": p.name, "label": p.label, "scopes": p.scopes,
+                           "configured": bool(os.environ.get(p.client_id_env) and os.environ.get(p.client_secret_env)),
+                           "redirect_uri": O.redirect_uri(p.name)} for p in O.PROVIDERS.values()]}
+
+
+@app.get("/connect/{provider}")
+def connect(provider: str, request: Request, user=auth.User):
+    """Returns the authorization URL rather than redirecting: the browser is on a JSON API here, and the caller
+    decides when to send the user to the consent screen."""
+    _v0()
+    try:
+        return {"url": O.start(request.app.state.db, user["id"], provider)}
+    except O.OAuthError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/oauth/{provider}/callback")
+async def oauth_callback(provider: str, request: Request, code: str = "", state: str = "", error: str = "",
+                         error_description: str = ""):
+    """Where the provider sends the user back. No session is required - the `state` is what proves this callback
+    belongs to a flow we started, and it is consumed on first use."""
+    _v0()
+    from fastapi.responses import HTMLResponse
+
+    def page(title: str, detail: str, ok: bool) -> HTMLResponse:
+        # a redirect back into the app would lose the message; this is the one place the API renders anything
+        return HTMLResponse(f"""<!doctype html><meta charset=utf-8><title>{title}</title>
+<body style="font:15px/1.6 system-ui;background:#0a0f1e;color:#e8ecf7;display:grid;place-items:center;height:100vh;margin:0">
+<div style="max-width:32rem;padding:1.5rem;border:1px solid #26325a;border-radius:12px">
+<h1 style="margin:0 0 .5rem;font-size:1.1rem;color:{'#5ee3c8' if ok else '#ff6b6b'}">{title}</h1>
+<p style="margin:0 0 1rem;color:#9aa6c8">{detail}</p>
+<a href="{brand.public_url()}" style="color:#5ee3c8">Back to {brand.name()}</a></div>""", status_code=200 if ok else 400)
+
+    if error:
+        return page("Authorization refused", f"{error}: {error_description}"[:300], False)
+    if not code or not state:
+        return page("Something is missing", "the provider did not send a code and a state", False)
+    try:
+        conn = await O.finish(request.app.state.db, state, code)
+    except O.OAuthError as e:
+        return page("Could not finish connecting", str(e)[:300], False)
+    return page(f"Connected to {conn['label']}", "You can close this tab and go back to the studio.", True)
+
+
+@app.delete("/connections/{cid}")
+def disconnect(cid: str, request: Request, user=auth.User):
+    _v0()
+    store.delete_connection(request.app.state.db, user["id"], cid)
+    return {"ok": True}
+
+
+@app.post("/connections/{cid}/probe")
+async def probe_connection(cid: str, request: Request, user=auth.User):
+    """Proof the connection actually works: refresh if needed, then make one real call. For HubSpot that is a page
+    of tickets - which may legitimately be empty, and an empty 200 is still a pass."""
+    _v0()
+    con = request.app.state.db
+    c = store.get_connection(con, cid, user["id"])
+    if not c:
+        raise HTTPException(404, "connection not found")
+    try:
+        token = await O.access_token(con, c)
+    except O.OAuthError as e:
+        raise HTTPException(400, str(e))
+    import httpx
+    url = {"hubspot": "https://api.hubapi.com/crm/v3/objects/tickets?limit=5"}.get(c["provider"])
+    if not url:
+        return {"ok": True, "note": "connected; no probe defined for this provider"}
+    async with httpx.AsyncClient(timeout=20) as h:
+        r = await h.get(url, headers={"Authorization": f"Bearer {token}"})
+    if r.status_code >= 400:
+        return {"ok": False, "status": r.status_code, "error": r.text[:300]}
+    body = r.json()
+    return {"ok": True, "status": r.status_code, "records": len(body.get("results", [])),
+            "has_more": bool(body.get("paging")), "refreshed": bool(c.get("refreshed"))}
 
 # dev only: serve the built frontend and accept the nginx-style prefixes (/studio/api, /api) from the same process
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"

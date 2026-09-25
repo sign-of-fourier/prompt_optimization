@@ -309,10 +309,23 @@ anything about whether real dispositions are good enough to optimize against, be
 The tempting fix is to push our synthetic tickets into HubSpot and pull them back out. That tests the connector
 while *looking* like a test of the data, which is worse than not testing it. So Piece 5 splits in two:
 
-- **the plumbing** - buildable now against HubSpot, claims nothing about labels;
+- **the plumbing** - OAuth is built (2026-09-25), see below; the pull itself is next and claims nothing about labels;
 - **the finding** - needs a few hundred rows of somebody's real ticket text with the queue it actually ended up in.
   Parked until that data exists, either from a design partner or from a separate synthetic-data process that is
   honest about being synthetic.
+
+**OAuth un-faked (2026-09-25).** The v0 asterisk said "pasted API token"; that is now a real authorization-code
+flow in `app/oauth.py`, with a `connections` table in the storage seam and a consent screen the user sees and can
+revoke from either side. **No data was needed to build or test it** - authorization is a protocol, and an empty
+portal proves it exactly as well as a full one, which is why this was worth doing while the label question is
+parked. Providers are data (a dict entry), not a code path.
+
+Three things it gets right, because each would be a redesign rather than a rewrite: `state` is single-use,
+short-lived and server-side, so a replayed callback finds nothing (a signed cookie cannot be *consumed*); tokens are
+encrypted at rest with the model-credential Fernet key and never appear in any listing; and refresh happens inside
+`access_token()` before a caller ever holds an expired one - not optional garnish, since HubSpot access tokens last
+30 minutes. Eight tests cover it against a real OAuth server on a real socket. The only untested inch is HubSpot's
+own consent screen, which needs a registered app.
 
 Note for whoever builds it: HubSpot disabled new legacy private app creation (28 Sep 2026 for new accounts,
 26 Oct 2026 for existing), so the credential is a **Service Key** (`Authorization: Bearer`, Settings → Integrations

@@ -29,6 +29,11 @@ create table if not exists outcomes (id text primary key, trace_id text not null
 create index if not exists outcomes_trace on outcomes (trace_id, created);
 create table if not exists step_credentials (id text primary key, user_id text not null, label text not null,
     secret text not null, created real not null);
+create table if not exists connections (id text primary key, user_id text not null, provider text not null,
+    account text, label text not null, tokens text not null, expires real, scopes text, created real not null, refreshed real);
+create index if not exists connections_user on connections (user_id, provider);
+create table if not exists oauth_states (state text primary key, user_id text not null, provider text not null,
+    redirect text, created real not null);
 """
 # `create table if not exists` cannot add a column to a table that already exists on a running box.
 MIGRATIONS = ["alter table traces add column steps text"]
@@ -209,3 +214,67 @@ def step_secret(con, user_id: str, cid: str) -> str | None:
 def delete_step_credential(con, user_id: str, cid: str) -> None:
     con.execute("delete from step_credentials where id=? and user_id=?", (cid, user_id))
     con.commit()
+
+
+# ---- oauth connections -------------------------------------------------------------------
+# A connection is one authorization a user granted us against one of their accounts elsewhere. Tokens are stored
+# encrypted by the caller (`credentials.encrypt`) - this layer never sees them in the clear and never logs them.
+
+def create_connection(con, *, user_id: str, provider: str, account: str | None, label: str, tokens: str,
+                      expires: float | None, scopes: str = "") -> dict:
+    """One connection per (user, provider, account): re-authorizing replaces the tokens rather than piling up rows."""
+    row = con.execute("select id from connections where user_id=? and provider=? and coalesce(account,'')=?",
+                      (user_id, provider, account or "")).fetchone()
+    cid = row["id"] if row else db.new_id()
+    if row:
+        con.execute("update connections set label=?, tokens=?, expires=?, scopes=?, refreshed=? where id=?",
+                    (label, tokens, expires, scopes, db.now(), cid))
+    else:
+        con.execute("insert into connections values (?,?,?,?,?,?,?,?,?,?)",
+                    (cid, user_id, provider, account, label, tokens, expires, scopes, db.now(), None))
+    con.commit()
+    return get_connection(con, cid, user_id)
+
+
+def get_connection(con, cid: str, user_id: str | None = None) -> dict | None:
+    q = "select * from connections where id=?" + (" and user_id=?" if user_id else "")
+    return _row(con.execute(q, (cid, user_id) if user_id else (cid,)).fetchone())
+
+
+def list_connections(con, user_id: str) -> list[dict]:
+    """Never returns `tokens`: nothing outside the oauth module has any business holding them."""
+    return [dict(r) for r in con.execute(
+        "select id, provider, account, label, expires, scopes, created, refreshed from connections where user_id=? order by created", (user_id,))]
+
+
+def update_connection_tokens(con, cid: str, tokens: str, expires: float | None) -> None:
+    con.execute("update connections set tokens=?, expires=?, refreshed=? where id=?", (tokens, expires, db.now(), cid))
+    con.commit()
+
+
+def delete_connection(con, user_id: str, cid: str) -> None:
+    con.execute("delete from connections where id=? and user_id=?", (cid, user_id))
+    con.commit()
+
+
+# ---- oauth state -------------------------------------------------------------------------
+# The CSRF defence for the redirect: a single-use, short-lived token bound to the session that started the flow.
+# Server-side rather than a signed cookie, so it can be *consumed* - a replayed callback finds nothing.
+
+STATE_TTL = 600.0
+
+
+def put_state(con, state: str, user_id: str, provider: str, redirect: str = "") -> None:
+    con.execute("delete from oauth_states where created < ?", (db.now() - STATE_TTL,))
+    con.execute("insert into oauth_states values (?,?,?,?,?)", (state, user_id, provider, redirect, db.now()))
+    con.commit()
+
+
+def take_state(con, state: str) -> dict | None:
+    """Reads and deletes in one go: a state is good for exactly one callback."""
+    r = con.execute("select * from oauth_states where state=?", (state,)).fetchone()
+    con.execute("delete from oauth_states where state=?", (state,))
+    con.commit()
+    if not r or db.now() - r["created"] > STATE_TTL:
+        return None
+    return dict(r)

@@ -27,6 +27,52 @@ function ApiKeys() {
   )
 }
 
+// Connections are the other direction again: not a key we hold, but an authorization the user granted us against
+// their own account somewhere else - with a consent screen they saw and can revoke from their side.
+function Connections() {
+  const [data, setData] = useState(null)
+  const [busy, setBusy] = useState('')
+  const [probe, setProbe] = useState({})
+  const load = () => api.get('/connections').then(setData).catch(() => {})
+  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t) }, [])
+  if (!data) return null
+  const connect = async name => {
+    setBusy(name)
+    try { const r = await api.get(`/connect/${name}`); window.open(r.url, '_blank', 'noopener') }
+    catch (e) { setProbe(p => ({ ...p, [name]: { ok: false, error: e.message } })) } finally { setBusy('') }
+  }
+  const test = async c => { setProbe(p => ({ ...p, [c.id]: { busy: true } })); setProbe(p => ({ ...p, [c.id]: await api.post(`/connections/${c.id}/probe`) })) }
+  const drop = async c => { await api.del(`/connections/${c.id}`); load() }
+  return (
+    <div style={{ marginTop: 14 }}>
+      <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Connections <span className="pill">oauth</span></h3>
+      <div className="help">Accounts you have authorised {`this studio`} to read on your behalf. You approve it on their
+        consent screen and can revoke it from either side. Access tokens are short-lived and refreshed automatically.</div>
+      {data.connections.map(c => (
+        <div className="card" key={c.id}>
+          <div className="row"><b>{c.label}</b><span className="pill">{c.provider}</span>
+            <span className="muted" style={{ fontSize: 12 }}>{c.expires ? `token expires ${new Date(c.expires * 1000).toLocaleTimeString()}` : 'no expiry'}</span>
+            <div className="grow" /><button className="small" onClick={() => test(c)}>{probe[c.id] && probe[c.id].busy ? 'testing…' : 'Test'}</button>
+            <button className="small danger" onClick={() => drop(c)}>Disconnect</button></div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>scopes: <code>{c.scopes}</code></div>
+          {probe[c.id] && !probe[c.id].busy && <div className={probe[c.id].ok ? 'ok' : 'err'} style={{ fontSize: 12.5, marginTop: 6 }}>
+            {probe[c.id].ok ? `✓ ${probe[c.id].status} · ${probe[c.id].records} record${probe[c.id].records === 1 ? '' : 's'} returned${probe[c.id].has_more ? ' (more available)' : ''}`
+              : `✗ ${probe[c.id].error || probe[c.id].status}`}</div>}
+        </div>
+      ))}
+      {data.providers.map(p => (
+        <div className="row" key={p.name} style={{ marginTop: 6 }}>
+          <button disabled={!p.configured || busy === p.name} onClick={() => connect(p.name)}>{busy === p.name ? 'opening…' : `Connect ${p.label}`}</button>
+          {!p.configured && <span className="muted" style={{ fontSize: 12 }}>not configured on this server</span>}
+          {probe[p.name] && !probe[p.name].ok && <span className="err" style={{ fontSize: 12 }}>{probe[p.name].error}</span>}
+        </div>
+      ))}
+      {data.providers.some(p => !p.configured) && <div className="help">A provider needs its client id and secret in the
+        studio's .env, and this exact redirect URL registered with it: <code>{data.providers[0].redirect_uri}</code></div>}
+    </div>
+  )
+}
+
 const FIELDS = {
   access_key_id: ['AWS access key id', 'AKIA…'], secret_access_key: ['AWS secret access key', ''], region: ['Region', 'us-east-1'],
   api_key: ['API key', 'sk-…'], base_url: ['Base URL', 'https://host/v1'], models: ['Model ids (comma-separated)', 'llama-3.3-70b, …'],
@@ -97,6 +143,7 @@ export default function KeysPanel({ models, features = {}, onClose }) {
         </div>}
 
         {features.v0 && <ApiKeys />}
+        {features.v0 && <Connections />}
 
         {usage && usage.totals.calls > 0 && <div style={{ marginTop: 14 }}>
           <h3 style={{ fontSize: 14, margin: '0 0 6px' }}>Usage, last {usage.days} days</h3>
