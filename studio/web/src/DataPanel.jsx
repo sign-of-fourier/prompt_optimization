@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
 import { API } from './brand.js'
 import { placeholders } from './Canvas.jsx'
+import Hint from './Hint.jsx'
 
 export default function DataPanel({ pid, spec, update, datasets, reload, mock, features = {} }) {
   const [did, setDid] = useState(datasets[0] && datasets[0].id)
@@ -20,7 +21,7 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock, f
     api.get(`/datasets/${did}`).then(d => { setDs(d); setMap(d.input_map || {}); setLabel(d.label_column); setReport(null); setPilot(null); setCost(null) })
   }, [did])
   const allPh = useMemo(() => {
-    // forward walk from the entry: an edge into an already-visited step is a loop-back. Placeholders fed by a forward
+    // forward walk from the entry: an edge into an already-visited prompt is a loop-back. Placeholders fed by a forward
     // edge need no column; ones fed only by a loop-back need a first-visit column (seeded).
     const entry = spec.entry || (spec.modules[0] && spec.modules[0].id)
     const forward = new Set(), back = new Set(), seen = new Set(), todo = entry ? [entry] : []
@@ -61,7 +62,7 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock, f
     <div className="page">
       <div className="grid2">
         <div className="card">
-          <h3>Dataset</h3>
+          <h3>Dataset<Hint id="data" /></h3>
           <div className="row"><select className="grow" value={did || ''} onChange={e => setDid(e.target.value)}><option value="">— choose —</option>{datasets.map(d => <option key={d.id} value={d.id}>{d.name} ({d.n_rows} rows)</option>)}</select>
             <label className="row" style={{ margin: 0 }}><input type="file" accept=".jsonl,.json,.csv,.tsv" onChange={upload} style={{ width: 'auto' }} /></label></div>
           <div className="help">JSONL, JSON, CSV or TSV. One row per example: input columns plus a label column. bpto-style rows ({'{"inputs": {...}, "answer": ...}'}) are flattened.
@@ -146,7 +147,7 @@ function Pilot({ pilot, cost, spec }) {
         <div className="stat"><div className="num alt">±{pilot.nondeterminism_band.toFixed(3)}</div><div className="lbl">non-determinism band — {pilot.rows_changed_on_rerun} of {pilot.rows} rows changed when re-run at temperature 0, cache bypassed</div></div>
         {pilot.rewrite && <div className="stat"><div className="num" style={{ color: Math.abs(pilot.rewrite.delta) <= pilot.nondeterminism_band ? 'var(--muted)' : 'var(--accent)' }}>{pilot.rewrite.delta >= 0 ? '+' : ''}{pilot.rewrite.delta.toFixed(3)}</div><div className="lbl">one random rewrite of the root</div></div>}
       </div>
-      {pilot.avg_steps && <div className="help">avg {pilot.avg_steps.toFixed(1)} steps per example · tokens per module: {Object.entries(pilot.tokens_per_module).map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}</div>}
+      {pilot.avg_steps && <div className="help">avg {pilot.avg_steps.toFixed(1)} prompt calls per example · tokens per prompt: {Object.entries(pilot.tokens_per_module).map(([k, v]) => `${k} ${Math.round(v)}`).join(', ')}</div>}
       <div className="help">Sampling error (SE) per metric: {Object.entries(pilot.sampling_se).filter(([k]) => !k.startsWith('tokens')).map(([k, v]) => `${k} ${v.toFixed(3)}`).join(' · ')}</div>
       <table style={{ marginTop: 8 }}><thead><tr><th>id</th><th>path</th><th>output</th><th>label</th><th>{key}</th></tr></thead>
         <tbody>{pilot.examples.map(e => <tr key={e.id}><td className="mono">{e.id}</td><td className="mono muted">{e.path.join(' → ')}</td>
@@ -167,7 +168,7 @@ export function Cost({ cost }) {
         <b>eval calls</b><span>{Math.round(c.round0 + c.gate + c.full)} (root {Math.round(c.round0)}, gate {Math.round(c.gate)}, full {Math.round(c.full)}){wtot !== tot && <span className="muted"> · worst case with max_steps: {Math.round(w.round0 + w.gate + w.full)}</span>}</span>
         <b>reflection calls</b><span>{Math.round(c.reflect)}{c.critic ? ` + ${Math.round(c.critic)} critic` : ''}</span>
         <b>USD</b><span><b>${u.total.toFixed(2)}</b> (eval ${u.eval.toFixed(2)}, reflection ${u.reflect.toFixed(2)}{u.critic ? `, critic $${u.critic.toFixed(2)}` : ''})</span>
-        <b>assumes</b><span className="muted">{cost.assumptions.full_rows} eval rows, {cost.assumptions.avg_steps.toFixed(1)} steps/example, {Math.round(cost.assumptions.acceptance * 100)}% of children accepted{cost.assumptions.unpriced_models.length ? ` · no price known for ${cost.assumptions.unpriced_models.join(', ')}` : ''}</span>
+        <b>assumes</b><span className="muted">{cost.assumptions.full_rows} eval rows, {cost.assumptions.avg_steps.toFixed(1)} prompt calls/example, {Math.round(cost.assumptions.acceptance * 100)}% of children accepted{cost.assumptions.unpriced_models.length ? ` · no price known for ${cost.assumptions.unpriced_models.join(', ')}` : ''}</span>
       </div>
     </div>
   )

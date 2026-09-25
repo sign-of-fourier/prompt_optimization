@@ -1,0 +1,722 @@
+# Impromptune — full site
+
+Generated 2026-09-25. Index: https://impromptune.com/llms.txt
+
+
+
+---
+
+# Impromptune — optimize the prompts in your agent, and measure it
+URL: https://impromptune.com/
+
+# Your agent's prompts were written by hand.
+
+ Impromptune rewrites them against your labelled data — and tells you the score on rows the search never saw.
+
+ [Improve your agent](https://impromptune.com/app/)
+ [Quickstart](https://impromptune.com/docs/quickstart)
+
+## You changed a prompt. Did it help?
+
+ Almost every prompt in production got there the same way: someone tried a wording, it looked better in three examples, and it shipped. That is not a measurement, and it does not survive the next model upgrade.
+
+### No baseline
+Without a score for the prompt you already have, “better” is a feeling. Impromptune's first act is a baseline run: your prompts exactly as written, scored on your rows.
+
+### No hold-out
+Tune against the same examples you judge with and you will always look good. Every run keeps rows back that the search never touches, and reports that number separately.
+
+### No record
+Which prompt is actually live? What did it answer last Tuesday, and why? A published version is immutable, and every served request is traced.
+
+## How it works
+
+ 1
+
+### Draw the program
+
+ Drag prompts onto a canvas and connect them. One prompt summarizes, another classifies, a third drafts the reply. A prompt with two or more outgoing edges becomes a router: the model picks which way the work goes. The whole thing is your program — Impromptune does not invent one for you.
+
+ [figure: The Impromptune canvas: two prompt nodes connected by an edge, feeding an Evaluate block]
+ A two-prompt program: summarize, then route. The dashed edge feeds the Evaluate block.
+
+ 2
+
+### Bring labelled rows
+
+ A CSV or JSONL with your inputs and the right answer. Fifty rows is enough to start. Map the columns to the placeholders in your prompts, pick the label column, and run a pilot: twelve rows that measure the baseline, the model's own run-to-run noise, and what a full run will cost — before a cent is committed.
+
+ 3
+
+### Let it search
+
+ Each round shows a reflection model a handful of the current best prompt's failures and asks for a rewrite. The rewrite is checked on a small batch first, and only earns a full evaluation if it beats its parent on the same rows. Everything is kept: the tree of attempts, each prompt diffed against its parent, and the rows the reflector was shown.
+
+ [figure: A run in progress: best-so-far curve with noise bands, and the tree of prompt rewrites]
+ A run: best-so-far with noise bands on the left, the search tree on the right. Click any node to read its diff.
+
+ 4
+
+### Publish and serve
+
+ Publish the node you like as a version: an immutable snapshot of the prompts, the models, the external steps and the score it earned. It gets an endpoint and an API key. Every request through it is traced, and corrections you record on those traces become the next dataset.
+
+## It can call your systems
+
+ A prompt can only classify what it can see. A step is a node that is not part of the program — an external call the optimizer never rewrites — that fetches what the prompts need.
+
+### Connect, don't paste
+Where a provider supports it, you authorise Impromptune from inside your own account and revoke it there too. The HubSpot contact lookup that ships in the library is a real OAuth connection to a real CRM, not a mock. Where there is no app to connect to, paste a key instead.
+[How a step signs in →](https://impromptune.com/docs/steps#auth)
+
+### Frozen to train, live to serve
+Evaluation reads a snapshot taken when the row was captured; production calls the service live. That is a correctness decision, not a cost one: a ticket was labelled escalation because the customer had two tickets open that day. Re-fetching six weeks later optimizes against a moving target.
+[Why freezing →](https://impromptune.com/docs/steps#frozen)
+
+ A step is validated before you spend anything. Coverage, stability, leakage, redundancy and whether each field predicts the label better than chance — a permutation test and some arithmetic over columns, costing zero model calls. On the worked entitlement example the checks recovered the labelling rule from the columns alone, and correctly called one field redundant given another: dropping it cost nothing on the hold-out and saved two template tokens. [The eight checks →](https://impromptune.com/docs/steps#validation)
+
+## What a run actually reports
+
+### A hold-out number, with error bars
+Not the best score it saw, which is the maximum of a noisy sample and always flatters. The score of the chosen prompt on rows kept back, with the standard error next to it.
+
+### A front, not a winner
+Accuracy against prompt length. Sometimes the shortest prompt within a point of the best is the one worth shipping, and you can only decide that by seeing both.
+
+### A per-class table
+Aggregate accuracy hides the class that is 0 for 8. The breakdown is on the run page, because an average that moved for one reason is not an improvement.
+
+## What this is not
+
+### Not fine-tuning
+Nothing here touches weights. The artefact is a prompt you can read, paste elsewhere, and keep after you stop paying us.
+
+### Not an agent framework
+Nothing decides its own goals or writes its own code. You draw the program; the optimizer only rewrites the wording inside the boxes you drew.
+
+### Not a marketplace
+Steps are manifests we curate. Nobody else publishes code that runs on our box — or on yours.
+
+### Not a guarantee
+The search reports a measured number with its uncertainty. Sometimes the honest answer is that your prompt was already good, and we would rather show you that than a made-up win.
+
+ [Improve your agent](https://impromptune.com/app/)
+ [Read the docs](https://impromptune.com/docs/)
+
+
+---
+
+# Impromptune documentation
+URL: https://impromptune.com/docs/
+
+# Documentation
+
+ A program is made of prompts; steps fetch things from outside it. Prompts change during a run. Steps do not.
+
+## Start here
+
+### [Quickstart](https://impromptune.com/docs/quickstart)
+From an empty canvas (or a library template) to a finished run, in the order you will actually do it.
+
+### [Glossary](https://impromptune.com/docs/glossary)
+The words this product uses, and the words it deliberately does not. Worth five minutes: two of them used to mean four things each.
+
+## Building
+
+### [Programs and prompts](https://impromptune.com/docs/programs)
+Prompts, placeholders, output fields, edges and what they carry, routers, the entry and terminal prompts, and the limit on loops.
+
+### [Datasets](https://impromptune.com/docs/data)
+What a row looks like, choosing the label column, the hold-out, and the pilot that prices a run before you start it.
+
+### [Evaluate](https://impromptune.com/docs/evaluate)
+Scorers, the metric vector, and how the objective weighs accuracy against prompt length.
+
+## Running and shipping
+
+### [The optimizer](https://impromptune.com/docs/optimization)
+The search loop, the minibatch gate, rounds and budget, Explore versus Guided, and how to read a run without fooling yourself.
+
+### [External steps](https://impromptune.com/docs/steps)
+Calling a service the optimizer never rewrites: manifests, signing in, freezing for training, and the eight validation checks.
+
+### [Versions and serving](https://impromptune.com/docs/serving)
+Publishing an immutable version, its endpoint and API key, traces, outcomes, and promoting corrections into a dataset.
+
+## Accounts
+
+### [Keys and connections](https://impromptune.com/docs/keys)
+Five different secrets with five different jobs, where each one lives, and the rule that decides.
+
+### The engine
+The search itself is [bpto](https://github.com/sign-of-fourier/bpto), open source, with its experiments and findings in the repo. The [method](https://quantecarlo.com/prompt-optimization) and the [evidence](https://quantecarlo.com/findings) live on quantecarlo.com.
+
+
+---
+
+# Quickstart — Impromptune
+URL: https://impromptune.com/docs/quickstart
+
+# Quickstart
+
+ Twenty minutes and about three cents. The example is support-ticket triage: a message comes in, one prompt summarizes it, a second picks the queue.
+
+## Either start from a template
+
+ The Library on the projects page holds curated templates — a program, its settings and a sample dataset, ready to run. Adding one gives you a project of your own; changing it changes nothing for anyone else. Ticket triage is the one this page describes. If you would rather build it yourself, the empty canvas opens with a twelve-card tutorial that walks the same path and will do each step for you if you ask it to.
+
+## Or build it in six moves
+
+ 1
+
+### Two prompts on the canvas
+
+ Drag Prompt from the palette twice. Click the first, name it summarize, and give it a template. Words in {braces} are placeholders filled from your dataset's columns:
+
+```
+Read this customer message and state in one short line what the
+customer wants and which product or order it concerns.
+
+Message: {message}
+```
+
+ Add an output field named summary. Prompts return structured fields rather than loose text, so the next prompt and the scorer can pick one out. Then the second prompt, named route, with an output field queue:
+
+```
+Assign this support request to one queue: billing, shipping,
+refund, bug, account, or other.
+
+Request: {summary}
+```
+
+ 2
+
+### Connect them
+
+ Drag from the right dot of summarize to the left dot of route. Click the new edge and map {summary} to the summary field. Every prompt can also read the dataset columns directly, so {message} would work in either one.
+
+ 3
+
+### Say what to grade
+
+ The prompt with no outgoing edge is the one Evaluate grades — here route. Click the Evaluate block and point an exact-match scorer at the output field queue. [More on scorers →](https://impromptune.com/docs/evaluate)
+
+ 4
+
+### Load labelled rows
+
+ On the Data tab, load the sample: 50 tickets, each a message and the queue it belongs in. Map {message} to the message column and choose queue as the label. Check data validates the wiring. [More on datasets →](https://impromptune.com/docs/data)
+
+ 5
+
+### Run the pilot first
+
+ The pilot runs your prompts as written on twelve rows, twice, plus one rewrite. That gives you three numbers before you commit: the baseline score, the noise between two identical evaluations, and the projected cost of the full run. If the baseline is already near the ceiling, or the noise is bigger than the improvement you are hoping for, stop here — you have learned something for a fraction of a cent.
+
+ 6
+
+### Search, then publish
+
+ Two rounds is plenty for a first look. Watch the best-so-far curve and the tree; click any node to read its prompt diffed against its parent. When you like one, Publish it as a version. [How to read a run →](https://impromptune.com/docs/optimization#reading) · [Publishing and serving →](https://impromptune.com/docs/serving)
+
+## What it costs
+
+ A run of this shape — 50 rows, two prompts, ten rounds — is roughly a thousand billed model calls, about a cent and a half on small models. The pilot is a fraction of that, and it runs first for exactly that reason. The projected cost is shown before you start, and every run carries a hard dollar budget that stops it.
+
+ Every evaluation call runs at temperature 0. Otherwise two evaluations of the same prompt disagree and the search chases noise. Variety in the rewrites comes from the reflection model's own temperature, which is a separate setting.
+
+
+---
+
+# Programs and prompts — Impromptune
+URL: https://impromptune.com/docs/programs
+
+# Programs and prompts
+
+ A program is made of prompts and the edges between them. It is what gets optimized.
+
+## A prompt
+
+ One node on the canvas, and the unit the optimizer rewrites. It has four things worth setting:
+
+### The template
+What you would have typed into a chat box. Words in {braces} are placeholders, filled from the dataset's columns, from an earlier prompt's output field, or from an external step. A placeholder with no source is a blocking error before the run starts, not a surprise at row 40.
+
+### What it does
+One line, in your words. This is not decoration: the reflection model reads it when deciding how to rewrite the prompt. A prompt described as “summarizes what the customer wants” gets rewritten differently from one described as “extracts the order number”.
+
+### Output fields
+Prompts return structured fields, not loose text, so the next prompt and the scorer can pick one out by name. A field has a name, a type, and optionally a description the model sees. No fields means free text, which is fine for the last prompt if your scorer compares whole output.
+
+### Model and token cap
+Each prompt can run on its own model; empty means the project default. Mixing is normal — a cheap model to classify, a better one to draft.
+
+ A prompt can be excluded from rewriting with rewritten by the optimizer. Turn it off for a prompt you have already settled, and the search spends its budget on the others.
+
+## Edges, and what they carry
+
+ An edge from A to B means B runs after A. Click it to say what B receives: each of B's placeholders can be mapped to one of A's output fields, or to $text for A's raw output. Anything not mapped is looked up in the dataset columns and in whatever earlier prompts on the path already produced.
+
+ A prompt with no outgoing edge is a terminal: its output is what Evaluate grades. The dashed line to the Evaluate block appears and disappears on its own to show you which prompt that currently is. The entry prompt is where a row starts; by default it is the first one you added, and you can move it.
+
+## Routers
+
+ A prompt with two or more outgoing edges is a router. It is still a prompt and it is still optimized; the only difference is that a next field is added to its output automatically, with one option per outgoing edge. The model returns the name of the edge to take.
+
+ - Name the edges. Click each one and give it a short option name. The names are what the model chooses between, so they should mean something: needs_human, not option2.
+
+ - Mark a default. One edge is taken when the model's next cannot be parsed. Without it, an unparseable answer is a failed row.
+
+ - Say what the options mean. In the prompt template, in words. The option names alone are a guess.
+
+ Edges may loop back to an earlier prompt — a draft-and-revise cycle is two prompts and a router. That is what max prompt calls per example caps: without it, a program that keeps deciding to revise never finishes a row. Every row stops at the cap, and the cap is part of the cost projection.
+
+## The other kind of node
+
+ A step looks different on the canvas on purpose: square, muted, labelled external · not optimized. It is not part of the program. The optimizer never rewrites it, and it runs once per row before any prompt does. [External steps →](https://impromptune.com/docs/steps)
+
+
+---
+
+# Datasets, labels and the hold-out — Impromptune
+URL: https://impromptune.com/docs/data
+
+# Datasets
+
+ Rows with inputs and a right answer. Everything the optimizer claims is measured against these, so they are the part worth getting right.
+
+## A row
+
+ Upload CSV or JSONL. Each row is a flat set of columns: the inputs your placeholders need, and one column holding the right answer. For ticket triage that is message and queue. Fifty rows is enough to learn something; a few hundred is comfortable.
+
+ Then two mappings: each placeholder in your prompts to a column, and the label column to whichever column holds the answer. Check data validates both, plus the things that are easy to get wrong — a placeholder no column feeds, a label column that is empty on some rows, a column mapped twice.
+
+ Label quality caps everything. If two of your rows disagree about the same question, no prompt can score above the disagreement, and the optimizer will spend your budget discovering that. It is worth reading twenty rows by hand before spending anything.
+
+## The hold-out
+
+ A fraction of the rows — 20% by default — is set aside before the search begins. The optimizer never sees it: not for scoring candidates, not for the gate, not in the failures shown to the reflection model. At the end, the prompt that won is evaluated on those rows once, and that is the number reported.
+
+ Two things follow, and they are the whole reason for the split:
+
+ - The best score during a run is not a prediction. It is the maximum of many noisy evaluations, and the maximum of noise is biased upward. It will be too high, reliably.
+
+ - Training up and hold-out down means overfitting, and it is common enough to be worth looking for every time. A run in our own testing gained 7.3 points on training and lost 4.2 on the hold-out; the entire training gain sat in one class going from 0/7 to 4/7, while another class stayed 0/8 throughout. The average moved. Nothing got better.
+
+ That is why the run page has a per-class table as well as a score. An aggregate that moved for one reason is not an improvement.
+
+## The pilot
+
+ Before any run that spends real money, the pilot evaluates your prompts as written on a dozen rows, twice, and tries a single rewrite. It costs a fraction of a cent and it answers three questions:
+
+### Baseline
+What your current prompts score. Every later claim is relative to this. Sometimes it is already at the ceiling and the honest move is to stop.
+
+### Noise
+Two identical evaluations of the same prompt, differenced. If that gap is as big as the improvement you are hoping for, you need more rows before you need more rounds.
+
+### Cost
+Projected calls and dollars for the full run, from your actual row count, program shape and settings — including any external step's per-call price.
+
+ A run also carries a hard budget in dollars. It stops there, whatever round it is in.
+
+## Enrichment
+
+ If your program uses an external step, its answers are written onto the dataset as columns, once, at capture time — called freezing. Evaluation reads those frozen columns; production calls the step live. The columns are named {step_field} and can be used as placeholders like any other. [Why it works that way →](https://impromptune.com/docs/steps#frozen)
+
+
+---
+
+# Evaluate: scorers, metrics and the objective — Impromptune
+URL: https://impromptune.com/docs/evaluate
+
+# Evaluate
+
+ The terminal block on the canvas. It decides what “better” means, which makes it the most consequential thing you will configure.
+
+## Scorers
+
+ A scorer compares the terminal prompt's output with the row's label and returns a number. Pick the output field to compare, or leave it on whole output.
+
+ | Scorer | Compares | Use when |
+
+ | Exact match | the field equals the label, optionally normalizing case, punctuation and articles | classification into known categories |
+
+ | Contains | the label appears somewhere in the output | the answer is embedded in prose |
+
+ | Token F1 | word overlap with the label | short free-text answers, QA-style |
+
+ | Regex | a pattern extracts the answer, or just must be present | structured strings: ids, amounts, dates |
+
+ | JSON field equality | one field of a JSON label | the label is an object and only part of it matters |
+
+ | Numeric | numbers within a relative tolerance | quantities, where 4.99 and 5.0 are the same answer |
+
+ | LLM judge, vs reference | a judge model grades the output against the label | free text with a right answer but many wordings |
+
+ | LLM judge, no reference | a judge model grades against a rubric alone | there is no single right answer — tone, helpfulness |
+
+ You can add more than one. Each produces its own named metric, and they all land in the same vector.
+
+ A judge costs money and has opinions. Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.
+
+## The metric vector
+
+ A run does not reduce a row to one number. Alongside your scorers it records how the program behaved:
+
+ - template_tokens — the prompts themselves, summed over prompts. This is the recurring bill.
+
+ - prompt_tokens and output_tokens — rendered with the data, and what came back.
+
+ - steps — how many prompt calls the row took, which matters when there are loops.
+
+ - parse_fail.* — per prompt, how often structured output could not be parsed.
+
+ - step.<id>.* — an external step's latency, cost, cache hits and failures.
+
+ Nothing is collapsed inside a scorer. The scorers report; the objective decides.
+
+## The objective
+
+ The objective is a set of weights over those metrics. accuracy: 1.0 alone means what it says. Adding a negative weight on template_tokens makes the search pay for length:
+
+```
+accuracy: 1.0
+template_tokens: -0.002
+```
+
+ At that weight, a prompt may spend ten extra tokens if they buy two points of accuracy, and not otherwise. Choosing the Compress goal in the optimizer sets this for you and asks the reflection model for shorter prompts that keep the same answers; it is the same machinery with a different weight and a different rewriting instruction.
+
+ The run also reports a Pareto front: the candidates that are not beaten on both accuracy and length at once. Reading the front is usually more useful than reading the winner — a prompt one point behind the best and half the length is frequently the one to ship, and only the front shows you it exists.
+
+ Pre-program step cost is reported, not traded off. Every candidate sees the same enriched rows, so a step's fetch cost is the same constant for all of them and shifts every score equally. What is optimizable is which of the step's fields are worth pasting into a prompt — pulling five fields and using two is a finding the compression objective will make for you.
+
+
+---
+
+# The optimizer — Impromptune
+URL: https://impromptune.com/docs/optimization
+
+# The optimizer
+
+ The loop is fixed. What you configure is how much of it to run, on which models, and how the next candidate is chosen.
+
+## The loop
+
+ 1
+
+### Pick a parent
+One prompt set from the current best group.
+
+ 2
+
+### Reflect
+A reflection model is shown a handful of that parent's failures — the inputs, the expected answer, what came back — and asked to rewrite one of the prompts so those failures stop. One prompt at a time, so that when something improves you know which change did it.
+
+ 3
+
+### Gate
+The rewrite is evaluated on the same small batch of rows the parent was judged on. If it does not beat its parent there, it is discarded. This is what keeps a full evaluation — the expensive part — for candidates that have shown something.
+
+ 4
+
+### Evaluate and record
+Survivors are evaluated on the full training set and join the tree. Everything is kept: the prompts, the diff against the parent, the rows the reflector saw, the scores.
+
+## The knobs worth touching
+
+### Goal
+Improve accuracy asks the rewriter to add whatever rule fixes the failures it was shown. Compress asks for a shorter prompt that keeps the same answers, and sets a negative template_tokens weight so the objective agrees.
+
+### Which prompt to rewrite next
+Explore samples from the best set — cheap, robust, the default. Guided builds a model of past results and picks; it spends more reflection calls and earns them back under noisy scores or a weak reflection model, and not on flat tasks. [The comparison at equal rollouts →](https://quantecarlo.com/findings)
+
+### Check batch
+The rows the reflection model sees, and the rows a rewrite must beat its parent on. Small is the point. Downsample the evaluation set if you need cheaper rounds; never the check batch.
+
+### Rounds, budget, patience
+Rounds cap the work, max spend caps the money, and “stop after N rounds without improvement” stops a search that has plateaued. All three are live at once; whichever comes first wins.
+
+### Reflection model and temperature
+Reflection is the one place where variety helps, so it has its own temperature. Evaluation is always temperature 0 — otherwise the same prompt scores differently twice and the search chases noise.
+
+### What the reflector is told
+A short written critique from a model that reads the trace (the default), a template you write, or just the expected answer and the scores. The critique costs a call per failure and usually earns it.
+
+## Reading a run without fooling yourself
+
+ - Read the hold-out, not the peak. The best score seen during a run is the maximum of many noisy evaluations and is biased upward. The hold-out is the number.
+
+ - Compare against the noise band. The pilot measured how far two identical evaluations disagree. An improvement inside that band is not yet an improvement.
+
+ - Open the per-class table. An aggregate that moved because one class went from 0/7 to 4/7 while another stayed 0/8 is a redistribution, not a win.
+
+ - Read the diff. Every node shows its prompt against its parent's. If the winning change is a rule that only makes sense for three rows in your training set, it will not survive contact with real traffic, and you can see that with your eyes.
+
+ - Look at the front, not the point. Accuracy against length: the shortest prompt within a point of the best is often the better ship.
+
+ “No improvement” is a real result. If the search cannot beat your prompt, your prompt was good — and you now have a measured baseline, a hold-out score and an error bar for it, which you did not have this morning.
+
+## What is doing the work
+
+ The search engine is [bpto](https://github.com/sign-of-fourier/bpto), open source: tree search over prompt rewrites, with GEPA-style reflective selection and Bayesian optimization over prompt embeddings as the two selectors. Its experiments, plots and standing conclusions live in that repository and are quoted on [quantecarlo.com/findings](https://quantecarlo.com/findings). Impromptune is the studio around it — the canvas, the data, the validation, the versions and the traces.
+
+
+---
+
+# External steps — Impromptune
+URL: https://impromptune.com/docs/steps
+
+# External steps
+
+ A program is made of prompts; steps fetch things from outside it. Prompts change during a run. Steps do not.
+
+## Why you would want one
+
+ A prompt can only classify what it can see. If the right queue for a support ticket depends on the customer's plan and how many tickets they already have open, no wording of any prompt gets those rows right — there is a ceiling, and it is not a prompt problem.
+
+ A step closes that gap. It runs once per row, before any prompt, taking its inputs from the row's columns and making its answers available to every prompt as placeholders named {step_field} — {records_plan}, {records_open_tickets}. On the canvas it is deliberately a different shape: square, muted, labelled external · not optimized.
+
+ On the worked entitlement example the labels are generated from a rule that uses both the message and the record, so the accuracy ceiling without the step is 83% and with it 100%. That is a property of the data, computed from the generator, not a model result — which is exactly why it makes a fair test of the plumbing.
+
+## A step is declared, not coded
+
+ Each step is a manifest: a JSON file naming the endpoint, how to authorise it, what it needs, what it returns and where in the response those values live. Nothing about a particular service exists in Impromptune's own code — the test we hold ourselves to is that pointing a manifest at a different CRM changes no application code at all.
+
+ The manifest also declares two things people usually forget until production:
+
+ - How the service says “no record”. A 404, a 200 with nulls, an empty results array — that decides whether a missing customer is a failed row or a legitimate blank, and production is full of them.
+
+ - Whether the answer can be cached, and on which inputs. Two candidate prompts in the same round must cause one fetch per row, not two.
+
+ Manifests are curated by us and ship with the studio. There is no registry and no third-party submission path: nobody else's code runs on our box, or on yours.
+
+## How a step signs in
+
+ Two shapes, and the manifest says which are allowed:
+
+### A step key
+You paste a secret the service issued you. It is encrypted at rest and scoped to your account. Use this when the provider issues keys, or when it is your own internal service. Nothing about it needs us to have a relationship with the vendor, which means no step is ever blocked on us.
+
+### A connection
+An OAuth grant: you authorise Impromptune from inside your own account, on the provider's own consent screen, and you revoke it there. The step then acts as you. Tokens are encrypted, refreshed automatically, and never returned by any listing. This needs us to have registered an app with that provider, so it exists for the providers we have done that for.
+
+ Where both are possible the studio offers Connect if we have an app registered for that provider, and a paste box otherwise. Impromptune records the scopes the provider actually granted — not the ones we asked for — and warns if a step needs one that is missing. [Where each kind of secret lives →](https://impromptune.com/docs/keys)
+
+## Frozen for training, live for serving
+
+ The step's answers are written onto your dataset once, at capture time, alongside the label — freezing. Every later run reads those frozen columns. Production calls the service live.
+
+ This is a correctness decision, not a cost one. A ticket is labelled escalation because the customer had two tickets open when it arrived. Re-fetch six weeks later and that count is zero, so the prompt is now being optimized to answer escalation from a record that no longer justifies it. The label and its features have come apart and no number in the run would show it. Freezing keeps the training set still; the alternative is optimizing against a moving target.
+
+ The difference is announced rather than hidden. A run reports the age of the frozen enrichment and warns past a threshold, and every served request records what the step was asked and what it answered — without that, an answer cannot be explained after the fact, because the data that produced it has moved on.
+
+## Validation, before you spend anything
+
+ Firing junk at an endpoint and checking it returns 200 tells you the server is up and nothing else. The failures that cost money are about the relationship between the step's output and your label — and almost none of that needs a model call. It is arithmetic over columns plus about forty HTTP requests.
+
+ | Check | What it catches |
+
+ | Coverage | How many rows get a record at all. 40% empty means those rows are unlearnable, and you should know before spending. |
+
+ | Stability | The same key called twice, compared. If it differs, caching is invalid and evaluation is not reproducible. |
+
+ | Freshness | How far the frozen snapshot has drifted from live, and how old it is. |
+
+ | Signal | Whether each field predicts the label better than chance, permutation-tested — and all the fields together, because a field that is useless alone can be load-bearing in combination. |
+
+ | Degeneracy | A field constant across every row, or unique on every row. Carries nothing, costs tokens each call. |
+
+ | Leakage | A field that predicts the label almost perfectly — usually the answer smuggled in. This one blocks the run. |
+
+ | Redundancy | Leave one field out and re-measure. Answers “can I drop this?” directly, and lists what is droppable. |
+
+ | Payload waste | Fields no prompt references. No extra call and no tokens — but data you are holding for no reason, which is a privacy finding rather than a cost one. |
+
+ Tiers 0 and 2 cost zero model calls; the live probe is two HTTP requests and the statistics about forty. Only the pilot spends, and it was going to run anyway.
+
+ What these checks can and cannot promise. They answer “is the information there?”. They cannot answer “will the model use it?”, and the gap is real: on our own example one field carries measurable signal and survives leave-one-out, yet the class it should predict is 0/8 before optimization, 0/8 after, and 0/8 when the rule is written out by hand. The column has the signal; the model does not exploit it.
+
+## When a step fails
+
+ A timeout, a 5xx or a response that does not match the declared schema marks that row with an error and the run continues, recording step.<id>.fail on it. If more than a quarter of rows fail, the run aborts with the endpoint's own error rather than optimizing against a broken environment — handed a dead dependency, an optimizer will happily learn to work around it.
+
+
+---
+
+# Versions, serving and traces — Impromptune
+URL: https://impromptune.com/docs/serving
+
+# Versions and serving
+
+ The same compiled program runs in evaluation and in production. That is the invariant the whole serving path exists to protect.
+
+## A version
+
+ Publishing a node from a run creates a version: an immutable snapshot of the prompts, the model each one runs on, the external steps pinned to the exact manifest they were scored against, the evaluation settings, and the score it earned. Versions are never edited. Changing anything means publishing another one.
+
+ Each version carries a fingerprint — a hash over the behavioural fields only, so moving a node on the canvas does not produce a “new” version while repointing a step does. Two versions with the same fingerprint will behave identically; that is what makes the list trustworthy enough to roll back from.
+
+ A version pins the program that ran, not what your canvas happens to say now. If you publish a run from yesterday, you get yesterday's program — including settings you have since changed. Hold-out scores are recorded only for the run's best node, because that is the only node that was ever scored on held-out rows.
+
+## Calling it
+
+ A published version has an endpoint. Create an API key for it and send the inputs the program needs:
+
+```
+curl -X POST https://impromptune.com/api/v/<version>/run \
+ -H "Authorization: Bearer <your api key>" \
+ -H "Content-Type: application/json" \
+ -d '{"message": "my package never arrived"}'
+```
+
+ Which inputs are required is derived from the program, not declared by hand: the placeholders every prompt needs, minus the ones an earlier prompt fills, minus the ones an external step provides, plus whatever the step itself needs from the row. Ask for the wrong thing and the error names the field.
+
+ We store only a hash of an API key. If you lose it, you make a new one.
+
+## Traces
+
+ Every served request is recorded: the inputs, which version answered, what each prompt produced, what any external step was asked and what it returned, the tokens and the latency. A step's inputs and outputs are on the trace deliberately — live data moves, and six weeks later the trace is the only remaining evidence of what the model was actually looking at.
+
+## Outcomes, and the loop that closes
+
+ A trace says what the program answered. An outcome says what happened next: an agent reassigned the ticket, a customer replied, a reviewer corrected it. A trace plus an outcome is a label.
+
+ 1
+
+### Record outcomes
+Through the API, or by hand in the traces list. The latest correction on a trace is the one that counts.
+
+ 2
+
+### Promote them
+Turn labelled traces into a dataset: real inputs, real answers, each row carrying the trace it came from, the version that produced it, when it was captured and where the label came from.
+
+ 3
+
+### Run again
+Optimize against the traffic you actually get rather than the fifty examples you wrote at the start. This is the only part of the product that gets better while you are not looking.
+
+ Corrections are a biased sample. People correct what is wrong and stay silent about what is right, so a dataset built only from corrections is a dataset of failures. Mix promoted rows with a sample of uncorrected traces, or the optimizer will cheerfully learn that everything is an escalation.
+
+
+---
+
+# Keys and connections — Impromptune
+URL: https://impromptune.com/docs/keys
+
+# Keys and connections
+
+ Six things used to be called “credentials”. They do different jobs, live in different places and are revoked in different ways, so each one has its own name.
+
+## Which is which
+
+ | Name | What it is | Whose |
+
+ | house key | Our own model-provider account, spent on your behalf on a paid tier. | ours |
+
+ | endpoint | Your own model-provider account — Bedrock, Anthropic, OpenAI, or any OpenAI-compatible server. Models from your endpoints appear in every dropdown and are used in preference to ours. | yours |
+
+ | step key | A secret you paste so an external step can call a service. | yours |
+
+ | connection | An OAuth grant letting a step act on your own account somewhere else. | yours |
+
+ | app credentials | The client id and secret identifying Impromptune to a provider, so a Connect button can exist at all. | ours |
+
+ | API key | A key your caller sends to us to reach a served version. | yours |
+
+ The rule that decides where a new secret goes: a credential identifying the platform belongs in the platform's configuration; a credential belonging to a person belongs in a table, encrypted, scoped to that person. App credentials are the platform's even when a founder created them in their own developer account.
+
+## How they are stored
+
+ - Encrypted at rest: endpoints, step keys and connection tokens. They are scoped to your account and never returned by any listing endpoint — you can see that a secret exists and revoke it, not read it back.
+
+ - Hashed, not stored: API keys. We keep a SHA-256 and show you the key exactly once. Lose it and you make another.
+
+ - Refreshed for you: OAuth access tokens, a minute before they expire, on the path that uses them. A token that expires mid-request is the failure that machinery exists to prevent.
+
+ Everything of yours is revocable from Endpoints & keys in the studio. Revoking a step key leaves the step wired but unauthorised, which is deliberate: you get an error naming the step, not a program that silently stopped using it.
+
+## Connections, specifically
+
+ A connection is made on the provider's own consent screen — you are never asked to paste an admin token into us to make one. You can revoke it from the provider's side as well as ours, and we record the scopes it actually granted rather than the ones we requested, so a step needing permission you did not give says so instead of failing at row one.
+
+ You may hold more than one connection to the same provider. If you do, each step asks which account to use — useful when the data lives in one portal and your sandbox is another.
+
+ A connection is read access to a real system. Whatever a step fetches gets frozen onto your dataset and recorded on your traces. Point it at a sandbox while you are building, and at production when you mean it.
+
+
+---
+
+# Glossary — Impromptune
+URL: https://impromptune.com/docs/glossary
+
+# Glossary
+
+ The product, its documentation and its code use the same words on purpose. Two of them used to mean four things each, which cost us more time than any bug.
+
+## On the canvas
+
+ | We say | We never say | What it is |
+
+ | prompt | module, step | A node the optimizer rewrites. The program is made of prompts. |
+
+ | router | orchestrator, branch | A prompt with more than one outgoing edge: the model returns next and picks the path. A router is still a prompt and is still optimized. |
+
+ | step | tool, plugin, integration | A node that is not part of the program: an external call the optimizer never rewrites. |
+
+ | program | pipeline, chain, graph | The prompts and edges together — what gets optimized. |
+
+ | evaluate | scorer block | The terminal block: scorers, objective, hold-out. |
+
+ A program is made of prompts; steps fetch things from outside it. Prompts change during a run. Steps do not.
+
+## Running and shipping
+
+ | We say | We never say | What it is |
+
+ | run | job, experiment | One optimization: rounds of rewrite, gate, evaluate. |
+
+ | baseline run | eval-only, dry run | A run with zero rounds: evaluates the prompts as written and stops. |
+
+ | round | iteration, generation | One pass of the search loop. |
+
+ | gate | filter | The small-batch check a rewrite must pass before earning a full evaluation. |
+
+ | hold-out | test set, validation set | Rows the search never sees. The number that counts. |
+
+ | version | deployment, release | An immutable published snapshot: prompts, models, steps, and the score it earned. |
+
+ | trace | log, record | One served request and what it produced. |
+
+ | outcome | feedback, correction | What happened after the answer. A trace plus an outcome is a label. |
+
+ | template | example, sample, demo | A library entry you add to your projects. What you get is a project. |
+
+## Data
+
+ | We say | We never say | What it is |
+
+ | dataset | training data, corpus | Rows with inputs and a label column. |
+
+ | label | answer, target, ground truth | The right answer for a row. |
+
+ | freeze | cache, snapshot, sync | Running a step over every row once and writing its answers onto the dataset as columns. Evaluation reads the frozen columns; production calls the step live. |
+
+ | enrichment | augmentation | What freezing produces: the step's columns on the dataset. |
+
+## Authorisation
+
+ Six things were all called “credentials”. “Credential” on its own is banned in our copy — say which: house key, endpoint, step key, connection, app credentials, API key. [What each one is →](https://impromptune.com/docs/keys)
+
+## Things we deliberately do not have
+
+ Saying these would imply a promise we have not made:
+
+ - plugin, marketplace, registry — steps are manifests we curate. Nobody else publishes.
+
+ - agent — nothing here decides its own goals or writes its own code.
+
+ - fine-tuning, training — we change prompts, never weights.
+
+ - guaranteed, optimal, best — the search reports a hold-out number with a standard error. It does not promise.

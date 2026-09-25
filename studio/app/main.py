@@ -987,7 +987,7 @@ async def oauth_callback(provider: str, request: Request, code: str = "", state:
 <div style="max-width:32rem;padding:1.5rem;border:1px solid #26325a;border-radius:12px">
 <h1 style="margin:0 0 .5rem;font-size:1.1rem;color:{'#5ee3c8' if ok else '#ff6b6b'}">{title}</h1>
 <p style="margin:0 0 1rem;color:#9aa6c8">{detail}</p>
-<a href="{brand.public_url()}" style="color:#5ee3c8">Back to {brand.name()}</a></div>""", status_code=200 if ok else 400)
+<a href="{brand.app_url()}" style="color:#5ee3c8">Back to {brand.name()}</a></div>""", status_code=200 if ok else 400)
 
     if error:
         return page("Authorization refused", f"{error}: {error_description}"[:300], False)

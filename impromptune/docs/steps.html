@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>External steps — Impromptune</title>
+<meta name="description" content="A step is a node that is not part of the program: an external call the optimizer never rewrites. Manifests, signing in with a pasted key or an OAuth connection, freezing for training versus calling live in production, and the eight validation checks that run before you spend anything.">
+<link rel="canonical" href="https://impromptune.com/docs/steps">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="External steps — Impromptune">
+<meta property="og:description" content="A step is a node that is not part of the program: an external call the optimizer never rewrites. Manifests, signing in with a pasted key or an OAuth connection, freezing for training versus calling live in production, and the eight validation checks that run before you spend anything.">
+<meta property="og:url" content="https://impromptune.com/docs/steps">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="External steps — Impromptune">
+<meta name="twitter:description" content="A step is a node that is not part of the program: an external call the optimizer never rewrites. Manifests, signing in with a pasted key or an OAuth connection, freezing for training versus calling live in production, and the eight validation checks that run before you spend anything.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a class="active" href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>External steps</h1>
+    <p class="lead">A program is made of prompts; <em>steps</em> fetch things from outside it. Prompts change during a run. Steps do not.</p>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <h2>Why you would want one</h2>
+    <p>A prompt can only classify what it can see. If the right queue for a support ticket depends on the customer's plan and how many tickets they already have open, no wording of any prompt gets those rows right &mdash; there is a ceiling, and it is not a prompt problem.</p>
+    <p>A step closes that gap. It runs <strong>once per row, before any prompt</strong>, taking its inputs from the row's columns and making its answers available to every prompt as placeholders named <code>{step_field}</code> &mdash; <code>{records_plan}</code>, <code>{records_open_tickets}</code>. On the canvas it is deliberately a different shape: square, muted, labelled <em>external &middot; not optimized</em>.</p>
+    <div class="callout">On the worked entitlement example the labels are generated from a rule that uses both the message and the record, so the accuracy ceiling without the step is <strong>83%</strong> and with it <strong>100%</strong>. That is a property of the data, computed from the generator, not a model result &mdash; which is exactly why it makes a fair test of the plumbing.</div>
+  </div>
+</section>
+
+<section id="manifest">
+  <div class="wrap">
+    <h2>A step is declared, not coded</h2>
+    <p>Each step is a manifest: a JSON file naming the endpoint, how to authorise it, what it needs, what it returns and where in the response those values live. Nothing about a particular service exists in Impromptune's own code &mdash; the test we hold ourselves to is that pointing a manifest at a different CRM changes no application code at all.</p>
+    <p>The manifest also declares two things people usually forget until production:</p>
+    <ul class="prose">
+      <li><strong>How the service says &ldquo;no record&rdquo;.</strong> A 404, a 200 with nulls, an empty results array &mdash; that decides whether a missing customer is a failed row or a legitimate blank, and production is full of them.</li>
+      <li><strong>Whether the answer can be cached, and on which inputs.</strong> Two candidate prompts in the same round must cause one fetch per row, not two.</li>
+    </ul>
+    <p>Manifests are curated by us and ship with the studio. There is no registry and no third-party submission path: nobody else's code runs on our box, or on yours.</p>
+  </div>
+</section>
+
+<section id="auth">
+  <div class="wrap">
+    <h2>How a step signs in</h2>
+    <p>Two shapes, and the manifest says which are allowed:</p>
+    <div class="grid c2">
+      <div class="card"><h3>A step key</h3><p>You paste a secret the service issued you. It is encrypted at rest and scoped to your account. Use this when the provider issues keys, or when it is your own internal service. Nothing about it needs us to have a relationship with the vendor, which means no step is ever blocked on us.</p></div>
+      <div class="card"><h3>A connection</h3><p>An OAuth grant: you authorise Impromptune from inside your own account, on the provider's own consent screen, and you revoke it there. The step then acts as you. Tokens are encrypted, refreshed automatically, and never returned by any listing. This needs us to have registered an app with that provider, so it exists for the providers we have done that for.</p></div>
+    </div>
+    <p>Where both are possible the studio offers Connect if we have an app registered for that provider, and a paste box otherwise. Impromptune records the scopes the provider actually <strong>granted</strong> &mdash; not the ones we asked for &mdash; and warns if a step needs one that is missing. <a href="/docs/keys">Where each kind of secret lives &rarr;</a></p>
+  </div>
+</section>
+
+<section id="frozen">
+  <div class="wrap">
+    <h2>Frozen for training, live for serving</h2>
+    <p>The step's answers are written onto your dataset once, at capture time, alongside the label &mdash; <strong>freezing</strong>. Every later run reads those frozen columns. Production calls the service live.</p>
+    <p>This is a correctness decision, not a cost one. A ticket is labelled <code>escalation</code> because the customer had two tickets open <em>when it arrived</em>. Re-fetch six weeks later and that count is zero, so the prompt is now being optimized to answer <code>escalation</code> from a record that no longer justifies it. The label and its features have come apart and no number in the run would show it. Freezing keeps the training set still; the alternative is optimizing against a moving target.</p>
+    <p>The difference is announced rather than hidden. A run reports the <strong>age</strong> of the frozen enrichment and warns past a threshold, and every served request records what the step was asked and what it answered &mdash; without that, an answer cannot be explained after the fact, because the data that produced it has moved on.</p>
+  </div>
+</section>
+
+<section id="validation">
+  <div class="wrap">
+    <h2>Validation, before you spend anything</h2>
+    <p>Firing junk at an endpoint and checking it returns 200 tells you the server is up and nothing else. The failures that cost money are about the relationship between the step's output and your label &mdash; and almost none of that needs a model call. It is arithmetic over columns plus about forty HTTP requests.</p>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>What it catches</th></tr>
+      <tr><td><strong>Coverage</strong></td><td>How many rows get a record at all. 40% empty means those rows are unlearnable, and you should know before spending.</td></tr>
+      <tr><td><strong>Stability</strong></td><td>The same key called twice, compared. If it differs, caching is invalid and evaluation is not reproducible.</td></tr>
+      <tr><td><strong>Freshness</strong></td><td>How far the frozen snapshot has drifted from live, and how old it is.</td></tr>
+      <tr><td><strong>Signal</strong></td><td>Whether each field predicts the label better than chance, permutation-tested &mdash; <em>and all the fields together</em>, because a field that is useless alone can be load-bearing in combination.</td></tr>
+      <tr><td><strong>Degeneracy</strong></td><td>A field constant across every row, or unique on every row. Carries nothing, costs tokens each call.</td></tr>
+      <tr><td><strong>Leakage</strong></td><td>A field that predicts the label almost perfectly &mdash; usually the answer smuggled in. This one blocks the run.</td></tr>
+      <tr><td><strong>Redundancy</strong></td><td>Leave one field out and re-measure. Answers &ldquo;can I drop this?&rdquo; directly, and lists what is droppable.</td></tr>
+      <tr><td><strong>Payload waste</strong></td><td>Fields no prompt references. No extra call and no tokens &mdash; but data you are holding for no reason, which is a privacy finding rather than a cost one.</td></tr>
+    </table></div>
+    <p>Tiers 0 and 2 cost <strong>zero model calls</strong>; the live probe is two HTTP requests and the statistics about forty. Only the pilot spends, and it was going to run anyway.</p>
+    <div class="callout"><strong>What these checks can and cannot promise.</strong> They answer &ldquo;is the information there?&rdquo;. They cannot answer &ldquo;will the model use it?&rdquo;, and the gap is real: on our own example one field carries measurable signal and survives leave-one-out, yet the class it should predict is 0/8 before optimization, 0/8 after, and 0/8 when the rule is written out by hand. The column has the signal; the model does not exploit it.</div>
+  </div>
+</section>
+
+<section id="failure">
+  <div class="wrap">
+    <h2>When a step fails</h2>
+    <p>A timeout, a 5xx or a response that does not match the declared schema marks <em>that row</em> with an error and the run continues, recording <code>step.&lt;id&gt;.fail</code> on it. If more than a quarter of rows fail, the run aborts with the endpoint's own error rather than optimizing against a broken environment &mdash; handed a dead dependency, an optimizer will happily learn to work around it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

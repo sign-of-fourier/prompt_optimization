@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
+import Hint from './Hint.jsx'
 
 // Keys pasted for external steps. Added on the step node, where you discover you need one - listed here so there is
 // one screen that shows everything the account has handed out, and one place to revoke it.
@@ -127,7 +128,7 @@ export default function KeysPanel({ models, features = {}, onClose }) {
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="row"><h2 className="grow">Models &amp; keys</h2><span className="pill">{models.tier}</span><button className="small" onClick={onClose}>×</button></div>
+        <div className="row"><h2 className="grow">Models &amp; keys<Hint id="keys" /></h2><span className="pill">{models.tier}</span><button className="small" onClick={onClose}>×</button></div>
         <div className="help">
           {models.house_keys ? <>Your tier runs on the site's keys for: <b>{house.map(m => m.label).join(', ') || 'no models yet'}</b>, with up to {models.max_concurrency} calls in flight and {models.max_q} parents per round. </>
             : <>Your tier runs only on your own credentials ({models.max_concurrency} call in flight at a time). </>}

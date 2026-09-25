@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datasets, labels and the hold-out — Impromptune</title>
+<meta name="description" content="What a row looks like, choosing the label column, why the hold-out is the number that counts, and the pilot that measures your baseline, the model's noise and the cost of a run before you commit to it.">
+<link rel="canonical" href="https://impromptune.com/docs/data">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Datasets, labels and the hold-out — Impromptune">
+<meta property="og:description" content="What a row looks like, choosing the label column, why the hold-out is the number that counts, and the pilot that measures your baseline, the model's noise and the cost of a run before you commit to it.">
+<meta property="og:url" content="https://impromptune.com/docs/data">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Datasets, labels and the hold-out — Impromptune">
+<meta name="twitter:description" content="What a row looks like, choosing the label column, why the hold-out is the number that counts, and the pilot that measures your baseline, the model's noise and the cost of a run before you commit to it.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Datasets</h1>
+    <p class="lead">Rows with inputs and a right answer. Everything the optimizer claims is measured against these, so they are the part worth getting right.</p>
+  </div>
+</header>
+
+<section id="datasets">
+  <div class="wrap">
+    <h2>A row</h2>
+    <p>Upload CSV or JSONL. Each row is a flat set of columns: the inputs your placeholders need, and one column holding the right answer. For ticket triage that is <code>message</code> and <code>queue</code>. Fifty rows is enough to learn something; a few hundred is comfortable.</p>
+    <p>Then two mappings: each placeholder in your prompts to a column, and the <strong>label column</strong> to whichever column holds the answer. <strong>Check data</strong> validates both, plus the things that are easy to get wrong &mdash; a placeholder no column feeds, a label column that is empty on some rows, a column mapped twice.</p>
+    <div class="callout"><strong>Label quality caps everything.</strong> If two of your rows disagree about the same question, no prompt can score above the disagreement, and the optimizer will spend your budget discovering that. It is worth reading twenty rows by hand before spending anything.</div>
+  </div>
+</section>
+
+<section id="holdout">
+  <div class="wrap">
+    <h2>The hold-out</h2>
+    <p>A fraction of the rows &mdash; 20% by default &mdash; is set aside before the search begins. The optimizer never sees it: not for scoring candidates, not for the gate, not in the failures shown to the reflection model. At the end, the prompt that won is evaluated on those rows once, and that is the number reported.</p>
+    <p>Two things follow, and they are the whole reason for the split:</p>
+    <ul class="prose">
+      <li><strong>The best score during a run is not a prediction.</strong> It is the maximum of many noisy evaluations, and the maximum of noise is biased upward. It will be too high, reliably.</li>
+      <li><strong>Training up and hold-out down means overfitting</strong>, and it is common enough to be worth looking for every time. A run in our own testing gained 7.3 points on training and lost 4.2 on the hold-out; the entire training gain sat in one class going from 0/7 to 4/7, while another class stayed 0/8 throughout. The average moved. Nothing got better.</li>
+    </ul>
+    <p>That is why the run page has a <strong>per-class table</strong> as well as a score. An aggregate that moved for one reason is not an improvement.</p>
+  </div>
+</section>
+
+<section id="pilot">
+  <div class="wrap">
+    <h2>The pilot</h2>
+    <p>Before any run that spends real money, the pilot evaluates your prompts as written on a dozen rows, twice, and tries a single rewrite. It costs a fraction of a cent and it answers three questions:</p>
+    <div class="grid c3">
+      <div class="card"><h3>Baseline</h3><p>What your current prompts score. Every later claim is relative to this. Sometimes it is already at the ceiling and the honest move is to stop.</p></div>
+      <div class="card"><h3>Noise</h3><p>Two identical evaluations of the same prompt, differenced. If that gap is as big as the improvement you are hoping for, you need more rows before you need more rounds.</p></div>
+      <div class="card"><h3>Cost</h3><p>Projected calls and dollars for the full run, from your actual row count, program shape and settings &mdash; including any external step's per-call price.</p></div>
+    </div>
+    <p>A run also carries a hard <strong>budget</strong> in dollars. It stops there, whatever round it is in.</p>
+  </div>
+</section>
+
+<section id="freeze">
+  <div class="wrap">
+    <h2>Enrichment</h2>
+    <p>If your program uses an external step, its answers are written onto the dataset as columns, once, at capture time &mdash; called <strong>freezing</strong>. Evaluation reads those frozen columns; production calls the step live. The columns are named <code>{step_field}</code> and can be used as placeholders like any other. <a href="/docs/steps#frozen">Why it works that way &rarr;</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

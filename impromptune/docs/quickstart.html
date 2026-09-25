@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quickstart — Impromptune</title>
+<meta name="description" content="From an empty canvas or a library template to a finished optimization run: draw the program, load labelled rows, run the pilot, start the search, read the result, publish a version.">
+<link rel="canonical" href="https://impromptune.com/docs/quickstart">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Quickstart — Impromptune">
+<meta property="og:description" content="From an empty canvas or a library template to a finished optimization run: draw the program, load labelled rows, run the pilot, start the search, read the result, publish a version.">
+<meta property="og:url" content="https://impromptune.com/docs/quickstart">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Quickstart — Impromptune">
+<meta name="twitter:description" content="From an empty canvas or a library template to a finished optimization run: draw the program, load labelled rows, run the pilot, start the search, read the result, publish a version.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a class="active" href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Quickstart</h1>
+    <p class="lead">Twenty minutes and about three cents. The example is support-ticket triage: a message comes in, one prompt summarizes it, a second picks the queue.</p>
+  </div>
+</header>
+
+<section id="templates">
+  <div class="wrap">
+    <h2>Either start from a template</h2>
+    <p>The <strong>Library</strong> on the projects page holds curated templates &mdash; a program, its settings and a sample dataset, ready to run. Adding one gives you a <strong>project</strong> of your own; changing it changes nothing for anyone else. <em>Ticket triage</em> is the one this page describes. If you would rather build it yourself, the empty canvas opens with a twelve-card tutorial that walks the same path and will do each step for you if you ask it to.</p>
+  </div>
+</section>
+
+<section id="first-run">
+  <div class="wrap">
+    <h2>Or build it in six moves</h2>
+    <div class="step"><div class="n">1</div><h3>Two prompts on the canvas</h3>
+      <p>Drag <strong>Prompt</strong> from the palette twice. Click the first, name it <code>summarize</code>, and give it a template. Words in <code>{braces}</code> are placeholders filled from your dataset's columns:</p>
+      <pre><code>Read this customer message and state in one short line what the
+customer wants and which product or order it concerns.
+
+Message: {message}</code></pre>
+      <p>Add an output field named <code>summary</code>. Prompts return structured fields rather than loose text, so the next prompt and the scorer can pick one out. Then the second prompt, named <code>route</code>, with an output field <code>queue</code>:</p>
+      <pre><code>Assign this support request to one queue: billing, shipping,
+refund, bug, account, or other.
+
+Request: {summary}</code></pre></div>
+    <div class="step"><div class="n">2</div><h3>Connect them</h3>
+      <p>Drag from the right dot of <code>summarize</code> to the left dot of <code>route</code>. Click the new edge and map <code>{summary}</code> to the <code>summary</code> field. Every prompt can also read the dataset columns directly, so <code>{message}</code> would work in either one.</p></div>
+    <div class="step"><div class="n">3</div><h3>Say what to grade</h3>
+      <p>The prompt with no outgoing edge is the one Evaluate grades &mdash; here <code>route</code>. Click the <strong>Evaluate</strong> block and point an exact-match scorer at the output field <code>queue</code>. <a href="/docs/evaluate">More on scorers &rarr;</a></p></div>
+    <div class="step"><div class="n">4</div><h3>Load labelled rows</h3>
+      <p>On the <strong>Data</strong> tab, load the sample: 50 tickets, each a <code>message</code> and the <code>queue</code> it belongs in. Map <code>{message}</code> to the message column and choose <code>queue</code> as the label. <strong>Check data</strong> validates the wiring. <a href="/docs/data">More on datasets &rarr;</a></p></div>
+    <div class="step"><div class="n">5</div><h3>Run the pilot first</h3>
+      <p>The pilot runs your prompts as written on twelve rows, twice, plus one rewrite. That gives you three numbers before you commit: the <strong>baseline</strong> score, the <strong>noise</strong> between two identical evaluations, and the <strong>projected cost</strong> of the full run. If the baseline is already near the ceiling, or the noise is bigger than the improvement you are hoping for, stop here &mdash; you have learned something for a fraction of a cent.</p></div>
+    <div class="step"><div class="n">6</div><h3>Search, then publish</h3>
+      <p>Two rounds is plenty for a first look. Watch the best-so-far curve and the tree; click any node to read its prompt diffed against its parent. When you like one, <strong>Publish</strong> it as a version. <a href="/docs/optimization#reading">How to read a run &rarr;</a> &middot; <a href="/docs/serving">Publishing and serving &rarr;</a></p></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What it costs</h2>
+    <p>A run of this shape &mdash; 50 rows, two prompts, ten rounds &mdash; is roughly a thousand billed model calls, about <strong>a cent and a half</strong> on small models. The pilot is a fraction of that, and it runs first for exactly that reason. The projected cost is shown before you start, and every run carries a hard dollar budget that stops it.</p>
+    <div class="callout"><strong>Every evaluation call runs at temperature 0.</strong> Otherwise two evaluations of the same prompt disagree and the search chases noise. Variety in the <em>rewrites</em> comes from the reflection model's own temperature, which is a separate setting.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

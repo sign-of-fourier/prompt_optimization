@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
 import { placeholders } from './Canvas.jsx'
+import Hint from './Hint.jsx'
 
 const TYPES = ['string', 'number', 'boolean', 'string[]']
 
@@ -22,13 +23,13 @@ export function ModulePanel({ spec, update, id, models, onClose }) {
   const mutated = !spec.mutate || spec.mutate.includes(id)
   return (
     <div>
-      <div className="row"><h3 className="grow">{orch ? 'Orchestrate' : 'Module'}: {m.id}</h3><button className="small" onClick={onClose}>×</button></div>
+      <div className="row"><h3 className="grow">{orch ? 'Router' : 'Prompt'}: {m.id}</h3><button className="small" onClick={onClose}>×</button></div>
       <label>Name</label><input defaultValue={m.id} onBlur={e => rename(e.target.value)} />
-      <label>What this step does <span className="muted">(read by the rewriter)</span></label>
+      <label>What this prompt does <span className="muted">(read by the rewriter)</span></label>
       <input value={m.description} onChange={e => set({ description: e.target.value })} placeholder="e.g. extracts the key facts from the document" />
       <label>Prompt template <span className="muted">— placeholders in {'{braces}'}</span></label>
       <textarea data-tut="side-template" value={m.template} onChange={e => set({ template: e.target.value })} placeholder={'Summarize the following text in one sentence:\n\n{text}'} />
-      <div className="chips" style={{ marginTop: 6 }}>{placeholders(m.template).map(p => <span key={p} className={'chip' + (incoming.has(p) ? '' : '')} title={incoming.has(p) ? 'fed by an edge' : 'from the dataset (or an earlier step)'}>{'{' + p + '}'}{incoming.has(p) ? ' ←edge' : ''}</span>)}</div>
+      <div className="chips" style={{ marginTop: 6 }}>{placeholders(m.template).map(p => <span key={p} className={'chip' + (incoming.has(p) ? '' : '')} title={incoming.has(p) ? 'fed by an edge' : 'from the dataset (or an earlier prompt)'}>{'{' + p + '}'}{incoming.has(p) ? ' ←edge' : ''}</span>)}</div>
       <label>Output fields <span className="muted">(structured output; empty = free text)</span></label>
       <div data-tut="side-fields">
       {m.schema_fields.map((f, i) => (
@@ -44,18 +45,18 @@ export function ModulePanel({ spec, update, id, models, onClose }) {
       <label>Connect to <span className="muted">(same as dragging the right dot)</span></label>
       <div className="row">
         <select className="grow" value="" onChange={e => { const t = e.target.value; if (!t) return; update(s => s.edges.some(x => x.source === id && x.target === t) ? s : { ...s, edges: [...s.edges, { source: id, target: t, name: outs.length ? `option${outs.length + 1}` : '', mapping: {}, default: false }] }) }}>
-          <option value="">— choose a step —</option>{spec.modules.filter(x => x.id !== id && !outs.some(e => e.target === x.id)).map(x => <option key={x.id} value={x.id}>{x.id}</option>)}
+          <option value="">— choose a prompt —</option>{spec.modules.filter(x => x.id !== id && !outs.some(e => e.target === x.id)).map(x => <option key={x.id} value={x.id}>{x.id}</option>)}
         </select>
       </div>
       {outs.length > 0 && <div className="help">Outgoing: {outs.map(e => e.target).join(', ')}{outs.length === 0 ? '' : ''}. {outs.length === 0 ? '' : 'Click an edge to map fields.'}</div>}
-      {outs.length === 0 && <div className="help">No outgoing edge: this step ends the pipeline and its output is what Evaluate grades.</div>}
-      {orch && <div className="help" style={{ marginTop: 8 }}>This step has {outs.length} outgoing edges, so a <code>next</code> field is added automatically with the options <b>{outs.map(e => e.name || '(unnamed)').join(', ')}</b>. Name the edges by clicking them. Tell the model in the prompt what each option means.</div>}
+      {outs.length === 0 && <div className="help">No outgoing edge: this prompt ends the program and its output is what Evaluate grades.</div>}
+      {orch && <div className="help" style={{ marginTop: 8 }}>This prompt has {outs.length} outgoing edges, so it is a <b>router</b>: a <code>next</code> field is added automatically with the options <b>{outs.map(e => e.name || '(unnamed)').join(', ')}</b>. Name the edges by clicking them. Tell the model in the prompt what each option means.</div>}
       <label>Model</label>
       <select value={m.model || ''} onChange={e => set({ model: e.target.value || null })}><option value="">project default ({spec.eval_model})</option>{models.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
       <div className="help">Evaluation calls run at temperature 0 (Nova's default of 0.7 makes scores stochastic; Anthropic models reject sampling parameters). Diversity in rewrites comes from the optimizer's reflection settings, not from here.</div>
       <label>Max output tokens</label><input type="number" value={m.max_tokens} onChange={e => set({ max_tokens: +e.target.value })} />
       <div className="row" style={{ marginTop: 12 }}>
-        <label style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={m.id === entry} onChange={() => update({ ...spec, entry: id })} />entry step</label>
+        <label style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={m.id === entry} onChange={() => update({ ...spec, entry: id })} />entry prompt</label>
         <label style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={mutated} onChange={e => {
           const all = spec.modules.map(x => x.id); const cur = spec.mutate || all
           const next = e.target.checked ? [...cur, id] : cur.filter(x => x !== id)
@@ -84,13 +85,13 @@ export function EdgePanel({ spec, update, idx, onClose }) {
         <label style={{ margin: '10px 0 0' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={e.default} onChange={ev => update(s => ({ ...s, edges: s.edges.map((x, i) => x.source === e.source ? { ...x, default: i === idx ? ev.target.checked : (ev.target.checked ? false : x.default) } : x) }))} />default edge — taken when the model's <code>next</code> cannot be parsed</label>
       </>}
       <label data-tut="edge-mapping">What {e.target} receives</label>
-      <div className="help">Every step can read the dataset columns and anything mapped earlier on the path. Map a placeholder of <b>{e.target}</b> to an output field of <b>{e.source}</b> here (<code>$text</code> = the raw text).</div>
+      <div className="help">Every prompt can read the dataset columns and anything mapped earlier on the path. Map a placeholder of <b>{e.target}</b> to an output field of <b>{e.source}</b> here (<code>$text</code> = the raw text).</div>
       {phs.length === 0 && <div className="muted">{e.target} has no placeholders.</div>}
       {phs.map(ph => (
         <div className="row" key={ph} style={{ marginBottom: 6 }}>
           <code style={{ width: 130 }}>{'{' + ph + '}'}</code><span className="muted">←</span>
           <select className="grow" value={e.mapping[ph] || ''} onChange={ev => setMap(ph, ev.target.value)}>
-            <option value="">(dataset column or earlier step)</option>{fields.map(f => <option key={f} value={f}>{f}</option>)}
+            <option value="">(dataset column or earlier prompt)</option>{fields.map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
       ))}
@@ -119,8 +120,8 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
   const metrics = [...ev.scorers.map(metricName), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
   return (
     <div>
-      <div className="row"><h3 className="grow">Evaluate</h3><button className="small" onClick={onClose}>×</button></div>
-      <div className="help">Scores the terminal step's output{term ? ` (${term.id})` : ''} on every dataset row. Metrics are a vector; the objective weighs them.</div>
+      <div className="row"><h3 className="grow">Evaluate<Hint id="evaluate" /></h3><button className="small" onClick={onClose}>×</button></div>
+      <div className="help">Scores the terminal prompt's output{term ? ` (${term.id})` : ''} on every dataset row. Metrics are a vector; the objective weighs them.</div>
       {ev.scorers.map((sc, i) => (
         <div className="card" key={i}>
           <div className="row"><select className="grow" value={sc.type} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, type: e.target.value } : x) })}>{SCORERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
@@ -137,7 +138,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
         </div>
       ))}
       <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }] })}>+ scorer</button>
-      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over steps), prompt (rendered, with the data) and output</label>
+      <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over prompts), prompt (rendered, with the data) and output</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}
       <div className="help">Score = Σ weight × metric. A negative weight is an exchange rate: <code>template_tokens</code> −0.002 says 100 tokens are worth 0.2 of accuracy, and the search will make that trade if the rewriter offers it; −0.0005 says 100 tokens are worth 5 points. Pair it with the Optimizer's goal set to Compress (a penalty alone only rejects rewrites; the goal changes what the rewriter is asked for) and read the front on the run page, not just the best score.</div>
@@ -152,8 +153,8 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
   return (
     <div className="modal-bg" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="row"><h2 className="grow">Optimizer</h2><button className="small" onClick={onClose}>×</button></div>
-        <div className="help">The loop is fixed: pick a prompt from the current best set → show a reflection model a few of its failures → rewrite one step → the rewrite earns a full evaluation only if it beats its parent on the same small batch. These are its knobs.{tier && <> Tier <b>{tier.tier}</b>: up to {tier.max_concurrency} calls in flight, {tier.max_q} parents per round.</>}</div>
+        <div className="row"><h2 className="grow">Optimizer<Hint id="optimizer" /></h2><button className="small" onClick={onClose}>×</button></div>
+        <div className="help">The loop is fixed: pick a prompt from the current best set → show a reflection model a few of its failures → rewrite one prompt → the rewrite earns a full evaluation only if it beats its parent on the same small batch. These are its knobs.{tier && <> Tier <b>{tier.tier}</b>: up to {tier.max_concurrency} calls in flight, {tier.max_q} parents per round.</>}</div>
         <div className="grid2">
           <div><label>Goal</label>
             <select value={o.goal || 'accuracy'} onChange={e => { const goal = e.target.value; update(s => ({ ...s, optimizer: { ...s.optimizer, goal },
@@ -244,7 +245,7 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
 
   return (
     <div>
-      <div className="row"><h3 className="grow" style={{ margin: 0 }}>Step · {st.id}</h3><button className="small" onClick={onClose}>×</button></div>
+      <div className="row"><h3 className="grow" style={{ margin: 0 }}>Step · {st.id}<Hint id="step" /></h3><button className="small" onClick={onClose}>×</button></div>
       <div className="help">Not part of the program: the optimizer never rewrites it. It runs once per row before
         the prompts, and its answers are frozen onto the dataset — production calls it live instead.</div>
 

@@ -12,12 +12,12 @@ function ModuleNode({ data, selected }) {
   return (
     <div className={'node' + (selected ? ' selected' : '') + (orch ? ' orch' : '')}>
       <Handle type="target" position={Position.Left} title="input — drop a connection here" />
-      <div className={'kind' + (orch ? ' orch' : '')}>{orch ? 'orchestrate' : 'module'}{data.entry ? ' · entry' : ''}{data.unreachable ? ' · not reachable' : ''}</div>
+      <div className={'kind' + (orch ? ' orch' : '')}>{orch ? 'router' : 'prompt'}{data.entry ? ' · entry' : ''}{data.unreachable ? ' · not reachable' : ''}</div>
       <div className="title">{data.id}</div>
       <div className="prev">{data.template || <span className="muted">click to add a prompt</span>}</div>
       <div className="chips">{placeholders(data.template).map(p => <span className="chip" key={p}>{'{' + p + '}'}</span>)}</div>
-      <div className="hint">drag the right dot to another step to connect</div>
-      <Handle type="source" position={Position.Right} title="output — drag to another step's left dot" />
+      <div className="hint">drag the right dot to another prompt to connect</div>
+      <Handle type="source" position={Position.Right} title="output — drag to another prompt's left dot" />
     </div>
   )
 }
@@ -137,7 +137,7 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
       return
     }
     update(s => {
-      let base = kind === 'orchestrate' ? 'decide' : 'step'; let id = base; let n = 1
+      let base = kind === 'orchestrate' ? 'decide' : 'prompt'; let id = base; let n = 1
       while (s.modules.some(m => m.id === id)) id = `${base}${++n}`
       const template = kind === 'orchestrate' ? 'Given this draft:\n{draft}\n\nDecide whether it is good enough or needs another pass.' : ''
       const schema_fields = kind === 'orchestrate' ? [{ name: 'reason', type: 'string', description: 'one sentence', enum: null }] : []
@@ -156,11 +156,11 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
     <>
       <div className="palette">
         <h4>Palette</h4>
-        <div className="pal" data-tut="palette-module" draggable onDragStart={e => e.dataTransfer.setData('kind', 'module')}><b>Module</b><small>a prompt step</small></div>
-        <div className="pal" data-tut="palette-orchestrate" draggable onDragStart={e => e.dataTransfer.setData('kind', 'orchestrate')}><b>Orchestrate</b><small>a step that chooses the next step</small></div>
-        {features.v0 && manifests.length > 0 && <div className="pal" draggable onDragStart={e => e.dataTransfer.setData('kind', 'step')}><b>External step</b><small>fetch data the prompts can use — never rewritten</small></div>}
-        <div className="help" style={{ marginTop: 10 }}>Drag onto the canvas. Connect steps by dragging from a right handle to a left handle. A step with two or more outgoing edges becomes an orchestrator: the model returns <code>next</code>.</div>
-        <div className="help">Steps with no outgoing edge feed <b>Evaluate</b>. Click it to choose the scorer.</div>
+        <div className="pal" data-tut="palette-module" draggable onDragStart={e => e.dataTransfer.setData('kind', 'module')}><b>Prompt</b><small>one prompt the optimizer rewrites</small></div>
+        <div className="pal" data-tut="palette-orchestrate" draggable onDragStart={e => e.dataTransfer.setData('kind', 'orchestrate')}><b>Router</b><small>a prompt that picks which edge to take</small></div>
+        {features.v0 && manifests.length > 0 && <div className="pal" draggable onDragStart={e => e.dataTransfer.setData('kind', 'step')}><b>Step</b><small>an external call — fetches data, never rewritten</small></div>}
+        <div className="help" style={{ marginTop: 10 }}>Drag onto the canvas. Connect prompts by dragging from a right handle to a left handle. A prompt with two or more outgoing edges is a <b>router</b>: the model returns <code>next</code> to pick the edge.</div>
+        <div className="help">A prompt with no outgoing edge feeds <b>Evaluate</b>. Click it to choose the scorer.</div>
         <div className="help">The search loop is fixed; its knobs are under <b>Optimizer ⚙</b>.</div>
       </div>
       <div className="canvas" data-tut="canvas" ref={wrap} onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }} onDrop={onDrop}>
@@ -175,11 +175,11 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
         {sel && sel.type === 'evaluate' && <EvaluatePanel spec={spec} update={update} models={models} onClose={() => setSel(null)} />}
         {sel && sel.type === 'step' && <StepPanel spec={spec} update={update} id={sel.id} manifests={manifests} datasets={datasets} pid={pid} onClose={() => setSel(null)} />}
         {!sel && <div className="muted"><h3 style={{ color: 'var(--text)' }}>Program</h3>
-          <p>{spec.modules.length} step{spec.modules.length === 1 ? '' : 's'}, {spec.edges.length} edge{spec.edges.length === 1 ? '' : 's'}. Entry: <code>{entry || '—'}</code>. Terminal: <code>{terminals.join(', ') || '—'}</code>.</p>
-          <p>Click a step, an edge or the Evaluate block to edit it. Delete with Backspace.</p>
-          <label>Evaluation model (default for every step)</label>
+          <p>{spec.modules.length} prompt{spec.modules.length === 1 ? '' : 's'}, {spec.edges.length} edge{spec.edges.length === 1 ? '' : 's'}. Entry: <code>{entry || '—'}</code>. Terminal: <code>{terminals.join(', ') || '—'}</code>.</p>
+          <p>Click a prompt, a step, an edge or the Evaluate block to edit it. Delete with Backspace.</p>
+          <label>Evaluation model (default for every prompt)</label>
           <select value={spec.eval_model} onChange={e => update({ ...spec, eval_model: e.target.value })}>{!models.some(m => m.id === spec.eval_model) && <option value={spec.eval_model}>{spec.eval_model} (not available on your plan)</option>}{models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}</select>
-          <label>Max steps per example (loops)</label>
+          <label>Max prompt calls per example (loops)</label>
           <input type="number" min={1} max={32} value={spec.max_steps} onChange={e => update({ ...spec, max_steps: +e.target.value })} />
         </div>}
       </div>

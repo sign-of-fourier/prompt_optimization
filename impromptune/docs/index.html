@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Impromptune documentation</title>
+<meta name="description" content="How Impromptune works: programs and prompts, datasets and hold-outs, scorers and objectives, the optimization loop, external steps, publishing versions and serving them, keys and connections, and the glossary.">
+<link rel="canonical" href="https://impromptune.com/docs/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Impromptune documentation">
+<meta property="og:description" content="How Impromptune works: programs and prompts, datasets and hold-outs, scorers and objectives, the optimization loop, external steps, publishing versions and serving them, keys and connections, and the glossary.">
+<meta property="og:url" content="https://impromptune.com/docs/">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Impromptune documentation">
+<meta name="twitter:description" content="How Impromptune works: programs and prompts, datasets and hold-outs, scorers and objectives, the optimization loop, external steps, publishing versions and serving them, keys and connections, and the glossary.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a class="active" href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Documentation</h1>
+    <p class="lead">A program is made of <em>prompts</em>; steps fetch things from outside it. Prompts change during a run. Steps do not.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Start here</h2>
+    <div class="grid c2">
+      <div class="card"><h3><a href="/docs/quickstart">Quickstart</a></h3><p>From an empty canvas (or a library template) to a finished run, in the order you will actually do it.</p></div>
+      <div class="card"><h3><a href="/docs/glossary">Glossary</a></h3><p>The words this product uses, and the words it deliberately does not. Worth five minutes: two of them used to mean four things each.</p></div>
+    </div>
+
+    <h2>Building</h2>
+    <div class="grid c3">
+      <div class="card"><h3><a href="/docs/programs">Programs and prompts</a></h3><p>Prompts, placeholders, output fields, edges and what they carry, routers, the entry and terminal prompts, and the limit on loops.</p></div>
+      <div class="card"><h3><a href="/docs/data">Datasets</a></h3><p>What a row looks like, choosing the label column, the hold-out, and the pilot that prices a run before you start it.</p></div>
+      <div class="card"><h3><a href="/docs/evaluate">Evaluate</a></h3><p>Scorers, the metric vector, and how the objective weighs accuracy against prompt length.</p></div>
+    </div>
+
+    <h2>Running and shipping</h2>
+    <div class="grid c3">
+      <div class="card"><h3><a href="/docs/optimization">The optimizer</a></h3><p>The search loop, the minibatch gate, rounds and budget, Explore versus Guided, and how to read a run without fooling yourself.</p></div>
+      <div class="card"><h3><a href="/docs/steps">External steps</a></h3><p>Calling a service the optimizer never rewrites: manifests, signing in, freezing for training, and the eight validation checks.</p></div>
+      <div class="card"><h3><a href="/docs/serving">Versions and serving</a></h3><p>Publishing an immutable version, its endpoint and API key, traces, outcomes, and promoting corrections into a dataset.</p></div>
+    </div>
+
+    <h2>Accounts</h2>
+    <div class="grid c2">
+      <div class="card"><h3><a href="/docs/keys">Keys and connections</a></h3><p>Five different secrets with five different jobs, where each one lives, and the rule that decides.</p></div>
+      <div class="card"><h3>The engine</h3><p>The search itself is <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source, with its experiments and findings in the repo. The <a href="https://quantecarlo.com/prompt-optimization">method</a> and the <a href="https://quantecarlo.com/findings">evidence</a> live on quantecarlo.com.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

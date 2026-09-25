@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programs and prompts — Impromptune</title>
+<meta name="description" content="The canvas: prompts and their placeholders, output fields, edges and what they carry, routers that pick the path, the entry and terminal prompts, and the cap on loops.">
+<link rel="canonical" href="https://impromptune.com/docs/programs">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Programs and prompts — Impromptune">
+<meta property="og:description" content="The canvas: prompts and their placeholders, output fields, edges and what they carry, routers that pick the path, the entry and terminal prompts, and the cap on loops.">
+<meta property="og:url" content="https://impromptune.com/docs/programs">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Programs and prompts — Impromptune">
+<meta name="twitter:description" content="The canvas: prompts and their placeholders, output fields, edges and what they carry, routers that pick the path, the entry and terminal prompts, and the cap on loops.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Programs and prompts</h1>
+    <p class="lead">A <em>program</em> is made of prompts and the edges between them. It is what gets optimized.</p>
+  </div>
+</header>
+
+<section id="prompts">
+  <div class="wrap">
+    <h2>A prompt</h2>
+    <p>One node on the canvas, and the unit the optimizer rewrites. It has four things worth setting:</p>
+    <div class="grid c2">
+      <div class="card"><h3>The template</h3><p>What you would have typed into a chat box. Words in <code>{braces}</code> are <strong>placeholders</strong>, filled from the dataset's columns, from an earlier prompt's output field, or from an external step. A placeholder with no source is a blocking error before the run starts, not a surprise at row 40.</p></div>
+      <div class="card"><h3>What it does</h3><p>One line, in your words. This is not decoration: the reflection model reads it when deciding how to rewrite the prompt. A prompt described as &ldquo;summarizes what the customer wants&rdquo; gets rewritten differently from one described as &ldquo;extracts the order number&rdquo;.</p></div>
+      <div class="card" id="fields"><h3>Output fields</h3><p>Prompts return structured fields, not loose text, so the next prompt and the scorer can pick one out by name. A field has a name, a type, and optionally a description the model sees. No fields means free text, which is fine for the last prompt if your scorer compares whole output.</p></div>
+      <div class="card"><h3>Model and token cap</h3><p>Each prompt can run on its own model; empty means the project default. Mixing is normal &mdash; a cheap model to classify, a better one to draft.</p></div>
+    </div>
+    <p>A prompt can be excluded from rewriting with <strong>rewritten by the optimizer</strong>. Turn it off for a prompt you have already settled, and the search spends its budget on the others.</p>
+  </div>
+</section>
+
+<section id="edges">
+  <div class="wrap">
+    <h2>Edges, and what they carry</h2>
+    <p>An edge from A to B means B runs after A. Click it to say what B <em>receives</em>: each of B's placeholders can be mapped to one of A's output fields, or to <code>$text</code> for A's raw output. Anything not mapped is looked up in the dataset columns and in whatever earlier prompts on the path already produced.</p>
+    <p>A prompt with <strong>no outgoing edge</strong> is a terminal: its output is what Evaluate grades. The dashed line to the Evaluate block appears and disappears on its own to show you which prompt that currently is. The <strong>entry</strong> prompt is where a row starts; by default it is the first one you added, and you can move it.</p>
+  </div>
+</section>
+
+<section id="routers">
+  <div class="wrap">
+    <h2>Routers</h2>
+    <p>A prompt with two or more outgoing edges is a <strong>router</strong>. It is still a prompt and it is still optimized; the only difference is that a <code>next</code> field is added to its output automatically, with one option per outgoing edge. The model returns the name of the edge to take.</p>
+    <ul class="prose">
+      <li><strong>Name the edges.</strong> Click each one and give it a short option name. The names are what the model chooses between, so they should mean something: <code>needs_human</code>, not <code>option2</code>.</li>
+      <li><strong>Mark a default.</strong> One edge is taken when the model's <code>next</code> cannot be parsed. Without it, an unparseable answer is a failed row.</li>
+      <li><strong>Say what the options mean.</strong> In the prompt template, in words. The option names alone are a guess.</li>
+    </ul>
+    <p>Edges may loop back to an earlier prompt &mdash; a draft-and-revise cycle is two prompts and a router. That is what <strong>max prompt calls per example</strong> caps: without it, a program that keeps deciding to revise never finishes a row. Every row stops at the cap, and the cap is part of the cost projection.</p>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="wrap">
+    <h2>The other kind of node</h2>
+    <div class="callout">A <strong>step</strong> looks different on the canvas on purpose: square, muted, labelled <em>external &middot; not optimized</em>. It is not part of the program. The optimizer never rewrites it, and it runs once per row before any prompt does. <a href="/docs/steps">External steps &rarr;</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -12,3 +12,9 @@ def name() -> str:
 
 def public_url() -> str:
     return os.environ.get("STUDIO_PUBLIC_URL", "https://impromptune.com").rstrip("/")
+
+
+def app_url() -> str:
+    """Where the canvas lives. `public_url()` is the marketing site now, so anything sending a signed-in user
+    *back to their work* must use this and not the bare host."""
+    return public_url() + os.environ.get("STUDIO_APP_PATH", "/app/")

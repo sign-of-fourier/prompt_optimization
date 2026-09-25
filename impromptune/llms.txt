@@ -1,0 +1,29 @@
+# Impromptune
+
+> Impromptune is a studio for optimizing the prompts in a multi-step LLM program. You draw the program on a canvas (prompts, edges, routers), attach a labelled dataset, and an optimizer rewrites the prompts against it — reporting the score on held-out rows the search never saw, with a standard error, plus a Pareto front of accuracy against prompt length. Programs can call external services ("steps") that the optimizer never rewrites, authorised by a pasted key or an OAuth connection. A chosen program is published as an immutable version with an endpoint; every served request is traced, and corrections recorded on traces become the next dataset. Built on bpto (https://github.com/sign-of-fourier/bpto), open source. A Quante Carlo product (https://quantecarlo.com).
+
+Key facts for agents: the vocabulary is load-bearing — a **program** is made of **prompts**; a **step** is an external call that is never rewritten; a **version** is an immutable published snapshot; the **hold-out** is the number that counts. Evaluation calls run at temperature 0. A **pilot** measures baseline, run-to-run noise and projected cost before any run spends money. External step outputs are **frozen** onto the dataset for training and called **live** in production, deliberately. Serving: `POST https://impromptune.com/api/v/<version>/run` with a bearer API key.
+
+## Pages
+
+- [Home](https://impromptune.com/): what the product is, how it works in four steps, what a run reports, and what it deliberately is not.
+- [Docs](https://impromptune.com/docs/): index of everything below.
+- [Quickstart](https://impromptune.com/docs/quickstart): from a template or an empty canvas to a finished run, with costs.
+- [Programs and prompts](https://impromptune.com/docs/programs): prompts, placeholders, output fields, edges and mappings, routers, entry and terminal prompts, loop caps.
+- [Datasets](https://impromptune.com/docs/data): rows, the label column, the hold-out and why it is the number, the pilot, enrichment columns.
+- [Evaluate](https://impromptune.com/docs/evaluate): the eight scorers, the metric vector, the objective, the Pareto front.
+- [The optimizer](https://impromptune.com/docs/optimization): the fixed loop (reflect, rewrite one prompt, minibatch gate, evaluate), Explore vs Guided, budget, and how to read a run.
+- [External steps](https://impromptune.com/docs/steps): manifests, step keys vs OAuth connections, frozen-vs-live, the eight validation checks, failure handling.
+- [Versions and serving](https://impromptune.com/docs/serving): publishing, fingerprints, the endpoint and API keys, traces, outcomes, promoting to a dataset.
+- [Keys and connections](https://impromptune.com/docs/keys): house key, endpoint, step key, connection, app credentials, API key — and where each lives.
+- [Glossary](https://impromptune.com/docs/glossary): the words used and the words deliberately avoided.
+
+## Related sites
+
+- [promptcompression.ai](https://promptcompression.ai/): the business case for the compression objective, and a worked studio example.
+- [Quante Carlo](https://quantecarlo.com/): the optimization method and the experimental findings behind it.
+- [bpto on GitHub](https://github.com/sign-of-fourier/bpto): the open-source search engine, its experiments and its reports.
+
+## Machine-readable
+
+- [llms-full.txt](https://impromptune.com/llms-full.txt): every page above as markdown.

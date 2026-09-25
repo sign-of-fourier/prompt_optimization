@@ -2,7 +2,7 @@
 
 **Impromptune**: the point-and-click front end for [bpto](https://github.com/sign-of-fourier/bpto). Draw a program
 (prompt steps wired into a graph, orchestrating steps that choose the next step), attach a labelled dataset, validate
-it, run GEPA or BO in the expand seat, watch the tree. Served at `impromptune.com`. The name is configuration
+it, run GEPA or BO in the expand seat, watch the tree. Served at `impromptune.com/app/`; the marketing site and docs at that host's root are `../impromptune/`. The name is configuration
 (`STUDIO_NAME`, `STUDIO_PUBLIC_URL` in `.env`; `VITE_STUDIO_NAME` at build time) because it may change.
 
 ```
@@ -14,7 +14,7 @@ app/          FastAPI backend (routes are unprefixed; nginx mounts them at /api/
   validation.py  graph, mapping, labels, scorer checks; pilot (root twice + one rewrite); cost projection
   brand.py    the studio's name and public URL (env-driven)
   datasets.py runs.py auth.py db.py main.py
-web/          React + React Flow canvas (vite); `VITE_STUDIO_BASE=/ npm run build` -> web/dist, served by nginx at impromptune.com
+web/          React + React Flow canvas (vite); `VITE_STUDIO_BASE=/app/ VITE_API_BASE=/api npm run build` -> web/dist, served at impromptune.com/app/
               (default base /studio/ is what `uvicorn app.main:app` serves in dev). Brand strings live in src/brand.js.
   bundles.py  project bundles: one JSON = spec + dataset + blurb; the examples library, export and import share it
 examples/     the library: checked-in bundles (`GET /examples`, `POST /examples/{slug}/clone`); rows come from sample/

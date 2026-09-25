@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Impromptune — optimize the prompts in your agent, and measure it</title>
+<meta name="description" content="Your agent's prompts were written by hand. Impromptune rewrites them against your labelled data and reports the score on rows the search never saw: a canvas for multi-prompt programs, external steps that call your own systems, published versions with an endpoint, and traces that become tomorrow's training data.">
+<link rel="canonical" href="https://impromptune.com/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Impromptune — optimize the prompts in your agent, and measure it">
+<meta property="og:description" content="Your agent's prompts were written by hand. Impromptune rewrites them against your labelled data and reports the score on rows the search never saw: a canvas for multi-prompt programs, external steps that call your own systems, published versions with an endpoint, and traces that become tomorrow's training data.">
+<meta property="og:url" content="https://impromptune.com/">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Impromptune — optimize the prompts in your agent, and measure it">
+<meta name="twitter:description" content="Your agent's prompts were written by hand. Impromptune rewrites them against your labelled data and reports the score on rows the search never saw: a canvas for multi-prompt programs, external steps that call your own systems, published versions with an endpoint, and traces that become tomorrow's training data.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a class="active" href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Your agent's prompts were written <em>by hand</em>.</h1>
+    <p class="lead">Impromptune rewrites them against your labelled data &mdash; and tells you the score on rows the search never saw.</p>
+    <div class="btns">
+      <a class="btn primary" href="/app/">Improve your agent</a>
+      <a class="btn" href="/docs/quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap">
+    <h2>You changed a prompt. Did it help?</h2>
+    <p class="lead">Almost every prompt in production got there the same way: someone tried a wording, it looked better in three examples, and it shipped. That is not a measurement, and it does not survive the next model upgrade.</p>
+    <div class="grid c3">
+      <div class="card"><h3>No baseline</h3><p>Without a score for the prompt you already have, &ldquo;better&rdquo; is a feeling. Impromptune's first act is a <strong>baseline run</strong>: your prompts exactly as written, scored on your rows.</p></div>
+      <div class="card"><h3>No hold-out</h3><p>Tune against the same examples you judge with and you will always look good. Every run keeps rows back that the search never touches, and reports that number separately.</p></div>
+      <div class="card"><h3>No record</h3><p>Which prompt is actually live? What did it answer last Tuesday, and why? A published <strong>version</strong> is immutable, and every served request is traced.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <div class="step"><div class="n">1</div><h3>Draw the program</h3>
+      <p>Drag prompts onto a canvas and connect them. One prompt summarizes, another classifies, a third drafts the reply. A prompt with two or more outgoing edges becomes a <strong>router</strong>: the model picks which way the work goes. The whole thing is <em>your</em> program &mdash; Impromptune does not invent one for you.</p></div>
+    <div class="fig"><img src="/img/canvas.png" alt="The Impromptune canvas: two prompt nodes connected by an edge, feeding an Evaluate block" style="max-width:100%;border-radius:10px">
+      <div class="cap">A two-prompt program: summarize, then route. The dashed edge feeds the Evaluate block.</div></div>
+    <div class="step"><div class="n">2</div><h3>Bring labelled rows</h3>
+      <p>A CSV or JSONL with your inputs and the right answer. Fifty rows is enough to start. Map the columns to the placeholders in your prompts, pick the label column, and run a <strong>pilot</strong>: twelve rows that measure the baseline, the model's own run-to-run noise, and what a full run will cost &mdash; before a cent is committed.</p></div>
+    <div class="step"><div class="n">3</div><h3>Let it search</h3>
+      <p>Each round shows a reflection model a handful of the current best prompt's failures and asks for a rewrite. The rewrite is checked on a small batch first, and only earns a full evaluation if it beats its parent on the same rows. Everything is kept: the tree of attempts, each prompt diffed against its parent, and the rows the reflector was shown.</p></div>
+    <div class="fig"><img src="/img/run.png" alt="A run in progress: best-so-far curve with noise bands, and the tree of prompt rewrites" style="max-width:100%;border-radius:10px">
+      <div class="cap">A run: best-so-far with noise bands on the left, the search tree on the right. Click any node to read its diff.</div></div>
+    <div class="step"><div class="n">4</div><h3>Publish and serve</h3>
+      <p>Publish the node you like as a <strong>version</strong>: an immutable snapshot of the prompts, the models, the external steps and the score it earned. It gets an endpoint and an API key. Every request through it is traced, and corrections you record on those traces become the next dataset.</p></div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="wrap">
+    <h2>It can call your systems</h2>
+    <p class="lead">A prompt can only classify what it can see. A <strong>step</strong> is a node that is not part of the program &mdash; an external call the optimizer never rewrites &mdash; that fetches what the prompts need.</p>
+    <div class="grid c2">
+      <div class="card"><h3>Connect, don't paste</h3><p>Where a provider supports it, you authorise Impromptune from inside your own account and revoke it there too. The HubSpot contact lookup that ships in the library is a real OAuth connection to a real CRM, not a mock. Where there is no app to connect to, paste a key instead.<br><a href="/docs/steps#auth">How a step signs in &rarr;</a></p></div>
+      <div class="card"><h3>Frozen to train, live to serve</h3><p>Evaluation reads a snapshot taken when the row was captured; production calls the service live. That is a correctness decision, not a cost one: a ticket was labelled <code>escalation</code> because the customer had two tickets open <em>that day</em>. Re-fetching six weeks later optimizes against a moving target.<br><a href="/docs/steps#frozen">Why freezing &rarr;</a></p></div>
+    </div>
+    <div class="callout"><strong>A step is validated before you spend anything.</strong> Coverage, stability, leakage, redundancy and whether each field predicts the label better than chance &mdash; a permutation test and some arithmetic over columns, costing zero model calls. On the worked entitlement example the checks recovered the labelling rule from the columns alone, and correctly called one field redundant given another: dropping it cost nothing on the hold-out and saved two template tokens. <a href="/docs/steps#validation">The eight checks &rarr;</a></div>
+  </div>
+</section>
+
+<section id="what-you-get">
+  <div class="wrap">
+    <h2>What a run actually reports</h2>
+    <div class="grid c3">
+      <div class="card"><h3>A hold-out number, with error bars</h3><p>Not the best score it saw, which is the maximum of a noisy sample and always flatters. The score of the chosen prompt on rows kept back, with the standard error next to it.</p></div>
+      <div class="card"><h3>A front, not a winner</h3><p>Accuracy against prompt length. Sometimes the shortest prompt within a point of the best is the one worth shipping, and you can only decide that by seeing both.</p></div>
+      <div class="card"><h3>A per-class table</h3><p>Aggregate accuracy hides the class that is 0 for 8. The breakdown is on the run page, because an average that moved for one reason is not an improvement.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="honest">
+  <div class="wrap">
+    <h2>What this is not</h2>
+    <div class="grid c2">
+      <div class="card"><h3>Not fine-tuning</h3><p>Nothing here touches weights. The artefact is a prompt you can read, paste elsewhere, and keep after you stop paying us.</p></div>
+      <div class="card"><h3>Not an agent framework</h3><p>Nothing decides its own goals or writes its own code. You draw the program; the optimizer only rewrites the wording inside the boxes you drew.</p></div>
+      <div class="card"><h3>Not a marketplace</h3><p>Steps are manifests we curate. Nobody else publishes code that runs on our box &mdash; or on yours.</p></div>
+      <div class="card"><h3>Not a guarantee</h3><p>The search reports a measured number with its uncertainty. Sometimes the honest answer is that your prompt was already good, and we would rather show you that than a made-up win.</p></div>
+    </div>
+    <div class="btns" style="margin-top:1.5rem">
+      <a class="btn primary" href="/app/">Improve your agent</a>
+      <a class="btn" href="/docs/">Read the docs</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

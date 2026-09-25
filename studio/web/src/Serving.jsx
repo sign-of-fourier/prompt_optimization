@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
+import Hint from './Hint.jsx'
 
 // The Serving tab: what is published, what production did with it, and what came back. One page for PLAN.md's
 // second half - publish a version, call it, collect outcomes, turn those into the next dataset.
@@ -20,7 +21,7 @@ function Versions({ pid, reloadKey, onRestore }) {
   const [open, setOpen] = useState(null)
   useEffect(() => { api.get(`/projects/${pid}/versions`).then(setVs).catch(() => {}) }, [pid, reloadKey])
   return (
-    <div className="card"><h3>Versions</h3>
+    <div className="card"><h3>Versions<Hint id="versions" /></h3>
       {vs.length === 0 && <div className="muted">None yet. Open a finished run and publish its best prompt as a version.</div>}
       {vs.length > 0 && <table><thead><tr><th>label</th><th>from</th><th>score</th><th>rows</th><th>hold-out</th><th>published</th><th>fingerprint</th><th></th></tr></thead><tbody>
         {vs.map(v => <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setOpen(open === v.id ? null : v.id)}>
@@ -83,7 +84,7 @@ function Traces({ pid, onPromoted }) {
   }
   const corrected = ts.filter(t => t.outcomes.some(o => o.label)).length
   return (
-    <div className="card"><div className="row"><h3 style={{ margin: 0 }}>Traces</h3><div className="grow" />
+    <div className="card"><div className="row"><h3 style={{ margin: 0 }}>Traces<Hint id="traces" /></h3><div className="grow" />
       <span className="muted" style={{ fontSize: 12 }}>{ts.length} requests · {corrected} corrected</span>
       <button className="small primary" disabled={!corrected} onClick={promote}>Promote corrections to a dataset</button></div>
       {err && <div className="err">{err}</div>}

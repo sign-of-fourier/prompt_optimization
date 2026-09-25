@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { api } from './api.js'
+import Hint from './Hint.jsx'
 
 // The library: project templates we curate. Nobody else publishes here, so there is no trust surface to design -
 // what the screen has to do is stay navigable as the catalogue grows, and answer the three questions a card cannot:
@@ -30,7 +31,7 @@ export default function Library({ onOpen, onBack, deepLink }) {
   return (
     <div className="page">
       <div className="row" style={{ marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>Library</h2>
+        <h2 style={{ margin: 0 }}>Library<Hint id="library" /></h2>
         <span className="muted">{data.entries.length} template{data.entries.length === 1 ? '' : 's'}</span>
         <div className="grow" />
         <input placeholder="search" value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />

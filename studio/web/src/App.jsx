@@ -102,7 +102,7 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
           <button onClick={openLibrary}>Library</button>
           <button className="primary" onClick={create}>New project</button></div>
         {err && <div className="err">{err}</div>}
-        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompt modules), a dataset, and the runs that optimized it.
+        {projects.length === 0 && <p className="muted">No projects yet. A project is a program (one or more prompts), a dataset, and the runs that optimized it.
           {' '}<a href="#" onClick={e => { e.preventDefault(); openLibrary() }}>Start from a template</a>, or from an empty canvas with the tutorial.</p>}
         {projects.map(p => (
           <div className="card row" key={p.id} style={{ cursor: 'pointer' }} onClick={() => setPid(p.id)}>

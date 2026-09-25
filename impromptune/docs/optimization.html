@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The optimizer — Impromptune</title>
+<meta name="description" content="The fixed search loop: reflect on failures, rewrite one prompt, pass a minibatch gate before earning a full evaluation. Rounds, budget, Explore versus Guided, and how to read a run without fooling yourself.">
+<link rel="canonical" href="https://impromptune.com/docs/optimization">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="The optimizer — Impromptune">
+<meta property="og:description" content="The fixed search loop: reflect on failures, rewrite one prompt, pass a minibatch gate before earning a full evaluation. Rounds, budget, Explore versus Guided, and how to read a run without fooling yourself.">
+<meta property="og:url" content="https://impromptune.com/docs/optimization">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The optimizer — Impromptune">
+<meta name="twitter:description" content="The fixed search loop: reflect on failures, rewrite one prompt, pass a minibatch gate before earning a full evaluation. Rounds, budget, Explore versus Guided, and how to read a run without fooling yourself.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>The optimizer</h1>
+    <p class="lead">The loop is fixed. What you configure is how much of it to run, on which models, and how the next candidate is chosen.</p>
+  </div>
+</header>
+
+<section id="loop">
+  <div class="wrap">
+    <h2>The loop</h2>
+    <div class="step"><div class="n">1</div><h3>Pick a parent</h3><p>One prompt set from the current best group.</p></div>
+    <div class="step"><div class="n">2</div><h3>Reflect</h3><p>A reflection model is shown a handful of that parent's failures &mdash; the inputs, the expected answer, what came back &mdash; and asked to rewrite <em>one</em> of the prompts so those failures stop. One prompt at a time, so that when something improves you know which change did it.</p></div>
+    <div class="step"><div class="n">3</div><h3>Gate</h3><p>The rewrite is evaluated on the same small batch of rows the parent was judged on. If it does not beat its parent there, it is discarded. This is what keeps a full evaluation &mdash; the expensive part &mdash; for candidates that have shown something.</p></div>
+    <div class="step"><div class="n">4</div><h3>Evaluate and record</h3><p>Survivors are evaluated on the full training set and join the tree. Everything is kept: the prompts, the diff against the parent, the rows the reflector saw, the scores.</p></div>
+  </div>
+</section>
+
+<section id="knobs">
+  <div class="wrap">
+    <h2>The knobs worth touching</h2>
+    <div class="grid c2">
+      <div class="card"><h3>Goal</h3><p><strong>Improve accuracy</strong> asks the rewriter to add whatever rule fixes the failures it was shown. <strong>Compress</strong> asks for a shorter prompt that keeps the same answers, and sets a negative <code>template_tokens</code> weight so the objective agrees.</p></div>
+      <div class="card"><h3>Which prompt to rewrite next</h3><p><strong>Explore</strong> samples from the best set &mdash; cheap, robust, the default. <strong>Guided</strong> builds a model of past results and picks; it spends more reflection calls and earns them back under noisy scores or a weak reflection model, and not on flat tasks. <a href="https://quantecarlo.com/findings">The comparison at equal rollouts &rarr;</a></p></div>
+      <div class="card"><h3>Check batch</h3><p>The rows the reflection model sees, and the rows a rewrite must beat its parent on. Small is the point. Downsample the evaluation set if you need cheaper rounds; never the check batch.</p></div>
+      <div class="card"><h3>Rounds, budget, patience</h3><p>Rounds cap the work, max spend caps the money, and &ldquo;stop after N rounds without improvement&rdquo; stops a search that has plateaued. All three are live at once; whichever comes first wins.</p></div>
+      <div class="card"><h3>Reflection model and temperature</h3><p>Reflection is the one place where variety helps, so it has its own temperature. Evaluation is always temperature 0 &mdash; otherwise the same prompt scores differently twice and the search chases noise.</p></div>
+      <div class="card"><h3>What the reflector is told</h3><p>A short written critique from a model that reads the trace (the default), a template you write, or just the expected answer and the scores. The critique costs a call per failure and usually earns it.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="reading">
+  <div class="wrap">
+    <h2>Reading a run without fooling yourself</h2>
+    <ul class="prose">
+      <li><strong>Read the hold-out, not the peak.</strong> The best score seen during a run is the maximum of many noisy evaluations and is biased upward. The hold-out is the number.</li>
+      <li><strong>Compare against the noise band.</strong> The pilot measured how far two identical evaluations disagree. An improvement inside that band is not yet an improvement.</li>
+      <li><strong>Open the per-class table.</strong> An aggregate that moved because one class went from 0/7 to 4/7 while another stayed 0/8 is a redistribution, not a win.</li>
+      <li><strong>Read the diff.</strong> Every node shows its prompt against its parent's. If the winning change is a rule that only makes sense for three rows in your training set, it will not survive contact with real traffic, and you can see that with your eyes.</li>
+      <li><strong>Look at the front, not the point.</strong> Accuracy against length: the shortest prompt within a point of the best is often the better ship.</li>
+    </ul>
+    <div class="callout"><strong>&ldquo;No improvement&rdquo; is a real result.</strong> If the search cannot beat your prompt, your prompt was good &mdash; and you now have a measured baseline, a hold-out score and an error bar for it, which you did not have this morning.</div>
+  </div>
+</section>
+
+<section id="engine">
+  <div class="wrap">
+    <h2>What is doing the work</h2>
+    <p>The search engine is <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source: tree search over prompt rewrites, with GEPA-style reflective selection and Bayesian optimization over prompt embeddings as the two selectors. Its experiments, plots and standing conclusions live in that repository and are quoted on <a href="https://quantecarlo.com/findings">quantecarlo.com/findings</a>. Impromptune is the studio around it &mdash; the canvas, the data, the validation, the versions and the traces.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

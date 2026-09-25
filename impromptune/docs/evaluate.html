@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluate: scorers, metrics and the objective — Impromptune</title>
+<meta name="description" content="How Impromptune turns an answer into a number: the scorers available, the metric vector that includes token counts and parse failures, and how the objective weighs accuracy against prompt length.">
+<link rel="canonical" href="https://impromptune.com/docs/evaluate">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Evaluate: scorers, metrics and the objective — Impromptune">
+<meta property="og:description" content="How Impromptune turns an answer into a number: the scorers available, the metric vector that includes token counts and parse failures, and how the objective weighs accuracy against prompt length.">
+<meta property="og:url" content="https://impromptune.com/docs/evaluate">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Evaluate: scorers, metrics and the objective — Impromptune">
+<meta name="twitter:description" content="How Impromptune turns an answer into a number: the scorers available, the metric vector that includes token counts and parse failures, and how the objective weighs accuracy against prompt length.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Evaluate</h1>
+    <p class="lead">The terminal block on the canvas. It decides what &ldquo;better&rdquo; means, which makes it the most consequential thing you will configure.</p>
+  </div>
+</header>
+
+<section id="scorers">
+  <div class="wrap">
+    <h2>Scorers</h2>
+    <p>A scorer compares the terminal prompt's output with the row's label and returns a number. Pick the output field to compare, or leave it on whole output.</p>
+    <div class="tablewrap"><table>
+      <tr><th>Scorer</th><th>Compares</th><th>Use when</th></tr>
+      <tr><td>Exact match</td><td>the field equals the label, optionally normalizing case, punctuation and articles</td><td>classification into known categories</td></tr>
+      <tr><td>Contains</td><td>the label appears somewhere in the output</td><td>the answer is embedded in prose</td></tr>
+      <tr><td>Token F1</td><td>word overlap with the label</td><td>short free-text answers, QA-style</td></tr>
+      <tr><td>Regex</td><td>a pattern extracts the answer, or just must be present</td><td>structured strings: ids, amounts, dates</td></tr>
+      <tr><td>JSON field equality</td><td>one field of a JSON label</td><td>the label is an object and only part of it matters</td></tr>
+      <tr><td>Numeric</td><td>numbers within a relative tolerance</td><td>quantities, where 4.99 and 5.0 are the same answer</td></tr>
+      <tr><td>LLM judge, vs reference</td><td>a judge model grades the output against the label</td><td>free text with a right answer but many wordings</td></tr>
+      <tr><td>LLM judge, no reference</td><td>a judge model grades against a rubric alone</td><td>there is no single right answer &mdash; tone, helpfulness</td></tr>
+    </table></div>
+    <p>You can add more than one. Each produces its own named metric, and they all land in the same vector.</p>
+    <div class="callout"><strong>A judge costs money and has opinions.</strong> Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.</div>
+  </div>
+</section>
+
+<section id="metrics">
+  <div class="wrap">
+    <h2>The metric vector</h2>
+    <p>A run does not reduce a row to one number. Alongside your scorers it records how the program behaved:</p>
+    <ul class="prose">
+      <li><code>template_tokens</code> &mdash; the prompts themselves, summed over prompts. This is the recurring bill.</li>
+      <li><code>prompt_tokens</code> and <code>output_tokens</code> &mdash; rendered with the data, and what came back.</li>
+      <li><code>steps</code> &mdash; how many prompt calls the row took, which matters when there are loops.</li>
+      <li><code>parse_fail.*</code> &mdash; per prompt, how often structured output could not be parsed.</li>
+      <li><code>step.&lt;id&gt;.*</code> &mdash; an external step's latency, cost, cache hits and failures.</li>
+    </ul>
+    <p>Nothing is collapsed inside a scorer. The scorers report; the objective decides.</p>
+  </div>
+</section>
+
+<section id="objective">
+  <div class="wrap">
+    <h2>The objective</h2>
+    <p>The objective is a set of weights over those metrics. <code>accuracy: 1.0</code> alone means what it says. Adding a negative weight on <code>template_tokens</code> makes the search pay for length:</p>
+    <pre><code>accuracy:        1.0
+template_tokens: -0.002</code></pre>
+    <p>At that weight, a prompt may spend ten extra tokens if they buy two points of accuracy, and not otherwise. Choosing the <strong>Compress</strong> goal in the optimizer sets this for you and asks the reflection model for shorter prompts that keep the same answers; it is the same machinery with a different weight and a different rewriting instruction.</p>
+    <p>The run also reports a <strong>Pareto front</strong>: the candidates that are not beaten on both accuracy and length at once. Reading the front is usually more useful than reading the winner &mdash; a prompt one point behind the best and half the length is frequently the one to ship, and only the front shows you it exists.</p>
+    <div class="callout"><strong>Pre-program step cost is reported, not traded off.</strong> Every candidate sees the same enriched rows, so a step's fetch cost is the same constant for all of them and shifts every score equally. What <em>is</em> optimizable is which of the step's fields are worth pasting into a prompt &mdash; pulling five fields and using two is a finding the compression objective will make for you.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

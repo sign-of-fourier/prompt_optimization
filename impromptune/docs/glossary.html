@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossary — Impromptune</title>
+<meta name="description" content="The words Impromptune uses and the words it deliberately does not: prompt, router, step, program, run, gate, hold-out, version, trace, outcome, dataset, label, freeze, enrichment.">
+<link rel="canonical" href="https://impromptune.com/docs/glossary">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Glossary — Impromptune">
+<meta property="og:description" content="The words Impromptune uses and the words it deliberately does not: prompt, router, step, program, run, gate, hold-out, version, trace, outcome, dataset, label, freeze, enrichment.">
+<meta property="og:url" content="https://impromptune.com/docs/glossary">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossary — Impromptune">
+<meta name="twitter:description" content="The words Impromptune uses and the words it deliberately does not: prompt, router, step, program, run, gate, hold-out, version, trace, outcome, dataset, label, freeze, enrichment.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a class="active" href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Glossary</h1>
+    <p class="lead">The product, its documentation and its code use the same words on purpose. Two of them used to mean four things each, which cost us more time than any bug.</p>
+  </div>
+</header>
+
+<section id="canvas">
+  <div class="wrap">
+    <h2>On the canvas</h2>
+    <div class="tablewrap"><table>
+      <tr><th>We say</th><th>We never say</th><th>What it is</th></tr>
+      <tr><td><strong>prompt</strong></td><td>module, step</td><td>A node the optimizer rewrites. The program is made of prompts.</td></tr>
+      <tr><td><strong>router</strong></td><td>orchestrator, branch</td><td>A prompt with more than one outgoing edge: the model returns <code>next</code> and picks the path. A router is still a prompt and is still optimized.</td></tr>
+      <tr><td><strong>step</strong></td><td>tool, plugin, integration</td><td>A node that is <em>not</em> part of the program: an external call the optimizer never rewrites.</td></tr>
+      <tr><td><strong>program</strong></td><td>pipeline, chain, graph</td><td>The prompts and edges together &mdash; what gets optimized.</td></tr>
+      <tr><td><strong>evaluate</strong></td><td>scorer block</td><td>The terminal block: scorers, objective, hold-out.</td></tr>
+    </table></div>
+    <div class="callout"><strong>A program is made of prompts; steps fetch things from outside it.</strong> Prompts change during a run. Steps do not.</div>
+  </div>
+</section>
+
+<section id="running">
+  <div class="wrap">
+    <h2>Running and shipping</h2>
+    <div class="tablewrap"><table>
+      <tr><th>We say</th><th>We never say</th><th>What it is</th></tr>
+      <tr><td><strong>run</strong></td><td>job, experiment</td><td>One optimization: rounds of rewrite, gate, evaluate.</td></tr>
+      <tr><td><strong>baseline run</strong></td><td>eval-only, dry run</td><td>A run with zero rounds: evaluates the prompts as written and stops.</td></tr>
+      <tr><td><strong>round</strong></td><td>iteration, generation</td><td>One pass of the search loop.</td></tr>
+      <tr><td><strong>gate</strong></td><td>filter</td><td>The small-batch check a rewrite must pass before earning a full evaluation.</td></tr>
+      <tr><td><strong>hold-out</strong></td><td>test set, validation set</td><td>Rows the search never sees. The number that counts.</td></tr>
+      <tr><td><strong>version</strong></td><td>deployment, release</td><td>An immutable published snapshot: prompts, models, steps, and the score it earned.</td></tr>
+      <tr><td><strong>trace</strong></td><td>log, record</td><td>One served request and what it produced.</td></tr>
+      <tr><td><strong>outcome</strong></td><td>feedback, correction</td><td>What happened after the answer. A trace plus an outcome is a <strong>label</strong>.</td></tr>
+      <tr><td><strong>template</strong></td><td>example, sample, demo</td><td>A library entry you add to your projects. What you get is a <strong>project</strong>.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <h2>Data</h2>
+    <div class="tablewrap"><table>
+      <tr><th>We say</th><th>We never say</th><th>What it is</th></tr>
+      <tr><td><strong>dataset</strong></td><td>training data, corpus</td><td>Rows with inputs and a label column.</td></tr>
+      <tr><td><strong>label</strong></td><td>answer, target, ground truth</td><td>The right answer for a row.</td></tr>
+      <tr><td><strong>freeze</strong></td><td>cache, snapshot, sync</td><td>Running a step over every row once and writing its answers onto the dataset as columns. Evaluation reads the frozen columns; production calls the step live.</td></tr>
+      <tr><td><strong>enrichment</strong></td><td>augmentation</td><td>What freezing produces: the step's columns on the dataset.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section id="auth">
+  <div class="wrap">
+    <h2>Authorisation</h2>
+    <p>Six things were all called &ldquo;credentials&rdquo;. &ldquo;Credential&rdquo; on its own is banned in our copy &mdash; say which: <strong>house key</strong>, <strong>endpoint</strong>, <strong>step key</strong>, <strong>connection</strong>, <strong>app credentials</strong>, <strong>API key</strong>. <a href="/docs/keys">What each one is &rarr;</a></p>
+  </div>
+</section>
+
+<section id="not">
+  <div class="wrap">
+    <h2>Things we deliberately do not have</h2>
+    <p>Saying these would imply a promise we have not made:</p>
+    <ul class="prose">
+      <li><strong>plugin, marketplace, registry</strong> &mdash; steps are manifests we curate. Nobody else publishes.</li>
+      <li><strong>agent</strong> &mdash; nothing here decides its own goals or writes its own code.</li>
+      <li><strong>fine-tuning, training</strong> &mdash; we change prompts, never weights.</li>
+      <li><strong>guaranteed, optimal, best</strong> &mdash; the search reports a hold-out number with a standard error. It does not promise.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

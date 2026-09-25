@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Versions, serving and traces — Impromptune</title>
+<meta name="description" content="Publishing an immutable version of a program, the endpoint and API key it gets, the trace recorded for every request, outcomes that turn a trace into a label, and promoting corrections into the next dataset.">
+<link rel="canonical" href="https://impromptune.com/docs/serving">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Versions, serving and traces — Impromptune">
+<meta property="og:description" content="Publishing an immutable version of a program, the endpoint and API key it gets, the trace recorded for every request, outcomes that turn a trace into a label, and promoting corrections into the next dataset.">
+<meta property="og:url" content="https://impromptune.com/docs/serving">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Versions, serving and traces — Impromptune">
+<meta name="twitter:description" content="Publishing an immutable version of a program, the endpoint and API key it gets, the trace recorded for every request, outcomes that turn a trace into a label, and promoting corrections into the next dataset.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a class="active" href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Versions and serving</h1>
+    <p class="lead">The same compiled program runs in evaluation and in production. That is the invariant the whole serving path exists to protect.</p>
+  </div>
+</header>
+
+<section id="versions">
+  <div class="wrap">
+    <h2>A version</h2>
+    <p>Publishing a node from a run creates a <strong>version</strong>: an immutable snapshot of the prompts, the model each one runs on, the external steps pinned to the exact manifest they were scored against, the evaluation settings, and the score it earned. Versions are never edited. Changing anything means publishing another one.</p>
+    <p>Each version carries a <strong>fingerprint</strong> &mdash; a hash over the behavioural fields only, so moving a node on the canvas does not produce a &ldquo;new&rdquo; version while repointing a step does. Two versions with the same fingerprint will behave identically; that is what makes the list trustworthy enough to roll back from.</p>
+    <div class="callout">A version pins <em>the program that ran</em>, not what your canvas happens to say now. If you publish a run from yesterday, you get yesterday's program &mdash; including settings you have since changed. Hold-out scores are recorded only for the run's best node, because that is the only node that was ever scored on held-out rows.</div>
+  </div>
+</section>
+
+<section id="keys">
+  <div class="wrap">
+    <h2>Calling it</h2>
+    <p>A published version has an endpoint. Create an <strong>API key</strong> for it and send the inputs the program needs:</p>
+    <pre><code>curl -X POST https://impromptune.com/api/v/&lt;version&gt;/run \
+  -H "Authorization: Bearer &lt;your api key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "my package never arrived"}'</code></pre>
+    <p>Which inputs are required is derived from the program, not declared by hand: the placeholders every prompt needs, minus the ones an earlier prompt fills, minus the ones an external step provides, plus whatever the step itself needs from the row. Ask for the wrong thing and the error names the field.</p>
+    <p>We store only a hash of an API key. If you lose it, you make a new one.</p>
+  </div>
+</section>
+
+<section id="traces">
+  <div class="wrap">
+    <h2>Traces</h2>
+    <p>Every served request is recorded: the inputs, which version answered, what each prompt produced, what any external step was asked and what it returned, the tokens and the latency. A step's inputs and outputs are on the trace deliberately &mdash; live data moves, and six weeks later the trace is the only remaining evidence of what the model was actually looking at.</p>
+  </div>
+</section>
+
+<section id="outcomes">
+  <div class="wrap">
+    <h2>Outcomes, and the loop that closes</h2>
+    <p>A trace says what the program answered. An <strong>outcome</strong> says what happened next: an agent reassigned the ticket, a customer replied, a reviewer corrected it. A trace plus an outcome is a <strong>label</strong>.</p>
+    <div class="step"><div class="n">1</div><h3>Record outcomes</h3><p>Through the API, or by hand in the traces list. The latest correction on a trace is the one that counts.</p></div>
+    <div class="step"><div class="n">2</div><h3>Promote them</h3><p>Turn labelled traces into a dataset: real inputs, real answers, each row carrying the trace it came from, the version that produced it, when it was captured and where the label came from.</p></div>
+    <div class="step"><div class="n">3</div><h3>Run again</h3><p>Optimize against the traffic you actually get rather than the fifty examples you wrote at the start. This is the only part of the product that gets better while you are not looking.</p></div>
+    <div class="callout"><strong>Corrections are a biased sample.</strong> People correct what is wrong and stay silent about what is right, so a dataset built only from corrections is a dataset of failures. Mix promoted rows with a sample of uncorrected traces, or the optimizer will cheerfully learn that everything is an escalation.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

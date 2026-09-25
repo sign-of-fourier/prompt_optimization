@@ -8,11 +8,16 @@ Three hosts, one repo, one box:
 - `compression/` — static site at `promptcompression.ai`: content marketing for the compression objective
   (business case, worked studio example). Its nav links Impromptune. `skills/prompt-compression/SKILL.md` is the
   installable Claude Code skill. `style.css`, `favicon.svg`, `img/` are shared: `quantecarlo/` symlinks to them.
-- `studio/` — **Impromptune**, at `impromptune.com`: FastAPI backend (`app/`) + React/React Flow canvas (`web/`).
-  See `studio/README.md` for layout, run-locally steps and invariants. The studio's name and public URL are
-  placeholders (`STUDIO_NAME`, `STUDIO_PUBLIC_URL`, `VITE_STUDIO_NAME`): never inline them.
+- `impromptune/` — the product site and documentation at `impromptune.com/`: landing page plus `docs/` (ten
+  pages). Static like the other two, and generated into `llms-full.txt`/`sitemap.xml` by `gen-site.py`. `app/`
+  inside it is a symlink to `studio/web/dist`, which is how the canvas is served at `/app/`.
+- `studio/` — **Impromptune**, the app itself, at `impromptune.com/app/`: FastAPI backend (`app/`, proxied at
+  `/api/`) + React/React Flow canvas (`web/`). See `studio/README.md` for layout, run-locally steps and
+  invariants. The studio's name and public URL are placeholders (`STUDIO_NAME`, `STUDIO_PUBLIC_URL`,
+  `VITE_STUDIO_NAME`): never inline them. The API stays at `/api/`, not under `/app/`, because the OAuth redirect
+  URI registered with each provider names that path.
 
-Marketing sites are plain HTML/CSS, no build step. `python gen-site.py all` (repo root) regenerates each site's
+Marketing sites are plain HTML/CSS, no build step. `python gen-site.py all` (repo root) regenerates each of the three sites'
 `llms-full.txt` and `sitemap.xml` after editing any page; `llms.txt` is hand-written per site. `deploy/` holds
 the nginx config for all three hosts and the studio's systemd unit.
 
@@ -45,13 +50,13 @@ To bump the pin: change the sha in `studio/pyproject.toml`, `pip install -e stud
 ```bash
 # studio
 cd studio && pip install -e .[dev] && python -m pytest -q        # offline: every test uses bpto's MockClient
-(cd studio/web && npm install && VITE_STUDIO_BASE=/ npm run build)  # -> web/dist for impromptune.com (default base is /studio/, used by dev mode)
+(cd studio/web && npm install && VITE_STUDIO_BASE=/app/ VITE_API_BASE=/api npm run build)  # -> web/dist, served at impromptune.com/app/ (default base is /studio/, used by dev mode)
 cd studio && STUDIO_MOCK=1 STUDIO_INSECURE_COOKIE=1 uvicorn app.main:app --port 8100   # http://localhost:8100/studio/ (build without VITE_STUDIO_BASE for this)
 # sites
 python gen-site.py all                                            # after editing any page
 ```
 
-Deploy: `deploy/nginx.conf` (three server blocks; `/studio/` on promptcompression.ai redirects to impromptune.com),
+Deploy: `deploy/nginx.conf` (three server blocks; old `/studio/` paths redirect to `impromptune.com/app/`),
 `deploy/snippets-marketing.conf` (shared static-site snippet) and `deploy/studio.service` (uvicorn on
 127.0.0.1:8100). The studio's code, sqlite db and keys live outside every web root.
 
@@ -67,5 +72,10 @@ Deploy: `deploy/nginx.conf` (three server blocks; `/studio/` on promptcompressio
 - The canvas spec (`app/models.py`, `ProjectSpec`) is plain JSON and the contract between `web/` and `app/`; change
   both sides together, and `app/compile.py` is the only place that turns a spec into bpto objects.
 - Site copy that states a number or finding must trace to a bpto `experiments/*/NOTES.md` on GitHub, or to a
-  studio run whose screenshot is on the page. The About page's company history numbers are Quante Carlo's own
+  studio run whose screenshot is on the page. This binds `impromptune/` too: prefer linking quantecarlo.com's
+  findings over restating a figure, and keep the division — quantecarlo owns the method and the evidence,
+  promptcompression owns the compression business case, impromptune owns the product and its docs.
+- The words in `GLOSSARY.md` are binding on UI copy and on `impromptune/`: a **prompt** is a node the optimizer
+  rewrites, a **step** is an external call it never rewrites, and "credential" on its own is banned — say which.
+  `studio/tests/test_hints.py` holds the in-app hint budget (eight) and asserts each one's doc anchor exists. The About page's company history numbers are Quante Carlo's own
   claims and are labelled as such there; don't repeat them on the technical pages.

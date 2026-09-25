@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keys and connections — Impromptune</title>
+<meta name="description" content="Six different secrets with six different jobs: house keys, your own model endpoints, step keys, OAuth connections, our app credentials and the API keys that reach a served version. Where each lives and the rule that decides.">
+<link rel="canonical" href="https://impromptune.com/docs/keys">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Impromptune">
+<meta property="og:title" content="Keys and connections — Impromptune">
+<meta property="og:description" content="Six different secrets with six different jobs: house keys, your own model endpoints, step keys, OAuth connections, our app credentials and the API keys that reach a served version. Where each lives and the rule that decides.">
+<meta property="og:url" content="https://impromptune.com/docs/keys">
+<meta property="og:image" content="https://impromptune.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Keys and connections — Impromptune">
+<meta name="twitter:description" content="Six different secrets with six different jobs: house keys, your own model endpoints, step keys, OAuth connections, our app credentials and the API keys that reach a served version. Where each lives and the rule that decides.">
+<meta name="twitter:image" content="https://impromptune.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">impromptune</a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="/docs/quickstart">Quickstart</a></li>
+      <li><a href="/docs/steps">Steps</a></li>
+      <li><a href="/docs/serving">Serving</a></li>
+      <li><a href="/docs/glossary">Glossary</a></li>
+      <li class="ext"><a href="/app/">Open the studio &#8599;</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Keys and connections</h1>
+    <p class="lead">Six things used to be called &ldquo;credentials&rdquo;. They do different jobs, live in different places and are revoked in different ways, so each one has its own name.</p>
+  </div>
+</header>
+
+<section id="table">
+  <div class="wrap">
+    <h2>Which is which</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Name</th><th>What it is</th><th>Whose</th></tr>
+      <tr><td><strong>house key</strong></td><td>Our own model-provider account, spent on your behalf on a paid tier.</td><td>ours</td></tr>
+      <tr><td><strong>endpoint</strong></td><td>Your own model-provider account &mdash; Bedrock, Anthropic, OpenAI, or any OpenAI-compatible server. Models from your endpoints appear in every dropdown and are used in preference to ours.</td><td>yours</td></tr>
+      <tr><td><strong>step key</strong></td><td>A secret you paste so an external step can call a service.</td><td>yours</td></tr>
+      <tr><td><strong>connection</strong></td><td>An OAuth grant letting a step act on your own account somewhere else.</td><td>yours</td></tr>
+      <tr><td><strong>app credentials</strong></td><td>The client id and secret identifying <em>Impromptune</em> to a provider, so a Connect button can exist at all.</td><td>ours</td></tr>
+      <tr><td><strong>API key</strong></td><td>A key your caller sends <em>to us</em> to reach a served version.</td><td>yours</td></tr>
+    </table></div>
+    <div class="callout">The rule that decides where a new secret goes: <strong>a credential identifying the platform belongs in the platform's configuration; a credential belonging to a person belongs in a table, encrypted, scoped to that person.</strong> App credentials are the platform's even when a founder created them in their own developer account.</div>
+  </div>
+</section>
+
+<section id="storage">
+  <div class="wrap">
+    <h2>How they are stored</h2>
+    <ul class="prose">
+      <li><strong>Encrypted at rest:</strong> endpoints, step keys and connection tokens. They are scoped to your account and never returned by any listing endpoint &mdash; you can see that a secret exists and revoke it, not read it back.</li>
+      <li><strong>Hashed, not stored:</strong> API keys. We keep a SHA-256 and show you the key exactly once. Lose it and you make another.</li>
+      <li><strong>Refreshed for you:</strong> OAuth access tokens, a minute before they expire, on the path that uses them. A token that expires mid-request is the failure that machinery exists to prevent.</li>
+    </ul>
+    <p>Everything of yours is revocable from <strong>Endpoints &amp; keys</strong> in the studio. Revoking a step key leaves the step wired but unauthorised, which is deliberate: you get an error naming the step, not a program that silently stopped using it.</p>
+  </div>
+</section>
+
+<section id="connections">
+  <div class="wrap">
+    <h2>Connections, specifically</h2>
+    <p>A connection is made on the provider's own consent screen &mdash; you are never asked to paste an admin token into us to make one. You can revoke it from the provider's side as well as ours, and we record the scopes it actually granted rather than the ones we requested, so a step needing permission you did not give says so instead of failing at row one.</p>
+    <p>You may hold more than one connection to the same provider. If you do, each step asks which account to use &mdash; useful when the data lives in one portal and your sandbox is another.</p>
+    <div class="callout"><strong>A connection is read access to a real system.</strong> Whatever a step fetches gets frozen onto your dataset and recorded on your traces. Point it at a sandbox while you are building, and at production when you mean it.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Impromptune &middot; a <a href="https://quantecarlo.com/">Quante Carlo</a> product &middot; built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="/docs/">Docs</a> &middot; <a href="/app/">Open the studio</a> &middot; <a href="https://promptcompression.ai/">promptcompression.ai</a> &middot; <a href="https://quantecarlo.com/">Quante Carlo</a> &middot; <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
