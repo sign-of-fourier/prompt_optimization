@@ -1,6 +1,13 @@
 # secrets
 .env
 **/.env
+# ...and anything derived from them. A vim swap file of studio/.env was committed once (2026-09-25) and caught
+# only by GitHub's push protection: `.env` matches the file, not the editor's sidecar.
+.env.*
+**/.env.*
+*.swp
+*.swo
+*~
 
 # studio runtime / build
 studio/data/
