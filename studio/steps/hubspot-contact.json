@@ -3,7 +3,7 @@
   "id": "hubspot-contact",
   "version": "1.0.0",
   "name": "HubSpot contact lookup",
-  "blurb": "Look a customer up in HubSpot by email address: name, company, lifecycle stage and when they were created.",
+  "blurb": "Look a customer up in HubSpot by email address: name, company and lifecycle stage.",
   "transport": {
     "kind": "http",
     "method": "POST",
@@ -27,8 +27,7 @@
         "firstname",
         "lastname",
         "company",
-        "lifecyclestage",
-        "createdate"
+        "lifecyclestage"
       ],
       "limit": 1
     }
@@ -74,11 +73,6 @@
       "name": "lifecyclestage",
       "type": "string",
       "path": "results.0.properties.lifecyclestage"
-    },
-    {
-      "name": "createdate",
-      "type": "string",
-      "path": "results.0.properties.createdate"
     }
   ],
   "cacheable": true,

@@ -1,0 +1,8 @@
+{"message": "Do you have enterprise pricing for 40 seats?", "email": "ada@example.com", "queue": "sales"}
+{"message": "Our renewal is next month - can we add seats before then?", "email": "grace@example.com", "queue": "account-management"}
+{"message": "The export button returns a 500 on the reports page.", "email": "linus@example.com", "queue": "support"}
+{"message": "I was charged twice this month for the same subscription.", "email": "edsger@example.com", "queue": "billing"}
+{"message": "Can someone walk my team through onboarding?", "email": "barbara@example.com", "queue": "account-management"}
+{"message": "Is there a free trial before we commit?", "email": "alan@example.com", "queue": "sales"}
+{"message": "Tracking says delivered but nothing arrived.", "email": "katherine@example.com", "queue": "support"}
+{"message": "Please send last quarter's invoices to our finance team.", "email": "margaret@example.com", "queue": "billing"}

@@ -417,7 +417,7 @@ def test_the_shipped_hubspot_manifest_against_hubspots_own_shapes(hubspot):
 
     out, met = asyncio.run(X.call(m, {"email": "ada@example.com"}, token=KEY))
     assert out == {"firstname": "Ada", "lastname": "Lovelace", "company": "Analytical Engines",
-                   "lifecyclestage": "customer", "createdate": "2026-01-02T00:00:00Z"}
+                   "lifecyclestage": "customer"}
     # the body template put our input where HubSpot expects it, rather than posting our own dict
     assert HUBSPOT_SEEN[0]["filterGroups"][0]["filters"][0] == {"propertyName": "email", "operator": "EQ", "value": "ada@example.com"}
     assert HUBSPOT_SEEN[0]["limit"] == 1 and "email" in HUBSPOT_SEEN[0]["properties"]

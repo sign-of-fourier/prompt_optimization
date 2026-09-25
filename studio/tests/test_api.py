@@ -63,12 +63,21 @@ async def _flow():
             # bundles: the library lists the checked-in examples; a clone is an ordinary project with its dataset attached
             lib = (await c.get("/examples")).json()
             ex = lib["entries"]
-            assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement"]
+            assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement",
+                                               "hubspot-contact-lookup"]
             assert ex[0]["rows"] == 50 and ex[1]["goal"] == "compress" and ex[2]["rows"] == 120
             assert ex[2]["modules"] == 1 and ex[2]["steps"] == 1 and ex[0]["modules"] == 2 and ex[0]["steps"] == 0
             # the library screen filters on these, and the entitlement entry says what it needs before it will run
             assert "classify" in lib["tags"] and all(e["tags"] and e["description"] and e["updated"] for e in ex)
             assert ex[2]["requires"] and not ex[0]["requires"]
+            # the connector walkthrough: a step wired to a real third-party API, unauthorised until the user acts
+            hs = (await c.post("/examples/hubspot-contact-lookup/clone")).json()
+            hp = (await c.get(f"/projects/{hs['id']}")).json()
+            assert hp["spec"]["steps"][0]["manifest"] == "hubspot-contact@1.0.0" and hp["spec"]["steps"][0]["credential"] is None
+            v = (await c.post(f"/projects/{hs['id']}/validate", json={"dataset_id": hs["dataset"]["id"]})).json()
+            msgs = [i["message"] for i in v["report"]["issues"] if i["level"] == "error"]
+            assert not v["ok"] and any("connect your hubspot account, or paste a step key" in m for m in msgs)
+            assert any("has not been enriched" in m for m in msgs)
             r = await c.post("/examples/ticket-triage/clone"); assert r.status_code == 200, r.text
             cl = r.json(); assert cl["dataset"]["n_rows"] == 50
             cp = (await c.get(f"/projects/{cl['id']}")).json()

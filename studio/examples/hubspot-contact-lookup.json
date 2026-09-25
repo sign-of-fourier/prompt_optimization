@@ -1,0 +1,119 @@
+{
+  "bundle": 1,
+  "name": "HubSpot contact lookup",
+  "blurb": "Wire a real third-party step: look each sender up in your own HubSpot and put what comes back in front of the prompt.",
+  "description": "A walkthrough of the external-step wiring against an API you already have, not an optimization example - the eight rows here are placeholders and the accuracy number means nothing. What it demonstrates is the machinery: a manifest that speaks HubSpot's own request and response shapes, a step key or a connection, fetching once per row and freezing the answers onto the dataset, and a prompt that reads them.\n\nReplace at least one email with an address that exists in your portal before you fetch. The rest are meant not to resolve - a contact that is found and one that is not, in the same enrichment, is the whole point.",
+  "tags": [
+    "connector",
+    "external step",
+    "hubspot",
+    "walkthrough"
+  ],
+  "requires": [
+    "A HubSpot portal, and at least one email in the dataset replaced with an address that exists in it",
+    "A HubSpot step key (a Service Key with crm.objects.contacts.read) pasted on the step - or a connection, once this server has HubSpot app credentials"
+  ],
+  "updated": "2026-09-25",
+  "order": 4,
+  "spec": {
+    "name": "HubSpot contact lookup",
+    "modules": [
+      {
+        "id": "route",
+        "template": "Route this message to one queue.\n\nMessage: {message}\n\nSender: {contact_firstname} {contact_lastname} at {contact_company}, lifecycle stage {contact_lifecyclestage}.\n\nQueues: sales, account-management, support, billing.",
+        "description": "routes an inbound message, using what HubSpot knows about the sender",
+        "schema_fields": [
+          {
+            "name": "queue",
+            "type": "string",
+            "description": "one of the queues listed",
+            "enum": null
+          }
+        ],
+        "model": null,
+        "max_tokens": 64
+      }
+    ],
+    "steps": [
+      {
+        "id": "contact",
+        "manifest": "hubspot-contact@1.0.0",
+        "manifest_sha": "",
+        "inputs": {
+          "email": "email"
+        },
+        "credential": null,
+        "tunables": {},
+        "enabled": true
+      }
+    ],
+    "edges": [],
+    "entry": "route",
+    "max_steps": 4,
+    "eval_model": "us.amazon.nova-micro-v1:0",
+    "evaluate": {
+      "label_column": "queue",
+      "scorers": [
+        {
+          "type": "exact_match",
+          "name": "",
+          "field": "queue",
+          "normalize": true,
+          "pattern": null,
+          "tolerance": 0,
+          "rubric": "",
+          "judge_model": null
+        }
+      ],
+      "token_count": true,
+      "objective": {
+        "accuracy": 1.0
+      },
+      "pareto": {}
+    },
+    "optimizer": {
+      "goal": "accuracy",
+      "engine": "gepa",
+      "mode": "weighted",
+      "bo": {
+        "q": 2,
+        "pca": 4,
+        "acquisition": "qei"
+      },
+      "parents_per_round": 1,
+      "children": 1,
+      "minibatch": 3,
+      "rounds": 0,
+      "no_improvement_rounds": 4,
+      "max_usd": 0.25,
+      "max_calls": null,
+      "reflect_model": "us.amazon.nova-lite-v1:0",
+      "reflect_temperature": 1.0,
+      "feedback": "critic",
+      "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
+      "critic_model": null,
+      "eval_rows": null,
+      "holdout_frac": 0.0,
+      "seed": 0
+    },
+    "mutate": null,
+    "layout": {
+      "route": {
+        "x": 340,
+        "y": 120
+      },
+      "step:contact": {
+        "x": 60,
+        "y": -40
+      }
+    }
+  },
+  "dataset": {
+    "name": "contacts.jsonl",
+    "sample": "contacts.jsonl",
+    "input_map": {
+      "message": "message"
+    },
+    "label_column": "queue"
+  }
+}
