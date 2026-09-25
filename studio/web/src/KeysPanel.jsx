@@ -41,7 +41,11 @@ function Connections() {
     try { const r = await api.get(`/connect/${name}`); window.open(r.url, '_blank', 'noopener') }
     catch (e) { setProbe(p => ({ ...p, [name]: { ok: false, error: e.message } })) } finally { setBusy('') }
   }
-  const test = async c => { setProbe(p => ({ ...p, [c.id]: { busy: true } })); setProbe(p => ({ ...p, [c.id]: await api.post(`/connections/${c.id}/probe`) })) }
+  const test = async c => {
+    setProbe(p => ({ ...p, [c.id]: { busy: true } }))
+    const r = await api.post(`/connections/${c.id}/probe`)
+    setProbe(p => ({ ...p, [c.id]: r }))
+  }
   const drop = async c => { await api.del(`/connections/${c.id}`); load() }
   return (
     <div style={{ marginTop: 14 }}>
