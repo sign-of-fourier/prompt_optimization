@@ -94,7 +94,7 @@ DB instead.) Worst-case overshoot = the calls in flight when the cap is hit.
 | Dataset rows | 2,000 |
 | Dataset file | 5 MB |
 | One cell | 20,000 characters |
-| Retrieval documents (RAG) | 20 files, 10 MB total, ~2,000 chunks |
+| Retrieval documents (RAG) | 50 files, 10 MB total, 2,000 chunks (built; 20 files was proposed, but our own knowledge-base template has 32) |
 
 Capping these also caps embedding spend and the size of any single call.
 
