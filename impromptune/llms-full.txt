@@ -1,6 +1,6 @@
 # Impromptune — full site
 
-Generated 2026-09-25. Index: https://impromptune.com/llms.txt
+Generated 2026-09-26. Index: https://impromptune.com/llms.txt
 
 
 
