@@ -52,6 +52,8 @@ Which prompt is actually live? What did it answer last Tuesday, and why? A publi
 
  Each round shows a reflection model a handful of the current best prompt's failures and asks for a rewrite. The rewrite is checked on a small batch first, and only earns a full evaluation if it beats its parent on the same rows. Everything is kept: the tree of attempts, each prompt diffed against its parent, and the rows the reflector was shown.
 
+ The engine underneath is bpto. It uses Bayesian optimization to pick several rewrites to test side by side, so you wait less for the same number of calls: against GEPA, the optimizer inside DSPy, it finished 1.65× faster at the same budget and the same accuracy. [The receipts](https://quantecarlo.com/findings#speed).
+
  [figure: A run in progress: best-so-far curve with noise bands, and the tree of prompt rewrites]
  A run: best-so-far with noise bands on the left, the search tree on the right. Click any node to read its diff.
 

@@ -43,9 +43,34 @@
 <header class="hero">
   <div class="wrap">
     <h1>What the <em>measurements</em> say.</h1>
-    <p class="lead">Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how far a prompt compresses, and which search strategy gets there with fewer rollouts.</p>
+    <p class="lead">Every number on this site comes from a logged experiment in the bpto repo. This page collects the ones that matter: how much faster the search runs, how far a prompt compresses, and which search strategy gets there with fewer rollouts.</p>
   </div>
 </header>
+
+<section id="speed">
+  <div class="wrap prose">
+    <h2>Faster than DSPy's optimizer: same calls, same bill, 40% less waiting</h2>
+    <p class="m">5 runs per setup · 5,000 calls per run · task: sort OSHA severe-injury reports into 13 kinds of accident · answers by Amazon Nova Micro, rewrites by Nova Lite · 16 calls in flight · $4.60 in total · September 2026.</p>
+    <p>An optimizer improves a prompt by rewriting it and testing each rewrite on real examples. <strong>GEPA</strong> is the optimizer inside DSPy; we ran the official package, unmodified, one rewrite at a time and in its own four-at-a-time mode. <strong>bpto</strong> decides what to try next with Bayesian optimization, four rewrites at once, so they run side by side instead of queueing. Every run had the same models, the same test a rewrite has to pass, the same budget and the same starting prompt.</p>
+    <div class="fig">
+      <img src="/img/osha-wallclock.png" alt="Horizontal bar chart of minutes per run at 5,000 calls: GEPA one rewrite at a time 11.6 minutes, GEPA four at a time 7.8 minutes, bpto four at a time 7.0 minutes, with each of the five runs shown as a dot." width="1560" height="600" loading="lazy">
+      <div class="cap">Same budget for everyone: 5,000 calls. bpto's runs were also the most consistent: 7.0 minutes give or take 12 seconds.</div>
+    </div>
+    <p>bpto finished in <strong>7.0 minutes</strong>, against 11.6 for GEPA one rewrite at a time (1.65× faster) and 7.8 for GEPA's own four-at-a-time mode (10% faster). The bill was the same or lower: about $0.21 a run, against $0.25 and $0.23.</p>
+    <div class="fig">
+      <img src="/img/osha-accuracy.png" alt="Dot plot of accuracy on 200 held-out reports: GEPA one at a time 68.1%, GEPA four at a time 67.5%, bpto 68.2%, each run shown as a dot; dashed lines mark the starting prompt at 68.5% and a single rewrite by Opus 5.5 at 69.5%." width="1560" height="600" loading="lazy">
+      <div class="cap">Accuracy on 200 reports none of the runs ever saw. The differences between setups are smaller than the run-to-run spread.</div>
+    </div>
+    <p><strong>The speed cost no accuracy, but nobody got more accurate either.</strong> The starting prompt was already strong (written by Opus 5.5, 68.5%), and on average no setup beat it; 8 of the 15 runs handed it back unchanged. So this run shows the speed-up is free. It does not yet show which setup finds a better prompt when there is more to find. That run starts from a weak prompt, and it is next.</p>
+    <h3>What we take from it</h3>
+    <ul>
+      <li><strong>Start from the best prompt you can write in one go.</strong> One rewrite of the starting prompt by Opus 5.5, with no data at all, scored 69.5%: as good as 5,000 calls of search from there. Make that rewrite your starting prompt, and spend the search on improving it.</li>
+      <li><strong>Cheap models are a choice, not a flaw.</strong> Nova Micro and Lite keep a run at about twenty cents. A strong rewriter like Opus writes better rewrites at many times the price. It's the obvious next run, and the time saved comes from running rewrites side by side, so we expect it to carry over.</li>
+      <li><strong>Waiting is the cost you feel.</strong> Every setup spent the same calls and the same money. The only difference is how long you wait for the answer.</li>
+    </ul>
+    <p class="m">Receipts: <a href="https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-26-osha-sir-gepa-vs-qei" target="_blank" rel="noopener">experiments/2026-09-26-osha-sir-gepa-vs-qei</a>: NOTES.md (setup, findings, caveats), table.md (every run), evaluations.jsonl, the prompts each run chose, and the code in <code>tasks/osha_sir/</code>.</p>
+  </div>
+</section>
 
 <section>
   <div class="wrap prose">
@@ -99,6 +124,7 @@
   <div class="wrap prose">
     <h2>Standing conclusions</h2>
     <ul>
+      <li><strong>Batch picks buy time, not calls.</strong> At equal calls, bpto choosing four prompts at once finished 1.65× faster than sequential GEPA and 10% faster than GEPA's own four-at-a-time mode, with accuracy unchanged. Keeping pace when the search is climbing is still to be shown live.</li>
       <li><strong>Report the front, not a number.</strong> A constrained comparison at one accuracy bar hides where each method wins.</li>
       <li><strong>Selection needs decisions to make.</strong> With 30 training examples and a permissive gate, ~95% of rollouts go to full evaluations of accepted children and there are ~20 parent choices per run — too few for strategy to show. 100 examples and a 5-example gate fixed that.</li>
       <li><strong>The proposer is the binding constraint live.</strong> A rewriting model that only paraphrases defeats every selector.</li>

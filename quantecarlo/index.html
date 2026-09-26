@@ -87,6 +87,11 @@
     <p class="sub">From logged experiments, and from the people counting agents.</p>
     <div class="grid c3">
       <div class="card stat">
+        <div class="num">1.65×</div>
+        <div class="label">faster than GEPA, the optimizer in DSPy: same 5,000 calls, same bill, same accuracy. 7.0 minutes instead of 11.6.</div>
+        <div class="src">OSHA injury reports, 5 runs per setup, Sept 2026 — <a href="/findings#speed">see findings</a></div>
+      </div>
+      <div class="card stat">
         <div class="num">0.708 → 1.000</div>
         <div class="label">accuracy on a two-step ticket-triage program (summarize → route) after ten rounds in Impromptune: 262 model calls, $0.004.</div>
         <div class="src">Studio tutorial run, Sept 2026 — <a href="https://promptcompression.ai/example">see the walkthrough</a></div>
@@ -95,11 +100,6 @@
         <div class="num alt">97 → 6</div>
         <div class="label">tokens: an extraction prompt compressed by bpto; held-out F1 0.984 → 0.965. Across 12 seeds: 6–29 tokens.</div>
         <div class="src">Compression v2 experiment, Sept 2026 — <a href="/findings">see findings</a></div>
-      </div>
-      <div class="card stat">
-        <div class="num">0.97 vs 0.86</div>
-        <div class="label">Bayesian selection vs GEPA's sampler under evaluation noise on synthetic landscapes (8 arms × 40 seeds).</div>
-        <div class="src"><a href="/findings">Synthetic ladder, Sept 2026</a></div>
       </div>
       <div class="card stat">
         <div class="num alt">40%</div>
