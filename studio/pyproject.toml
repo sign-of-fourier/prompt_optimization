@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Point-and-click studio for bpto: build a program graph, validate data, run GEPA/BO, watch the tree."
 requires-python = ">=3.12"
 dependencies = [
-    "bpto @ git+https://github.com/sign-of-fourier/bpto@bb2313a",
+    "bpto @ git+https://github.com/sign-of-fourier/bpto@896418b",
     "fastapi>=0.111",
     "uvicorn[standard]>=0.29",
     "pydantic>=2.0",
