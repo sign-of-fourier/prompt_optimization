@@ -35,3 +35,4 @@ hubspot.config.yml
 # Synthetic lead-qualification data (generator, sealed labels, message cache, local studio runs). Kept local
 # until the use case is reviewed; sealed/ must never reach the public remote before a run is published.
 /lead_qual_synth/
+/kb_synth/
