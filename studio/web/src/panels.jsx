@@ -117,7 +117,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
   const term = spec.modules.find(m => !spec.edges.some(e => e.source === m.id))
   const fields = term ? term.schema_fields.map(f => f.name) : []
   const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge' })[sc.type]
-  const metrics = [...ev.scorers.map(metricName), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
+  const metrics = [...ev.scorers.flatMap(sc => sc.type === 'exact_match' && sc.balanced ? [metricName(sc), metricName(sc) + '_balanced'] : [metricName(sc)]), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
   return (
     <div>
       <div className="row"><h3 className="grow">Evaluate<Hint id="evaluate" /></h3><button className="small" onClick={onClose}>×</button></div>
@@ -135,9 +135,10 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
             <label>Judge model</label><select value={sc.judge_model || ''} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, judge_model: e.target.value || null } : x) })}><option value="">same as evaluation model</option>{models.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></>}
           <label>Metric name</label><input value={sc.name} placeholder={metricName({ ...sc, name: '' })} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
           {['exact_match', 'contains', 'json_field'].includes(sc.type) && <label style={{ textTransform: 'none' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={sc.normalize} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, normalize: e.target.checked } : x) })} />normalize (case, punctuation, articles)</label>}
+          {sc.type === 'exact_match' && <label style={{ textTransform: 'none' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={!!sc.balanced} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, balanced: e.target.checked } : x) })} />also score balanced (<code>{metricName(sc)}_balanced</code>: each class counts equally, so predicting the biggest class stops paying)</label>}
         </div>
       ))}
-      <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null }] })}>+ scorer</button>
+      <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null, balanced: false }] })}>+ scorer</button>
       <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over prompts), prompt (rendered, with the data) and output</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}

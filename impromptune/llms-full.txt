@@ -369,6 +369,8 @@ URL: https://impromptune.com/docs/evaluate
 
  You can add more than one. Each produces its own named metric, and they all land in the same vector.
 
+ When one class dominates, score balanced. Exact match has a balanced option. It adds accuracy_balanced, which weights each row by how rare its label is, so every class counts equally: the average of per-class recall. Plain accuracy on a dataset where most rows are one class rewards a prompt that always answers that class. Put the objective weight on the balanced metric instead.
+
  A judge costs money and has opinions. Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.
 
 ## The metric vector

@@ -58,7 +58,8 @@ def build_task(spec: ProjectSpec, dataset: Dataset, client: ModelClient, *, judg
     parts = []
     for sc in ev.scorers:
         jc = ModelConfig(model=sc.judge_model, temperature=0.0) if sc.judge_model else ModelConfig(temperature=0.0)
-        parts.append(S.build(sc, judge_client=judge_client or client, judge_config=jc))
+        parts.append(S.build(sc, judge_client=judge_client or client, judge_config=jc,
+                             labels=[ex.answer for ex in dataset] if sc.balanced else None))
     if ev.token_count:
         parts += [token_count(), output_token_count(), S.program_template_tokens()]
     return Task(
@@ -133,8 +134,9 @@ def compress_feedback(fallback):
 
 def correct_rows_pass(objective: dict[str, float]):
     """Under a token-penalized objective no row scores >= 1, so bpto's default `passed` would show the rewriter every
-    row as a failure. A row passes when each positively weighted metric (the accuracy-like ones) is at its maximum."""
-    keys = [k for k, w in objective.items() if w > 0]
+    row as a failure. A row passes when each positively weighted metric (the accuracy-like ones) is at its maximum.
+    A balanced metric is read through its unweighted twin: a correct row of a common class weighs less than 1."""
+    keys = [k.removesuffix("_balanced") for k, w in objective.items() if w > 0]
 
     def _passed(ex: Example, r: ExampleResult) -> bool:
         return not r.error and all(r.metrics.get(k, 0.0) >= 1.0 for k in keys)
@@ -215,7 +217,8 @@ def build_schedule(spec: ProjectSpec, task: Task, *, embedder=None, bo_selector=
         fb = compress_feedback(fb)
     meta_prompt = COMPRESS_REFLECT_PROMPT if compress else REFLECT_PROMPT
     critic_prompt = COMPRESS_CRITIC_PROMPT if compress else CRITIC_PROMPT
-    passed = correct_rows_pass(spec.evaluate.objective) if compress else None
+    balanced = any(sc.balanced for sc in spec.evaluate.scorers)
+    passed = correct_rows_pass(spec.evaluate.objective) if compress or balanced else None
 
     bo = None
     if o.engine == "bo":

@@ -70,6 +70,10 @@ class ScorerSpec(BaseModel):
     tolerance: float = 0.0         # numeric
     rubric: str = ""               # llm_judge*
     judge_model: str | None = None
+    # exact_match only: also emit "<name>_balanced", each correct row weighted by 1 / (classes x its label's share of
+    # the rows being scored), whose mean is balanced accuracy (mean per-class recall). Plain accuracy rewards
+    # predicting the largest class; put the objective weight on the balanced metric instead.
+    balanced: bool = False
 
 
 class EvaluateSpec(BaseModel):

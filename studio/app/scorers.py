@@ -42,17 +42,32 @@ def token_f1(pred: str, gold: str) -> float:
     return 2 * p * r / (p + r)
 
 
-def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_config: ModelConfig | None = None):
+def class_weights(labels: list[Any], norm) -> dict[str, float]:
+    """1 / (classes x share) per normalized label: a row's weight such that the mean of weight x correct over these
+    rows is balanced accuracy. A label absent from them is weighted as if it appeared once."""
+    counts = Counter(norm(x) for x in labels)
+    n, k = sum(counts.values()), len(counts)
+    return {lab: n / (k * c) for lab, c in counts.items()} if n else {}
+
+
+def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_config: ModelConfig | None = None,
+          labels: list[Any] | None = None):
     name = spec.name or DEFAULT_NAMES[spec.type]
     norm = normalize if spec.normalize else (lambda x: str(x if x is not None else ""))
     t = spec.type
 
     if t == "exact_match":
+        weights = class_weights(labels or [], norm) if spec.balanced else None
+        unseen = (len(labels or []) / max(1, len(weights))) if weights else 1.0
+
         def _s(prompt, ex, comp, ctx):
             got = predicted(comp, spec.field)
             if isinstance(got, (dict, list)):
                 got = json.dumps(got, sort_keys=True)
-            return {name: 1.0 if norm(got) == norm(ex.answer) else 0.0}
+            hit = 1.0 if norm(got) == norm(ex.answer) else 0.0
+            if weights is None:
+                return {name: hit}
+            return {name: hit, f"{name}_balanced": hit * weights.get(norm(ex.answer), unseen)}
     elif t == "contains":
         def _s(prompt, ex, comp, ctx):
             got = predicted(comp, spec.field)

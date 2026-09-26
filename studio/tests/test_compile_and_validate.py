@@ -235,3 +235,36 @@ def test_version_pin_and_fingerprint():
 
     b = V.pin(s, {"extract": "Pull the fact out of {text}{prev}"})
     assert b.modules[0].template.startswith("Pull the fact") and V.fingerprint(b) != V.fingerprint(a)
+
+
+def test_balanced_accuracy_weights_rows_by_class_share():
+    from types import SimpleNamespace as NS
+    from app import scorers as S
+    from app.compile import correct_rows_pass
+    labels = ["yes", "yes", "yes", "no"]
+    sc = S.build(ScorerSpec(type="exact_match", field="label", balanced=True), labels=labels)
+    score = lambda pred, gold: sc(None, NS(answer=gold), NS(parsed={"label": pred}, text=pred), None)
+    perfect = [score(y, y) for y in labels]
+    always_yes = [score("yes", y) for y in labels]
+    mean = lambda rows, k: sum(r[k] for r in rows) / len(rows)
+    # perfect predictions: balanced accuracy 1.0; always the majority class: accuracy 0.75 but balanced 0.5
+    assert mean(perfect, "accuracy_balanced") == pytest.approx(1.0)
+    assert mean(always_yes, "accuracy") == pytest.approx(0.75) and mean(always_yes, "accuracy_balanced") == pytest.approx(0.5)
+    # a label the rows never showed weighs as if it appeared once; balanced off emits accuracy alone
+    assert score("maybe", "maybe")["accuracy_balanced"] == pytest.approx(4 / 2)
+    assert set(S.build(ScorerSpec(type="exact_match", field="label"))(None, NS(answer="a"), NS(parsed={"label": "a"}, text="a"), None)) == {"accuracy"}
+    # the reflector judges a row on the unweighted twin: a correct majority-class row (weight < 1) still passes
+    passed = correct_rows_pass({"accuracy_balanced": 1.0})
+    assert passed(None, NS(error=None, metrics=perfect[0])) and not passed(None, NS(error=None, metrics=always_yes[3]))
+
+
+def test_balanced_scorer_through_build_task():
+    s = spec(evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer", balanced=True)],
+                                   objective={"accuracy_balanced": 1.0}))
+    task, client = make_task_and_client(s)
+    tree = Tree(task)
+    schedule, stop = build_schedule(s, task)
+    asyncio.run(run(tree, schedule, stop=stop))
+    m = tree.root.evaluation.metrics
+    # twelve distinct labels: every weight is 1, so balanced equals plain accuracy
+    assert m["accuracy_balanced"] == pytest.approx(m["accuracy"]) and m["accuracy"] == 1.0

@@ -60,6 +60,7 @@
       <tr><td>LLM judge, no reference</td><td>a judge model grades against a rubric alone</td><td>there is no single right answer &mdash; tone, helpfulness</td></tr>
     </table></div>
     <p>You can add more than one. Each produces its own named metric, and they all land in the same vector.</p>
+    <p><strong>When one class dominates, score balanced.</strong> Exact match has a <em>balanced</em> option. It adds <code>accuracy_balanced</code>, which weights each row by how rare its label is, so every class counts equally: the average of per-class recall. Plain accuracy on a dataset where most rows are one class rewards a prompt that always answers that class. Put the objective weight on the balanced metric instead.</p>
     <div class="callout"><strong>A judge costs money and has opinions.</strong> Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.</div>
   </div>
 </section>
