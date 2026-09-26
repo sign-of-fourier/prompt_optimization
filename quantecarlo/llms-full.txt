@@ -1,6 +1,6 @@
 # Quante Carlo — full site
 
-Generated 2026-09-25. Index: https://quantecarlo.com/llms.txt
+Generated 2026-09-26. Index: https://quantecarlo.com/llms.txt
 
 
 
@@ -495,6 +495,371 @@ URL: https://quantecarlo.com/findings
  - Next for BO: a front/hypervolume-gain value instead of a threshold-tied scalar, so it stops ignoring accurate-but-not-shorter children.
 
  Reference points from the GEPA paper (Agrawal et al. 2025), Qwen3-8B test accuracy: HotpotQA 42.3 → 62.3, IFBench 36.9 → 38.6, HoVer 35.3 → 52.3, PUPA 80.8 → 91.9 (≤ 7k rollouts); MIPROv2: 55.3 / 36.2 / 47.3 / 81.6.
+
+
+---
+
+# Use cases: how to optimize the prompts behind real workflows — Quante Carlo
+URL: https://quantecarlo.com/use-cases/
+
+# Use cases.
+
+ How to get a prompt from "works in the demo" to "works on your data", one workflow at a time. Each guide covers what goes wrong, how to set the problem up so a search can fix it, the pitfalls to check before spending anything, and where to read more.
+
+## Routing and classification
+
+### [How to qualify inbound leads with an LLM](https://quantecarlo.com/use-cases/lead-qualification)
+Route inbound leads to accept, reject on fit, reject on timing, customer success or partners.
+
+### [How to triage and escalate support tickets with an LLM](https://quantecarlo.com/use-cases/ticket-triage)
+Send support tickets to the right queue, and escalate the ones that need it, from demo to production.
+
+### [How to code accounts payable invoices to the general ledger with an LLM](https://quantecarlo.com/use-cases/invoice-coding)
+Assign each accounts-payable invoice line to the right general-ledger account.
+
+### [How to extract key terms from contracts with an LLM](https://quantecarlo.com/use-cases/contract-terms)
+Pull renewal dates, notice periods, caps and governing law out of contracts into fields you can use.
+
+### [How to tag customer feedback against your own taxonomy with an LLM](https://quantecarlo.com/use-cases/feedback-tagging)
+Tag support conversations, reviews and survey answers against your own product taxonomy.
+
+## Cost and length
+
+ On promptcompression.ai.
+
+### [How to make a prompt you already trust cheaper and faster ↗](https://promptcompression.ai/business-case)
+The business case for compressing the template on every call: what it saves and what it costs to get there.
+
+### [How to compress a prompt, end to end ↗](https://promptcompression.ai/example)
+A worked run: the same program optimized for length with an accuracy floor, read on the hold-out.
+
+
+---
+
+# How to qualify inbound leads with an LLM — Quante Carlo
+URL: https://quantecarlo.com/use-cases/lead-qualification
+
+[Use cases](https://quantecarlo.com/use-cases/)
+
+# How to qualify inbound leads with an LLM
+
+ Most qualification prompts are the RevOps checklist written out in prose. They read well and route badly, because nobody ever tested the checklist against the leads your SDRs actually accepted.
+
+## The pain points
+
+ - Your ICP is a soft score, but you wrote it as hard rules. "50 to 5,000 employees, SaaS or fintech, on Salesforce or HubSpot, manager or above" reads to a model as a checklist. One model applies every box and rejects good fits that miss one. Another reads the same sentence loosely and lets everyone through. Same words, opposite behaviour.
+
+ - Intent lives in the free text. Firmographics tell you whether a company could buy. Whether it is buying now is in what the person wrote: a named competitor, a budget, a quarter. A prompt that treats an empty message as "no intent" throws away every demo request with a blank box.
+
+ - Your labels disagree where it matters most. Two SDRs rarely argue about a student or a competitor. They argue about "good fit, buying now" versus "good fit, not yet", which is exactly the call you want the model to make.
+
+ - Your history only covers the leads someone chose to work. If a router already filtered the queue, the labelled rows are the ones it liked. A prompt tuned on them is tuned on the wrong population.
+
+ - The data changes after the decision. Firmographics re-fetched today know which accounts grew, raised and bought. They are not what the SDR saw.
+
+## How to do it
+
+ - Build the dataset from dispositions, as of routing time. Store the enrichment snapshot with the lead when it arrives, and train on that snapshot. In production, fetch it live. The model should only ever see what it will see when it is actually routing.
+
+ - Drop anything written after the decision. Note length, call counts, stage changes, owner. They predict the label very well because the person who assigned the label wrote them.
+
+ - Pick a metric that prices the mistakes the way you do. Rejecting on fit is usually the biggest class, so plain accuracy rewards a prompt that rejects nearly everyone. Missing a real buyer costs far more than an SDR spending five minutes on a lead that isn't buying. Score balanced accuracy (the mean of per-class recall), or weight each class by what a miss costs you.
+
+ - Hold rows out and read the per-class table. An aggregate that improved because the prompt now rejects more leads is not an improvement. The hold-out is the number; the per-class table says what moved it.
+
+ - Let an optimizer rewrite the rules, and read the diff. If your prompt applies its rules in order and the first match wins, a rewrite that appends advice underneath cannot override the rule that is misfiring. The useful change edits that rule: raise the headcount floor, name the industries that are out, count the whole revenue stack instead of the CRM alone.
+
+ - Measure your label noise first. Have two people label the same sample and compute agreement. No prompt beats the rate at which your own team agrees with itself, so that rate is your ceiling.
+
+## Pitfalls worth checking first
+
+ | Pitfall | What it looks like | How to check, before spending anything |
+
+ | Leakage | One column predicts the label far better than anything else | Was it written before the decision? If not, drop it. |
+
+ | Live re-fetch | The prompt scores better on refreshed enrichment than on the snapshot | Score both versions of the same rows. The gap is how much the refresh knows about the outcome. |
+
+ | Selection bias | Labelled rows skew toward demo requests and senior titles | Keep a small random slice of unrouted leads labelled, and weight rows by how likely they were to be labelled. |
+
+ | Redundant columns | Company and email domain always agree | Check whether one column determines another. Keep one. |
+
+ | The wrong metric | Accuracy rises while recall of real buyers falls | Put balanced accuracy or a cost-weighted score in the objective, and read the per-class table. |
+
+## References
+
+ - [Heckman, Sample Selection Bias as a Specification Error, Econometrica, 1979](https://doi.org/10.2307/1912352)
+
+ - [Kaufman, Rosset, Perlich and Stitelman, Leakage in Data Mining: Formulation, Detection, and Avoidance, ACM TKDD, 2012](https://doi.org/10.1145/2382577.2382579)
+
+ - [scikit-learn, Metrics and scoring: balanced accuracy, per-class precision and recall](https://scikit-learn.org/stable/modules/model_evaluation.html)
+
+ - [Cohen's kappa, Wikipedia](https://en.wikipedia.org/wiki/Cohen%27s_kappa)
+
+ - [Agrawal et al., GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning, 2025](https://arxiv.org/abs/2507.19457)
+
+ - [Quante Carlo, How prompt optimization works: reflection, the gate, the hold-out](https://quantecarlo.com/how-it-works)
+
+ Tools that run this loop: [DSPy](https://dspy.ai/) and its GEPA optimizer, [bpto](https://github.com/sign-of-fourier/bpto) (ours, open source), and [Impromptune](https://impromptune.com/), the studio built on it.
+
+
+---
+
+# How to triage and escalate support tickets with an LLM — Quante Carlo
+URL: https://quantecarlo.com/use-cases/ticket-triage
+
+[Use cases](https://quantecarlo.com/use-cases/)
+
+# How to triage and escalate support tickets
+
+ A triage prompt that works in the demo breaks in production for two reasons. The right queue often depends on who is asking, not what they wrote. And the queues themselves keep changing.
+
+## The pain points
+
+ - The message is not enough. "My invoice is wrong" is billing for one customer and a retention case for another whose contract renews next month. The deciding facts live in your CRM: plan, open tickets, renewal date. A prompt that never sees them has a ceiling that no rewording can lift.
+
+ - Escalations are rare and expensive. A prompt can be right on almost every ticket and still miss the few that needed a senior engineer today. Aggregate accuracy hides that completely.
+
+ - The first queue is not the right queue. Tickets get reassigned. If you train on the queue a ticket first landed in, you train on the old router's mistakes.
+
+ - Two prompts, one score. Summarize-then-route is a sensible design. But when the route is wrong, was the summary missing the detail, or did the router misread it?
+
+ - The taxonomy churns. Queues get split, merged and renamed. Labels from last quarter disagree with today's org chart.
+
+## How to do it
+
+ - Label from the final queue, after reassignment, and date every row. The reassignment history is also free training data: every move is a correction someone made by hand.
+
+ - Fetch account context as an external lookup, and freeze it. Look up plan, entitlement and open tickets once, when the row is captured, and store the answers with the row. Train on those stored values; call the lookup live in production. A ticket was an escalation because of what was true that day, not what is true when you re-run the evaluation.
+
+ - Treat the pipeline as a program and optimize one prompt at a time. Rewrite the summarizer or the router in a given round, never both, so that when the score moves you know which change moved it.
+
+ - Score escalation separately. Exact match on the queue, plus recall on the escalation class as its own metric in the objective, weighted by what a missed escalation costs.
+
+ - Ship a version, then close the loop. Serve a fixed version of the prompts, log every request, and record reassignments as outcomes. Those corrections are next month's dataset.
+
+## Pitfalls worth checking first
+
+ | Pitfall | What it looks like | How to check, before spending anything |
+
+ | First-queue labels | The prompt learns the old router's habits | Compare first and final queue on a sample. If they differ often, label from the final queue. |
+
+ | Time travel | Account data fetched at evaluation time, not ticket time | Freeze the lookup onto the row when the ticket arrives. |
+
+ | Rare escalations | Accuracy is high, escalations are missed | Read escalation recall on its own. Put it in the objective. |
+
+ | Renamed queues | Old and new labels for the same work | Map old queue names to current ones before training, or drop rows from before the change. |
+
+ | Unused context | The lookup returns five fields and the prompt uses two | Check which fields actually change the answer. Stop pasting the rest into every call. |
+
+## References
+
+ - [Sculley et al., Hidden Technical Debt in Machine Learning Systems, NeurIPS 2015](https://papers.nips.cc/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html)
+
+ - [Confusion matrix, Wikipedia](https://en.wikipedia.org/wiki/Confusion_matrix)
+
+ - [scikit-learn, Metrics and scoring: balanced accuracy, per-class precision and recall](https://scikit-learn.org/stable/modules/model_evaluation.html)
+
+ - [Khattab et al., DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines, 2023](https://arxiv.org/abs/2310.03714)
+
+ - [Agrawal et al., GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning, 2025](https://arxiv.org/abs/2507.19457)
+
+ - [Quante Carlo, How prompt optimization works: reflection, the gate, the hold-out](https://quantecarlo.com/how-it-works)
+
+ Tools that run this loop: [DSPy](https://dspy.ai/) and its GEPA optimizer, [bpto](https://github.com/sign-of-fourier/bpto) (ours, open source), and [Impromptune](https://impromptune.com/), the studio built on it.
+
+
+---
+
+# How to code accounts payable invoices to the general ledger with an LLM — Quante Carlo
+URL: https://quantecarlo.com/use-cases/invoice-coding
+
+[Use cases](https://quantecarlo.com/use-cases/)
+
+# How to code invoices to the general ledger
+
+ GL coding looks like reading an invoice. It is really classification with hundreds of classes, a long tail, and a right answer that depends on your chart of accounts and your vendor history more than on the invoice text.
+
+## The pain points
+
+ - The chart of accounts is yours. A model knows what "software" is. It does not know that your subscriptions go to one account, implementation services to another, and anything over your capitalization threshold to the balance sheet.
+
+ - Same vendor, different accounts. One supplier sends a subscription renewal, a training invoice and a hardware order in the same month. Vendor-to-account lookups get most of them and fail on exactly the lines that need judgment.
+
+ - Your history is inconsistent. Different clerks coded the same kind of line differently, and a mid-year chart restructure changed what "correct" means.
+
+ - Not all mistakes are equal. Two neighbouring expense accounts is an annoyance. Expense versus asset changes the P&L, and someone will find it at close.
+
+ - The long tail. A handful of accounts cover most lines. The rest appear a few times a year, and that is where the errors live.
+
+## How to do it
+
+ - Train on posted, approved entries, with the chart as it stood on the posting date. Coding that a reviewer corrected is the label; the original clerk's guess is not.
+
+ - Give the prompt the relevant slice of the chart, not all of it. A lookup step can fetch this vendor's recent coding and the handful of candidate accounts for the line's category, frozen onto each row. The prompt then chooses among a short list, with definitions, rather than recalling the whole chart.
+
+ - Score at two levels. Exact match on the account, and match on the account group (expense versus asset versus liability) as a second metric. Weight the second heavily. A prompt that is often off by one expense line but never crosses the balance sheet is one your controller can live with.
+
+ - Hold out by time. Keep the most recent months out of the search, so the score says how the prompt does on invoices it has not seen, under the chart as it is now.
+
+ - Route what the prompt is unsure of. Ask for the account and a short reason, send low-agreement lines to a person, and record their corrections. Those become the next dataset.
+
+## Pitfalls worth checking first
+
+ | Pitfall | What it looks like | How to check, before spending anything |
+
+ | Chart changes | Old rows coded to accounts that no longer exist | Map or drop rows from before a restructure. |
+
+ | Leakage | Approver comments or posting batch predict the account | Keep only what exists when the invoice arrives: the invoice, the PO, the vendor record. |
+
+ | Vendor memorization | Great on known vendors, poor on new ones | Hold some vendors out entirely and score them separately. |
+
+ | Flat accuracy | Frequent accounts dominate the score | Read the per-account table; score the account group as well as the account. |
+
+ | Line versus invoice | One invoice, three correct accounts | Label and score per line, not per invoice. |
+
+## References
+
+ - [Chart of accounts, Wikipedia](https://en.wikipedia.org/wiki/Chart_of_accounts)
+
+ - [Three-way match, Wikipedia](https://en.wikipedia.org/wiki/Three-way_match)
+
+ - [Kaufman, Rosset, Perlich and Stitelman, Leakage in Data Mining: Formulation, Detection, and Avoidance, ACM TKDD, 2012](https://doi.org/10.1145/2382577.2382579)
+
+ - [Confusion matrix, Wikipedia](https://en.wikipedia.org/wiki/Confusion_matrix)
+
+ - [Agrawal et al., GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning, 2025](https://arxiv.org/abs/2507.19457)
+
+ - [Quante Carlo, How prompt optimization works: reflection, the gate, the hold-out](https://quantecarlo.com/how-it-works)
+
+ Tools that run this loop: [DSPy](https://dspy.ai/) and its GEPA optimizer, [bpto](https://github.com/sign-of-fourier/bpto) (ours, open source), and [Impromptune](https://impromptune.com/), the studio built on it.
+
+
+---
+
+# How to extract key terms from contracts with an LLM — Quante Carlo
+URL: https://quantecarlo.com/use-cases/contract-terms
+
+[Use cases](https://quantecarlo.com/use-cases/)
+
+# How to extract key terms from contracts
+
+ Extraction looks easier than classification until you have to say what counts as right. A renewal term can be written a dozen ways, and a clause that isn't there is an answer too.
+
+## The pain points
+
+ - "Right" is undefined until you define it. "Twelve (12) months", "one year" and "an initial term ending on the first anniversary" are the same answer. If the label is free text, you are grading spelling.
+
+ - Missing is an answer. Most contracts have no most-favoured-customer clause. A prompt that always answers "not present" scores well on that field and is useless.
+
+ - The wrong scorer is worse than none. Exact match fails correct answers that were phrased differently. A model acting as judge is lenient, costs a call per row, and its taste becomes the thing you optimize.
+
+ - Long documents. The clause that matters is on page thirty, and an amendment signed later overrides it.
+
+ - Fields are not equally important. Getting the auto-renewal notice date wrong costs money. Getting governing law wrong rarely does.
+
+## How to do it
+
+ - Write the schema first. Every field gets a type (date, duration, amount with currency, enumerated value, short text), a normalized form, and an explicit "not present". The schema is the contract between the prompt and everything downstream.
+
+ - Label from records you already keep, such as the contract-management system or the renewal calendar, and spot-check a sample against the documents.
+
+ - Score each field on its own terms. Equality on normalized dates and enumerations, a numeric tolerance on amounts, word-overlap F1 on short text. Keep each field as its own metric so you can see which one a rewrite broke.
+
+ - Weight fields by what they drive, and score precision and recall separately on "present". That keeps "always say missing" from looking good.
+
+ - Hold out by counterparty or template. Contracts from one paper template are near-duplicates. If they sit on both sides of the split, the score is flattering.
+
+## Pitfalls worth checking first
+
+ | Pitfall | What it looks like | How to check, before spending anything |
+
+ | "Not present" wins | High field accuracy, low recall on clauses that exist | Score recall on present clauses separately, per field. |
+
+ | Template duplicates | Great hold-out score, poor on new counterparties | Split by template or counterparty, not by document. |
+
+ | Amendments | The base agreement's term is extracted, the amendment's is not | Include amendments with the base document, and label the term in force. |
+
+ | Unnormalized labels | Correct answers scored as wrong | Normalize labels and outputs the same way before comparing. |
+
+ | Judge drift | Scores rise, answers do not get better | Prefer deterministic scorers wherever the field allows one. |
+
+## References
+
+ - [scikit-learn, Metrics and scoring: balanced accuracy, per-class precision and recall](https://scikit-learn.org/stable/modules/model_evaluation.html)
+
+ - [Kaufman, Rosset, Perlich and Stitelman, Leakage in Data Mining: Formulation, Detection, and Avoidance, ACM TKDD, 2012](https://doi.org/10.1145/2382577.2382579)
+
+ - [Khattab et al., DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines, 2023](https://arxiv.org/abs/2310.03714)
+
+ - [Agrawal et al., GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning, 2025](https://arxiv.org/abs/2507.19457)
+
+ - [Quante Carlo, How prompt optimization works: reflection, the gate, the hold-out](https://quantecarlo.com/how-it-works)
+
+ Tools that run this loop: [DSPy](https://dspy.ai/) and its GEPA optimizer, [bpto](https://github.com/sign-of-fourier/bpto) (ours, open source), and [Impromptune](https://impromptune.com/), the studio built on it.
+
+
+---
+
+# How to tag customer feedback against your own taxonomy with an LLM — Quante Carlo
+URL: https://quantecarlo.com/use-cases/feedback-tagging
+
+[Use cases](https://quantecarlo.com/use-cases/)
+
+# How to tag customer feedback against your own taxonomy
+
+ Off-the-shelf topic and sentiment models tag feedback in someone else's categories. The useful tags are yours, and they change every time the product does.
+
+## The pain points
+
+ - The taxonomy is custom and it overlaps. "Onboarding", "setup" and "first-week experience" are three tags because three teams asked for them. A model cannot guess where one ends and the next begins.
+
+ - One comment, several tags. "Pricing is fine, but the import kept failing" is about pricing and about data import. Forcing one tag loses one of the signals.
+
+ - The rare tags are the important ones. Security concerns and churn threats are a small share of comments and most of their value. A tagger tuned on overall accuracy learns to ignore them.
+
+ - People disagree. Two analysts tagging the same comments disagree more often than anyone expects. The model is being graded against that disagreement.
+
+ - The taxonomy moves. A new feature ships and a new tag appears. Last quarter's labels do not know about it.
+
+## How to do it
+
+ - Write each tag as a definition with boundary examples: one clear case, one near-miss that belongs to a neighbour tag. That document is the first draft of the prompt.
+
+ - Double-label a sample and measure agreement per tag. A tag your analysts cannot agree on needs a better definition before it needs a model. Fix the definitions first; it is the cheapest improvement you will make.
+
+ - Output a list, score every tag. Precision and recall per tag, macro-averaged so a rare tag counts as much as a common one. Put that average in the objective, not exact match on the whole list.
+
+ - Optimize, then read the per-tag table and the diff. The useful rewrites sharpen the definition of a tag that was being confused with a neighbour. Check that is what changed.
+
+ - Version the taxonomy with the prompt. When a tag is added or split, relabel a sample under the new definitions and re-run against that, instead of mixing old and new labels.
+
+## Pitfalls worth checking first
+
+ | Pitfall | What it looks like | How to check, before spending anything |
+
+ | Frequent tags dominate | Overall scores rise while rare tags go unfound | Macro-average per-tag recall; read the rare tags on their own. |
+
+ | Agreement ceiling | Scores plateau well short of perfect | Compare against how often your analysts agree. That is roughly the ceiling. |
+
+ | "Other" as a crutch | A growing share lands in a catch-all tag | Read a sample of "other". It is usually a missing tag or a vague definition. |
+
+ | Mixed taxonomies | The same comment carries old and new tags | Relabel under one version of the taxonomy before scoring. |
+
+ | Sentiment bleed | Negative comments get tagged as problems | Keep sentiment a separate field from topic. |
+
+## References
+
+ - [Cohen's kappa, Wikipedia](https://en.wikipedia.org/wiki/Cohen%27s_kappa)
+
+ - [scikit-learn, Metrics and scoring: balanced accuracy, per-class precision and recall](https://scikit-learn.org/stable/modules/model_evaluation.html)
+
+ - [Confusion matrix, Wikipedia](https://en.wikipedia.org/wiki/Confusion_matrix)
+
+ - [Agrawal et al., GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning, 2025](https://arxiv.org/abs/2507.19457)
+
+ - [Quante Carlo, How prompt optimization works: reflection, the gate, the hold-out](https://quantecarlo.com/how-it-works)
+
+ Tools that run this loop: [DSPy](https://dspy.ai/) and its GEPA optimizer, [bpto](https://github.com/sign-of-fourier/bpto) (ours, open source), and [Impromptune](https://impromptune.com/), the studio built on it.
 
 
 ---

@@ -8,6 +8,12 @@
 - [How it works](https://quantecarlo.com/how-it-works): labeled data → starter prompt + objective → tree search → Pareto front; optimizing every prompt in a ReAct agent.
 - [Prompt optimization](https://quantecarlo.com/prompt-optimization): why the search space is hard (zero gradient, jumps, unenumerable usable region, noisy evals); DSPy/MIPROv2, GEPA and Bayesian optimization compared.
 - [Findings](https://quantecarlo.com/findings): experiment tables and front plots — GEPA vs BO at equal rollouts, standing conclusions.
+- [Use cases](https://quantecarlo.com/use-cases/): how-to guides per workflow — pain points, approach, pitfalls to check before spending anything, references.
+  - [Lead qualification](https://quantecarlo.com/use-cases/lead-qualification): frozen enrichment, leakage, selection bias, a metric that prices missed buyers.
+  - [Ticket triage and escalation](https://quantecarlo.com/use-cases/ticket-triage): account context as a frozen lookup, rare escalations, reassignments as labels.
+  - [Invoice coding to the general ledger](https://quantecarlo.com/use-cases/invoice-coding): a slice of the chart per line, scoring account and account group, time-based hold-out.
+  - [Contract key terms](https://quantecarlo.com/use-cases/contract-terms): schema first, per-field scorers, "not present" as an answer.
+  - [Customer feedback tagging](https://quantecarlo.com/use-cases/feedback-tagging): taxonomy definitions, annotator agreement, per-tag macro recall.
 - [About](https://quantecarlo.com/about): the company, from Monte Carlo acceleration to hyperparameter tuning to prompts; what it builds today.
 - [Claude Code](https://quantecarlo.com/claude-code): step-by-step instructions for coding agents to run the optimizer.
 - [Contact](https://quantecarlo.com/contact): info@quantecarlo.com.

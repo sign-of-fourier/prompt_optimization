@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to extract key terms from contracts with an LLM — Quante Carlo</title>
+<meta name="description" content="Contract extraction looks easier than classification until you define a right answer. How to write the schema first, score each field on its own, handle clauses that are not there, and keep amendments from being missed.">
+<link rel="canonical" href="https://quantecarlo.com/use-cases/contract-terms">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How to extract key terms from contracts with an LLM — Quante Carlo">
+<meta property="og:description" content="Contract extraction looks easier than classification until you define a right answer. How to write the schema first, score each field on its own, handle clauses that are not there, and keep amendments from being missed.">
+<meta property="og:url" content="https://quantecarlo.com/use-cases/contract-terms">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to extract key terms from contracts with an LLM — Quante Carlo">
+<meta name="twitter:description" content="Contract extraction looks easier than classification until you define a right answer. How to write the schema first, score each field on its own, handle clauses that are not there, and keep amendments from being missed.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to extract key terms from contracts with an LLM", "datePublished": "2026-09-26", "url": "https://quantecarlo.com/use-cases/contract-terms", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/use-cases/">Use cases</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="m"><a href="/use-cases/">Use cases</a></p>
+    <h1>How to <em>extract key terms</em> from contracts</h1>
+    <p class="lead">Extraction looks easier than classification until you have to say what counts as right. A renewal term can be written a dozen ways, and a clause that isn't there is an answer too.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The pain points</h2>
+    <ul>
+      <li><strong>"Right" is undefined until you define it.</strong> "Twelve (12) months", "one year" and "an initial term ending on the first anniversary" are the same answer. If the label is free text, you are grading spelling.</li>
+      <li><strong>Missing is an answer.</strong> Most contracts have no most-favoured-customer clause. A prompt that always answers "not present" scores well on that field and is useless.</li>
+      <li><strong>The wrong scorer is worse than none.</strong> Exact match fails correct answers that were phrased differently. A model acting as judge is lenient, costs a call per row, and its taste becomes the thing you optimize.</li>
+      <li><strong>Long documents.</strong> The clause that matters is on page thirty, and an amendment signed later overrides it.</li>
+      <li><strong>Fields are not equally important.</strong> Getting the auto-renewal notice date wrong costs money. Getting governing law wrong rarely does.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>How to do it</h2>
+    <ol>
+      <li><strong>Write the schema first.</strong> Every field gets a type (date, duration, amount with currency, enumerated value, short text), a normalized form, and an explicit "not present". The schema is the contract between the prompt and everything downstream.</li>
+      <li><strong>Label from records you already keep,</strong> such as the contract-management system or the renewal calendar, and spot-check a sample against the documents.</li>
+      <li><strong>Score each field on its own terms.</strong> Equality on normalized dates and enumerations, a numeric tolerance on amounts, word-overlap F1 on short text. Keep each field as its own metric so you can see which one a rewrite broke.</li>
+      <li><strong>Weight fields by what they drive,</strong> and score precision and recall separately on "present". That keeps "always say missing" from looking good.</li>
+      <li><strong>Hold out by counterparty or template.</strong> Contracts from one paper template are near-duplicates. If they sit on both sides of the split, the score is flattering.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Pitfalls worth checking first</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Pitfall</th><th>What it looks like</th><th>How to check, before spending anything</th></tr>
+      <tr><td><strong>"Not present" wins</strong></td><td>High field accuracy, low recall on clauses that exist</td><td>Score recall on present clauses separately, per field.</td></tr>
+      <tr><td><strong>Template duplicates</strong></td><td>Great hold-out score, poor on new counterparties</td><td>Split by template or counterparty, not by document.</td></tr>
+      <tr><td><strong>Amendments</strong></td><td>The base agreement's term is extracted, the amendment's is not</td><td>Include amendments with the base document, and label the term in force.</td></tr>
+      <tr><td><strong>Unnormalized labels</strong></td><td>Correct answers scored as wrong</td><td>Normalize labels and outputs the same way before comparing.</td></tr>
+      <tr><td><strong>Judge drift</strong></td><td>Scores rise, answers do not get better</td><td>Prefer deterministic scorers wherever the field allows one.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>References</h2>
+    <ul>
+      <li><a href="https://scikit-learn.org/stable/modules/model_evaluation.html" target="_blank" rel="noopener">scikit-learn, <em>Metrics and scoring</em>: balanced accuracy, per-class precision and recall</a></li>
+      <li><a href="https://doi.org/10.1145/2382577.2382579" target="_blank" rel="noopener">Kaufman, Rosset, Perlich and Stitelman, <em>Leakage in Data Mining: Formulation, Detection, and Avoidance</em>, ACM TKDD, 2012</a></li>
+      <li><a href="https://arxiv.org/abs/2310.03714" target="_blank" rel="noopener">Khattab et al., <em>DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines</em>, 2023</a></li>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">Agrawal et al., <em>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</em>, 2025</a></li>
+      <li><a href="/how-it-works">Quante Carlo, <em>How prompt optimization works</em>: reflection, the gate, the hold-out</a></li>
+    </ul>
+    <p class="m">Tools that run this loop: <a href="https://dspy.ai/" target="_blank" rel="noopener">DSPy</a> and its GEPA optimizer, <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> (ours, open source), and <a href="https://impromptune.com/">Impromptune</a>, the studio built on it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

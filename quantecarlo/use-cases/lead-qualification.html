@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to qualify inbound leads with an LLM — Quante Carlo</title>
+<meta name="description" content="Why hand-written lead qualification prompts misroute, and how to build one from your own dispositions: frozen enrichment, no leakage, the right metric, and rules the optimizer actually edits.">
+<link rel="canonical" href="https://quantecarlo.com/use-cases/lead-qualification">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How to qualify inbound leads with an LLM — Quante Carlo">
+<meta property="og:description" content="Why hand-written lead qualification prompts misroute, and how to build one from your own dispositions: frozen enrichment, no leakage, the right metric, and rules the optimizer actually edits.">
+<meta property="og:url" content="https://quantecarlo.com/use-cases/lead-qualification">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to qualify inbound leads with an LLM — Quante Carlo">
+<meta name="twitter:description" content="Why hand-written lead qualification prompts misroute, and how to build one from your own dispositions: frozen enrichment, no leakage, the right metric, and rules the optimizer actually edits.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to qualify inbound leads with an LLM", "datePublished": "2026-09-26", "url": "https://quantecarlo.com/use-cases/lead-qualification", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/use-cases/">Use cases</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="m"><a href="/use-cases/">Use cases</a></p>
+    <h1>How to <em>qualify inbound leads</em> with an LLM</h1>
+    <p class="lead">Most qualification prompts are the RevOps checklist written out in prose. They read well and route badly, because nobody ever tested the checklist against the leads your SDRs actually accepted.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The pain points</h2>
+    <ul>
+      <li><strong>Your ICP is a soft score, but you wrote it as hard rules.</strong> "50 to 5,000 employees, SaaS or fintech, on Salesforce or HubSpot, manager or above" reads to a model as a checklist. One model applies every box and rejects good fits that miss one. Another reads the same sentence loosely and lets everyone through. Same words, opposite behaviour.</li>
+      <li><strong>Intent lives in the free text.</strong> Firmographics tell you whether a company could buy. Whether it is buying now is in what the person wrote: a named competitor, a budget, a quarter. A prompt that treats an empty message as "no intent" throws away every demo request with a blank box.</li>
+      <li><strong>Your labels disagree where it matters most.</strong> Two SDRs rarely argue about a student or a competitor. They argue about "good fit, buying now" versus "good fit, not yet", which is exactly the call you want the model to make.</li>
+      <li><strong>Your history only covers the leads someone chose to work.</strong> If a router already filtered the queue, the labelled rows are the ones it liked. A prompt tuned on them is tuned on the wrong population.</li>
+      <li><strong>The data changes after the decision.</strong> Firmographics re-fetched today know which accounts grew, raised and bought. They are not what the SDR saw.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>How to do it</h2>
+    <ol>
+      <li><strong>Build the dataset from dispositions, as of routing time.</strong> Store the enrichment snapshot with the lead when it arrives, and train on that snapshot. In production, fetch it live. The model should only ever see what it will see when it is actually routing.</li>
+      <li><strong>Drop anything written after the decision.</strong> Note length, call counts, stage changes, owner. They predict the label very well because the person who assigned the label wrote them.</li>
+      <li><strong>Pick a metric that prices the mistakes the way you do.</strong> Rejecting on fit is usually the biggest class, so plain accuracy rewards a prompt that rejects nearly everyone. Missing a real buyer costs far more than an SDR spending five minutes on a lead that isn't buying. Score balanced accuracy (the mean of per-class recall), or weight each class by what a miss costs you.</li>
+      <li><strong>Hold rows out and read the per-class table.</strong> An aggregate that improved because the prompt now rejects more leads is not an improvement. The hold-out is the number; the per-class table says what moved it.</li>
+      <li><strong>Let an optimizer rewrite the rules, and read the diff.</strong> If your prompt applies its rules in order and the first match wins, a rewrite that appends advice underneath cannot override the rule that is misfiring. The useful change edits that rule: raise the headcount floor, name the industries that are out, count the whole revenue stack instead of the CRM alone.</li>
+      <li><strong>Measure your label noise first.</strong> Have two people label the same sample and compute agreement. No prompt beats the rate at which your own team agrees with itself, so that rate is your ceiling.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Pitfalls worth checking first</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Pitfall</th><th>What it looks like</th><th>How to check, before spending anything</th></tr>
+      <tr><td><strong>Leakage</strong></td><td>One column predicts the label far better than anything else</td><td>Was it written before the decision? If not, drop it.</td></tr>
+      <tr><td><strong>Live re-fetch</strong></td><td>The prompt scores better on refreshed enrichment than on the snapshot</td><td>Score both versions of the same rows. The gap is how much the refresh knows about the outcome.</td></tr>
+      <tr><td><strong>Selection bias</strong></td><td>Labelled rows skew toward demo requests and senior titles</td><td>Keep a small random slice of unrouted leads labelled, and weight rows by how likely they were to be labelled.</td></tr>
+      <tr><td><strong>Redundant columns</strong></td><td>Company and email domain always agree</td><td>Check whether one column determines another. Keep one.</td></tr>
+      <tr><td><strong>The wrong metric</strong></td><td>Accuracy rises while recall of real buyers falls</td><td>Put balanced accuracy or a cost-weighted score in the objective, and read the per-class table.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>References</h2>
+    <ul>
+      <li><a href="https://doi.org/10.2307/1912352" target="_blank" rel="noopener">Heckman, <em>Sample Selection Bias as a Specification Error</em>, Econometrica, 1979</a></li>
+      <li><a href="https://doi.org/10.1145/2382577.2382579" target="_blank" rel="noopener">Kaufman, Rosset, Perlich and Stitelman, <em>Leakage in Data Mining: Formulation, Detection, and Avoidance</em>, ACM TKDD, 2012</a></li>
+      <li><a href="https://scikit-learn.org/stable/modules/model_evaluation.html" target="_blank" rel="noopener">scikit-learn, <em>Metrics and scoring</em>: balanced accuracy, per-class precision and recall</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Cohen%27s_kappa" target="_blank" rel="noopener"><em>Cohen's kappa</em>, Wikipedia</a></li>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">Agrawal et al., <em>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</em>, 2025</a></li>
+      <li><a href="/how-it-works">Quante Carlo, <em>How prompt optimization works</em>: reflection, the gate, the hold-out</a></li>
+    </ul>
+    <p class="m">Tools that run this loop: <a href="https://dspy.ai/" target="_blank" rel="noopener">DSPy</a> and its GEPA optimizer, <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> (ours, open source), and <a href="https://impromptune.com/">Impromptune</a>, the studio built on it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

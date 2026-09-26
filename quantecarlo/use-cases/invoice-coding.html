@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to code accounts payable invoices to the general ledger with an LLM — Quante Carlo</title>
+<meta name="description" content="GL coding is classification with hundreds of classes, a long tail, and labels that depend on your chart of accounts and vendor history. How to give the prompt the right slice of context, score it at two levels, and keep it right when the chart changes.">
+<link rel="canonical" href="https://quantecarlo.com/use-cases/invoice-coding">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How to code accounts payable invoices to the general ledger with an LLM — Quante Carlo">
+<meta property="og:description" content="GL coding is classification with hundreds of classes, a long tail, and labels that depend on your chart of accounts and vendor history. How to give the prompt the right slice of context, score it at two levels, and keep it right when the chart changes.">
+<meta property="og:url" content="https://quantecarlo.com/use-cases/invoice-coding">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to code accounts payable invoices to the general ledger with an LLM — Quante Carlo">
+<meta name="twitter:description" content="GL coding is classification with hundreds of classes, a long tail, and labels that depend on your chart of accounts and vendor history. How to give the prompt the right slice of context, score it at two levels, and keep it right when the chart changes.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to code accounts payable invoices to the general ledger with an LLM", "datePublished": "2026-09-26", "url": "https://quantecarlo.com/use-cases/invoice-coding", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/use-cases/">Use cases</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="m"><a href="/use-cases/">Use cases</a></p>
+    <h1>How to <em>code invoices</em> to the general ledger</h1>
+    <p class="lead">GL coding looks like reading an invoice. It is really classification with hundreds of classes, a long tail, and a right answer that depends on your chart of accounts and your vendor history more than on the invoice text.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The pain points</h2>
+    <ul>
+      <li><strong>The chart of accounts is yours.</strong> A model knows what "software" is. It does not know that your subscriptions go to one account, implementation services to another, and anything over your capitalization threshold to the balance sheet.</li>
+      <li><strong>Same vendor, different accounts.</strong> One supplier sends a subscription renewal, a training invoice and a hardware order in the same month. Vendor-to-account lookups get most of them and fail on exactly the lines that need judgment.</li>
+      <li><strong>Your history is inconsistent.</strong> Different clerks coded the same kind of line differently, and a mid-year chart restructure changed what "correct" means.</li>
+      <li><strong>Not all mistakes are equal.</strong> Two neighbouring expense accounts is an annoyance. Expense versus asset changes the P&amp;L, and someone will find it at close.</li>
+      <li><strong>The long tail.</strong> A handful of accounts cover most lines. The rest appear a few times a year, and that is where the errors live.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>How to do it</h2>
+    <ol>
+      <li><strong>Train on posted, approved entries,</strong> with the chart as it stood on the posting date. Coding that a reviewer corrected is the label; the original clerk's guess is not.</li>
+      <li><strong>Give the prompt the relevant slice of the chart, not all of it.</strong> A lookup step can fetch this vendor's recent coding and the handful of candidate accounts for the line's category, frozen onto each row. The prompt then chooses among a short list, with definitions, rather than recalling the whole chart.</li>
+      <li><strong>Score at two levels.</strong> Exact match on the account, and match on the account group (expense versus asset versus liability) as a second metric. Weight the second heavily. A prompt that is often off by one expense line but never crosses the balance sheet is one your controller can live with.</li>
+      <li><strong>Hold out by time.</strong> Keep the most recent months out of the search, so the score says how the prompt does on invoices it has not seen, under the chart as it is now.</li>
+      <li><strong>Route what the prompt is unsure of.</strong> Ask for the account and a short reason, send low-agreement lines to a person, and record their corrections. Those become the next dataset.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Pitfalls worth checking first</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Pitfall</th><th>What it looks like</th><th>How to check, before spending anything</th></tr>
+      <tr><td><strong>Chart changes</strong></td><td>Old rows coded to accounts that no longer exist</td><td>Map or drop rows from before a restructure.</td></tr>
+      <tr><td><strong>Leakage</strong></td><td>Approver comments or posting batch predict the account</td><td>Keep only what exists when the invoice arrives: the invoice, the PO, the vendor record.</td></tr>
+      <tr><td><strong>Vendor memorization</strong></td><td>Great on known vendors, poor on new ones</td><td>Hold some vendors out entirely and score them separately.</td></tr>
+      <tr><td><strong>Flat accuracy</strong></td><td>Frequent accounts dominate the score</td><td>Read the per-account table; score the account group as well as the account.</td></tr>
+      <tr><td><strong>Line versus invoice</strong></td><td>One invoice, three correct accounts</td><td>Label and score per line, not per invoice.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>References</h2>
+    <ul>
+      <li><a href="https://en.wikipedia.org/wiki/Chart_of_accounts" target="_blank" rel="noopener"><em>Chart of accounts</em>, Wikipedia</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Three-way_match" target="_blank" rel="noopener"><em>Three-way match</em>, Wikipedia</a></li>
+      <li><a href="https://doi.org/10.1145/2382577.2382579" target="_blank" rel="noopener">Kaufman, Rosset, Perlich and Stitelman, <em>Leakage in Data Mining: Formulation, Detection, and Avoidance</em>, ACM TKDD, 2012</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" rel="noopener"><em>Confusion matrix</em>, Wikipedia</a></li>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">Agrawal et al., <em>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</em>, 2025</a></li>
+      <li><a href="/how-it-works">Quante Carlo, <em>How prompt optimization works</em>: reflection, the gate, the hold-out</a></li>
+    </ul>
+    <p class="m">Tools that run this loop: <a href="https://dspy.ai/" target="_blank" rel="noopener">DSPy</a> and its GEPA optimizer, <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> (ours, open source), and <a href="https://impromptune.com/">Impromptune</a>, the studio built on it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

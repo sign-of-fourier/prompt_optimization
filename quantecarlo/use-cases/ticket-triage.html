@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to triage and escalate support tickets with an LLM — Quante Carlo</title>
+<meta name="description" content="Why a support-ticket triage prompt that works in the demo fails in production: account context, rare escalations, changing queues. How to build it as a program with an external lookup, and keep it improving from reassignments.">
+<link rel="canonical" href="https://quantecarlo.com/use-cases/ticket-triage">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How to triage and escalate support tickets with an LLM — Quante Carlo">
+<meta property="og:description" content="Why a support-ticket triage prompt that works in the demo fails in production: account context, rare escalations, changing queues. How to build it as a program with an external lookup, and keep it improving from reassignments.">
+<meta property="og:url" content="https://quantecarlo.com/use-cases/ticket-triage">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to triage and escalate support tickets with an LLM — Quante Carlo">
+<meta name="twitter:description" content="Why a support-ticket triage prompt that works in the demo fails in production: account context, rare escalations, changing queues. How to build it as a program with an external lookup, and keep it improving from reassignments.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to triage and escalate support tickets with an LLM", "datePublished": "2026-09-26", "url": "https://quantecarlo.com/use-cases/ticket-triage", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/use-cases/">Use cases</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="m"><a href="/use-cases/">Use cases</a></p>
+    <h1>How to <em>triage and escalate</em> support tickets</h1>
+    <p class="lead">A triage prompt that works in the demo breaks in production for two reasons. The right queue often depends on who is asking, not what they wrote. And the queues themselves keep changing.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The pain points</h2>
+    <ul>
+      <li><strong>The message is not enough.</strong> "My invoice is wrong" is billing for one customer and a retention case for another whose contract renews next month. The deciding facts live in your CRM: plan, open tickets, renewal date. A prompt that never sees them has a ceiling that no rewording can lift.</li>
+      <li><strong>Escalations are rare and expensive.</strong> A prompt can be right on almost every ticket and still miss the few that needed a senior engineer today. Aggregate accuracy hides that completely.</li>
+      <li><strong>The first queue is not the right queue.</strong> Tickets get reassigned. If you train on the queue a ticket first landed in, you train on the old router's mistakes.</li>
+      <li><strong>Two prompts, one score.</strong> Summarize-then-route is a sensible design. But when the route is wrong, was the summary missing the detail, or did the router misread it?</li>
+      <li><strong>The taxonomy churns.</strong> Queues get split, merged and renamed. Labels from last quarter disagree with today's org chart.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>How to do it</h2>
+    <ol>
+      <li><strong>Label from the final queue, after reassignment,</strong> and date every row. The reassignment history is also free training data: every move is a correction someone made by hand.</li>
+      <li><strong>Fetch account context as an external lookup, and freeze it.</strong> Look up plan, entitlement and open tickets once, when the row is captured, and store the answers with the row. Train on those stored values; call the lookup live in production. A ticket was an escalation because of what was true that day, not what is true when you re-run the evaluation.</li>
+      <li><strong>Treat the pipeline as a program and optimize one prompt at a time.</strong> Rewrite the summarizer or the router in a given round, never both, so that when the score moves you know which change moved it.</li>
+      <li><strong>Score escalation separately.</strong> Exact match on the queue, plus recall on the escalation class as its own metric in the objective, weighted by what a missed escalation costs.</li>
+      <li><strong>Ship a version, then close the loop.</strong> Serve a fixed version of the prompts, log every request, and record reassignments as outcomes. Those corrections are next month's dataset.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Pitfalls worth checking first</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Pitfall</th><th>What it looks like</th><th>How to check, before spending anything</th></tr>
+      <tr><td><strong>First-queue labels</strong></td><td>The prompt learns the old router's habits</td><td>Compare first and final queue on a sample. If they differ often, label from the final queue.</td></tr>
+      <tr><td><strong>Time travel</strong></td><td>Account data fetched at evaluation time, not ticket time</td><td>Freeze the lookup onto the row when the ticket arrives.</td></tr>
+      <tr><td><strong>Rare escalations</strong></td><td>Accuracy is high, escalations are missed</td><td>Read escalation recall on its own. Put it in the objective.</td></tr>
+      <tr><td><strong>Renamed queues</strong></td><td>Old and new labels for the same work</td><td>Map old queue names to current ones before training, or drop rows from before the change.</td></tr>
+      <tr><td><strong>Unused context</strong></td><td>The lookup returns five fields and the prompt uses two</td><td>Check which fields actually change the answer. Stop pasting the rest into every call.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>References</h2>
+    <ul>
+      <li><a href="https://papers.nips.cc/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html" target="_blank" rel="noopener">Sculley et al., <em>Hidden Technical Debt in Machine Learning Systems</em>, NeurIPS 2015</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" rel="noopener"><em>Confusion matrix</em>, Wikipedia</a></li>
+      <li><a href="https://scikit-learn.org/stable/modules/model_evaluation.html" target="_blank" rel="noopener">scikit-learn, <em>Metrics and scoring</em>: balanced accuracy, per-class precision and recall</a></li>
+      <li><a href="https://arxiv.org/abs/2310.03714" target="_blank" rel="noopener">Khattab et al., <em>DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines</em>, 2023</a></li>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">Agrawal et al., <em>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</em>, 2025</a></li>
+      <li><a href="/how-it-works">Quante Carlo, <em>How prompt optimization works</em>: reflection, the gate, the hold-out</a></li>
+    </ul>
+    <p class="m">Tools that run this loop: <a href="https://dspy.ai/" target="_blank" rel="noopener">DSPy</a> and its GEPA optimizer, <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> (ours, open source), and <a href="https://impromptune.com/">Impromptune</a>, the studio built on it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

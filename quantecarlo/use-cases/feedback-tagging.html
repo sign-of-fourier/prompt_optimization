@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to tag customer feedback against your own taxonomy with an LLM — Quante Carlo</title>
+<meta name="description" content="Off-the-shelf topic and sentiment tags are someone else&#x27;s categories. How to turn your taxonomy into a prompt, measure how much your own team agrees, score every tag so rare ones count, and keep up when the taxonomy changes.">
+<link rel="canonical" href="https://quantecarlo.com/use-cases/feedback-tagging">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="How to tag customer feedback against your own taxonomy with an LLM — Quante Carlo">
+<meta property="og:description" content="Off-the-shelf topic and sentiment tags are someone else&#x27;s categories. How to turn your taxonomy into a prompt, measure how much your own team agrees, score every tag so rare ones count, and keep up when the taxonomy changes.">
+<meta property="og:url" content="https://quantecarlo.com/use-cases/feedback-tagging">
+<meta property="og:image" content="https://quantecarlo.com/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to tag customer feedback against your own taxonomy with an LLM — Quante Carlo">
+<meta name="twitter:description" content="Off-the-shelf topic and sentiment tags are someone else&#x27;s categories. How to turn your taxonomy into a prompt, measure how much your own team agrees, score every tag so rare ones count, and keep up when the taxonomy changes.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/og.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "How to tag customer feedback against your own taxonomy with an LLM", "datePublished": "2026-09-26", "url": "https://quantecarlo.com/use-cases/feedback-tagging", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a class="active" href="/use-cases/">Use cases</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="m"><a href="/use-cases/">Use cases</a></p>
+    <h1>How to <em>tag customer feedback</em> against your own taxonomy</h1>
+    <p class="lead">Off-the-shelf topic and sentiment models tag feedback in someone else's categories. The useful tags are yours, and they change every time the product does.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>The pain points</h2>
+    <ul>
+      <li><strong>The taxonomy is custom and it overlaps.</strong> "Onboarding", "setup" and "first-week experience" are three tags because three teams asked for them. A model cannot guess where one ends and the next begins.</li>
+      <li><strong>One comment, several tags.</strong> "Pricing is fine, but the import kept failing" is about pricing and about data import. Forcing one tag loses one of the signals.</li>
+      <li><strong>The rare tags are the important ones.</strong> Security concerns and churn threats are a small share of comments and most of their value. A tagger tuned on overall accuracy learns to ignore them.</li>
+      <li><strong>People disagree.</strong> Two analysts tagging the same comments disagree more often than anyone expects. The model is being graded against that disagreement.</li>
+      <li><strong>The taxonomy moves.</strong> A new feature ships and a new tag appears. Last quarter's labels do not know about it.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>How to do it</h2>
+    <ol>
+      <li><strong>Write each tag as a definition with boundary examples</strong>: one clear case, one near-miss that belongs to a neighbour tag. That document is the first draft of the prompt.</li>
+      <li><strong>Double-label a sample and measure agreement per tag.</strong> A tag your analysts cannot agree on needs a better definition before it needs a model. Fix the definitions first; it is the cheapest improvement you will make.</li>
+      <li><strong>Output a list, score every tag.</strong> Precision and recall per tag, macro-averaged so a rare tag counts as much as a common one. Put that average in the objective, not exact match on the whole list.</li>
+      <li><strong>Optimize, then read the per-tag table and the diff.</strong> The useful rewrites sharpen the definition of a tag that was being confused with a neighbour. Check that is what changed.</li>
+      <li><strong>Version the taxonomy with the prompt.</strong> When a tag is added or split, relabel a sample under the new definitions and re-run against that, instead of mixing old and new labels.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>Pitfalls worth checking first</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Pitfall</th><th>What it looks like</th><th>How to check, before spending anything</th></tr>
+      <tr><td><strong>Frequent tags dominate</strong></td><td>Overall scores rise while rare tags go unfound</td><td>Macro-average per-tag recall; read the rare tags on their own.</td></tr>
+      <tr><td><strong>Agreement ceiling</strong></td><td>Scores plateau well short of perfect</td><td>Compare against how often your analysts agree. That is roughly the ceiling.</td></tr>
+      <tr><td><strong>"Other" as a crutch</strong></td><td>A growing share lands in a catch-all tag</td><td>Read a sample of "other". It is usually a missing tag or a vague definition.</td></tr>
+      <tr><td><strong>Mixed taxonomies</strong></td><td>The same comment carries old and new tags</td><td>Relabel under one version of the taxonomy before scoring.</td></tr>
+      <tr><td><strong>Sentiment bleed</strong></td><td>Negative comments get tagged as problems</td><td>Keep sentiment a separate field from topic.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap prose">
+    <h2>References</h2>
+    <ul>
+      <li><a href="https://en.wikipedia.org/wiki/Cohen%27s_kappa" target="_blank" rel="noopener"><em>Cohen's kappa</em>, Wikipedia</a></li>
+      <li><a href="https://scikit-learn.org/stable/modules/model_evaluation.html" target="_blank" rel="noopener">scikit-learn, <em>Metrics and scoring</em>: balanced accuracy, per-class precision and recall</a></li>
+      <li><a href="https://en.wikipedia.org/wiki/Confusion_matrix" target="_blank" rel="noopener"><em>Confusion matrix</em>, Wikipedia</a></li>
+      <li><a href="https://arxiv.org/abs/2507.19457" target="_blank" rel="noopener">Agrawal et al., <em>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</em>, 2025</a></li>
+      <li><a href="/how-it-works">Quante Carlo, <em>How prompt optimization works</em>: reflection, the gate, the hold-out</a></li>
+    </ul>
+    <p class="m">Tools that run this loop: <a href="https://dspy.ai/" target="_blank" rel="noopener">DSPy</a> and its GEPA optimizer, <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a> (ours, open source), and <a href="https://impromptune.com/">Impromptune</a>, the studio built on it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

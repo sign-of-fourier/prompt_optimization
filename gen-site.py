@@ -17,7 +17,11 @@ SITES = {
                               ("docs/keys.html", "/docs/keys", 0.7), ("docs/glossary.html", "/docs/glossary", 0.7)]},
     "quantecarlo": {"base": "https://quantecarlo.com", "title": "Quante Carlo",
                     "pages": [("index.html", "/", 1.0), ("how-it-works.html", "/how-it-works", 0.9), ("prompt-optimization.html", "/prompt-optimization", 0.9),
-                              ("findings.html", "/findings", 0.8), ("about.html", "/about", 0.8), ("claude-code.html", "/claude-code", 0.6), ("contact.html", "/contact", 0.4)]},
+                              ("findings.html", "/findings", 0.8),
+                              ("use-cases/index.html", "/use-cases/", 0.8), ("use-cases/lead-qualification.html", "/use-cases/lead-qualification", 0.7),
+                              ("use-cases/ticket-triage.html", "/use-cases/ticket-triage", 0.7), ("use-cases/invoice-coding.html", "/use-cases/invoice-coding", 0.7),
+                              ("use-cases/contract-terms.html", "/use-cases/contract-terms", 0.7), ("use-cases/feedback-tagging.html", "/use-cases/feedback-tagging", 0.7),
+                              ("about.html", "/about", 0.8), ("claude-code.html", "/claude-code", 0.6), ("contact.html", "/contact", 0.4)]},
 }
 
 
