@@ -219,6 +219,7 @@ def check_labels(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[
             rep.add("warn", "scorer", f"the terminal module returns structured fields but the scorer compares the whole output; pick a field (e.g. {spec.module(_terminal(spec)).schema_fields[0].name!r})")
     for k in spec.evaluate.objective:
         known = {S.DEFAULT_NAMES[s.type] if not s.name else s.name for s in spec.evaluate.scorers} | {"prompt_tokens", "output_tokens", "template_tokens", "steps", "capped"}
+        known |= {(s.name or S.DEFAULT_NAMES[s.type]) + "_balanced" for s in spec.evaluate.scorers if s.type == "exact_match" and s.balanced}
         if k not in known and not k.startswith(("tokens_per_module.", "parse_fail.")):
             rep.add("error", "scorer", f"objective weighs metric {k!r} which no scorer produces (available: {sorted(known)})")
     if spec.optimizer.goal == "compress":

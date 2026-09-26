@@ -268,3 +268,7 @@ def test_balanced_scorer_through_build_task():
     m = tree.root.evaluation.metrics
     # twelve distinct labels: every weight is 1, so balanced equals plain accuracy
     assert m["accuracy_balanced"] == pytest.approx(m["accuracy"]) and m["accuracy"] == 1.0
+    # the validator knows the balanced metric exists, and only when the scorer asks for it
+    assert not [i for i in validate_static(s, ROWS, INPUT_MAP).issues if "no scorer produces" in i.message]
+    off = spec(evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer")], objective={"accuracy_balanced": 1.0}))
+    assert [i for i in validate_static(off, ROWS, INPUT_MAP).issues if "no scorer produces" in i.message]
