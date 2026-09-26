@@ -3,6 +3,7 @@ import { api } from './api.js'
 import { API } from './brand.js'
 import { placeholders } from './Canvas.jsx'
 import Hint from './Hint.jsx'
+import Documents from './Documents.jsx'
 
 export default function DataPanel({ pid, spec, update, datasets, reload, mock, features = {} }) {
   const [did, setDid] = useState(datasets[0] && datasets[0].id)
@@ -92,6 +93,7 @@ export default function DataPanel({ pid, spec, update, datasets, reload, mock, f
             : <div className="muted">Upload a file to see it here.</div>}
         </div>
       </div>
+      {features.v0 && <Documents />}
       {report && <Report report={report} />}
       {pilot && <Pilot pilot={pilot} cost={cost} spec={spec} />}
     </div>

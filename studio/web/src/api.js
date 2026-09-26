@@ -25,4 +25,5 @@ export const api = {
   put: (p, b) => req('PUT', p, b),
   del: p => req('DELETE', p),
   upload: (p, file) => { const f = new FormData(); f.append('file', file); return req('POST', p, f, true) },
+  uploadMany: (p, files) => { const f = new FormData(); files.forEach(x => f.append('files', x)); return req('POST', p, f, true) },
 }

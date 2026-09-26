@@ -220,9 +220,13 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
     api.get('/step-credentials').then(setCreds).catch(() => {})
     api.get('/connections').then(d => setConns(d.connections)).catch(() => {})
   }
+  const [sets, setSets] = useState([])
   useEffect(() => { loadCreds(); const t = setInterval(loadCreds, 4000); return () => clearInterval(t) }, [])
+  useEffect(() => { api.get('/corpora').then(r => setSets(r.corpora)).catch(() => {}) }, [id])
   if (!st) return null
   const man = manifests.find(m => m.ref === st.manifest) || manifests.find(m => m.id === st.manifest.split('@')[0])
+  const local = man && man.kind === 'local'
+  const tune = patch => set({ tunables: { ...st.tunables, ...patch } })
   const cols = (datasets[0] && datasets[0].columns) || []
   const set = patch => update(s => ({ ...s, steps: s.steps.map(x => x.id === id ? { ...x, ...patch } : x) }))
   const oauth = man && man.provider
@@ -247,8 +251,12 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
   return (
     <div>
       <div className="row"><h3 className="grow" style={{ margin: 0 }}>Step · {st.id}<Hint id="step" /></h3><button className="small" onClick={onClose}>×</button></div>
-      <div className="help">Not part of the program: the optimizer never rewrites it. It runs once per row before
-        the prompts, and its answers are frozen onto the dataset — production calls it live instead.</div>
+      {local
+        ? <div className="help">Not part of the program: the optimizer never rewrites it. For each row it searches your
+            documents for the passages closest to the question, before the prompts run. Those passages are frozen onto
+            the dataset for training; production searches live.</div>
+        : <div className="help">Not part of the program: the optimizer never rewrites it. It runs once per row before
+            the prompts, and its answers are frozen onto the dataset — production calls it live instead.</div>}
 
       <label>Manifest</label>
       <select value={st.manifest} onChange={e => set({ manifest: e.target.value, manifest_sha: '' })}>
@@ -269,7 +277,21 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
       <div className="help">Paste one of these into a prompt to use it. Fields no prompt mentions are still fetched
         and still cost — the optimizer will happily drop the ones that do not change the answer.</div>
 
-      {oauth ? <>
+      {local ? <>
+        <label>Document set</label>
+        <select value={st.tunables.corpus || ''} onChange={e => tune({ corpus: e.target.value || undefined })}>
+          <option value="">— choose —</option>{sets.map(c => <option key={c.id} value={c.id}>{c.name} ({c.n_documents} files, {c.n_chunks} passages)</option>)}</select>
+        <div className="help">{sets.length ? 'Add or browse files under Documents on the Data & validation tab.' : 'No document sets yet: create one under Documents on the Data & validation tab.'}</div>
+        {!spec.modules.some(m => (m.template || '').includes('{' + st.id + '_context}')) && spec.modules.length > 0 && <div className="issue warn" style={{ marginTop: 8 }}>
+          <span className="lvl">note</span><div>No prompt reads the passages yet.
+            <button className="small" style={{ marginLeft: 8 }} onClick={() => {
+              const target = spec.entry || spec.modules[0].id
+              update(s => ({ ...s, modules: s.modules.map(m => m.id === target ? { ...m, template: (m.template || '').replace(/\s*$/, '') + `\n\nRelevant passages from our documents:\n{${st.id}_context}` } : m) }))
+            }}>Add them to “{spec.entry || spec.modules[0].id}”</button></div></div>}
+        <label>Passages per question</label>
+        <input type="number" min={1} max={20} value={st.tunables.k || 4} onChange={e => tune({ k: +e.target.value })} style={{ width: 80 }} />
+        <div className="help">More passages make it likelier the answer is among them, and make every call longer. Not optimized: it is part of the setup.</div>
+      </> : oauth ? <>
         <label>Authorisation</label>
         <div className="help">This step acts on your own {man.provider} account, so it needs your permission rather
           than a key: you approve it on {man.provider}'s consent screen and can revoke it from either side.
@@ -298,8 +320,11 @@ export function StepPanel({ spec, update, id, manifests, datasets, pid, onClose 
       {probe && <div className={'issue ' + (probe.ok ? 'info' : 'error')} style={{ marginTop: 8 }}><span className="lvl">{probe.ok ? 'ok' : 'error'}</span>
         <div>{probe.ok
           ? <>Answered in {Math.round(probe.latency_s * 1000)} ms{probe.found ? '' : ' (no record for that id)'}.
-              <div className="mono" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{JSON.stringify(probe.returned)}</div>
-              <div className="where">unknown id → {probe.missing_behaviour}</div></>
+              {local && probe.returned
+                ? <><div className="where">for “{probe.sent.query}”: {probe.returned.sources}</div>
+                    <div className="mono" style={{ fontSize: 12, whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>{probe.returned.context}</div></>
+                : <div className="mono" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{JSON.stringify(probe.returned)}</div>}
+              {!local && <div className="where">unknown id → {probe.missing_behaviour}</div>}</>
           : probe.error}</div></div>}
       <div className="help" style={{ marginTop: 10 }}>Fetch the data onto a dataset from the <b>Data &amp; validation</b> tab.</div>
     </div>

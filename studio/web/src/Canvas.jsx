@@ -35,7 +35,7 @@ function EvalNode({ data, selected }) {
 function StepNode({ data, selected }) {
   return (
     <div className={'node step' + (selected ? ' selected' : '') + (data.disabled ? ' off' : '')}>
-      <div className="kind">external · not optimized</div>
+      <div className="kind">{data.local ? 'search · not optimized' : 'external · not optimized'}</div>
       <div className="title">{data.id}</div>
       <div className="prev">{data.manifest}{data.disabled ? ' · off' : ''}</div>
       <div className="chips">{(data.outputs || []).map(o => <span className="chip" key={o}>{'{' + o + '}'}</span>)}</div>
@@ -70,7 +70,7 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
     ;(spec.steps || []).forEach((st, i) => {
       const man = manifests.find(m => m.ref === st.manifest || m.id === st.manifest.split('@')[0])
       ns.push({ id: 'step:' + st.id, type: 'step', position: spec.layout['step:' + st.id] || { x: 60 + i * 260, y: -60 },
-        data: { id: st.id, manifest: st.manifest, disabled: !st.enabled, outputs: (man ? man.outputs : []).map(o => st.id + '_' + o) },
+        data: { id: st.id, manifest: st.manifest, disabled: !st.enabled, outputs: (man ? man.outputs : []).map(o => st.id + '_' + o), local: man && man.kind === 'local' },
         selected: sel && sel.type === 'step' && sel.id === st.id })
     })
     return ns
@@ -125,13 +125,16 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
     ev.preventDefault()
     const kind = ev.dataTransfer.getData('kind'); if (!kind) return
     const pos = rf.screenToFlowPosition({ x: ev.clientX, y: ev.clientY })
-    if (kind === 'step') {
-      const man = manifests[0]
+    if (kind === 'step' || kind === 'retrieval') {
+      // "Search documents" is its own palette item: people who need it do not think of it as an external call
+      const man = kind === 'retrieval' ? manifests.find(m => m.id === 'retrieval') : manifests.find(m => m.kind !== 'local') || manifests[0]
       if (!man) return
       update(s => {
-        let id = man.id, n = 1
-        while ((s.steps || []).some(x => x.id === id)) id = `${man.id}${++n}`
-        return { ...s, steps: [...(s.steps || []), { id, manifest: man.ref, manifest_sha: '', inputs: {}, credential_id: null, tunables: {}, enabled: true }],
+        const base = kind === 'retrieval' ? 'docs' : man.id  // prompts then read {docs_context}
+        let id = base, n = 1
+        while ((s.steps || []).some(x => x.id === id)) id = `${base}${++n}`
+        const inputs = kind === 'retrieval' ? { query: s.modules.flatMap(m => placeholders(m.template)).find(p => /question|query|message/.test(p)) || '' } : {}
+        return { ...s, steps: [...(s.steps || []), { id, manifest: man.ref, manifest_sha: '', inputs, credential_id: null, tunables: {}, enabled: true }],
                  layout: { ...s.layout, ['step:' + id]: pos } }
       })
       return
@@ -159,6 +162,7 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
         <div className="pal" data-tut="palette-module" draggable onDragStart={e => e.dataTransfer.setData('kind', 'module')}><b>Prompt</b><small>one prompt the optimizer rewrites</small></div>
         <div className="pal" data-tut="palette-orchestrate" draggable onDragStart={e => e.dataTransfer.setData('kind', 'orchestrate')}><b>Router</b><small>a prompt that picks which edge to take</small></div>
         {features.v0 && manifests.length > 0 && <div className="pal" draggable onDragStart={e => e.dataTransfer.setData('kind', 'step')}><b>Step</b><small>an external call — fetches data, never rewritten</small></div>}
+        {features.v0 && manifests.some(m => m.id === 'retrieval') && <div className="pal" draggable onDragStart={e => e.dataTransfer.setData('kind', 'retrieval')}><b>Search documents</b><small>finds passages in your documents for each question</small></div>}
         <div className="help" style={{ marginTop: 10 }}>Drag onto the canvas. Connect prompts by dragging from a right handle to a left handle. A prompt with two or more outgoing edges is a <b>router</b>: the model returns <code>next</code> to pick the edge.</div>
         <div className="help">A prompt with no outgoing edge feeds <b>Evaluate</b>. Click it to choose the scorer.</div>
         <div className="help">The search loop is fixed; its knobs are under <b>Optimizer ⚙</b>.</div>
