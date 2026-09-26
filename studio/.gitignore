@@ -4,3 +4,6 @@ __pycache__/
 *.egg-info/
 web/node_modules/
 web/dist/
+bench/data/
+bench/out/
+bench/*.log
