@@ -1,0 +1,21 @@
+{
+  "step": 1,
+  "id": "retrieval",
+  "version": "1.0.0",
+  "name": "Search your documents",
+  "blurb": "Finds the passages in your documents that best match a question and hands them to your prompt as context.",
+  "transport": {"kind": "local"},
+  "inputs": [
+    {"name": "query", "type": "string", "required": true, "description": "the text to search for, usually the customer's question"}
+  ],
+  "outputs": [
+    {"name": "context", "type": "string", "description": "the best-matching passages, each labelled with its document and section"},
+    {"name": "sources", "type": "string", "record_only": true, "description": "which document and section each passage came from, best first"}
+  ],
+  "cacheable": true,
+  "cache_key": ["query"],
+  "tunables": [
+    {"name": "corpus", "type": "string", "required": true, "description": "a document set"},
+    {"name": "k", "type": "number", "description": "how many passages to hand the prompt (default 4)"}
+  ]
+}

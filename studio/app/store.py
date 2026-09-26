@@ -34,9 +34,24 @@ create table if not exists connections (id text primary key, user_id text not nu
 create index if not exists connections_user on connections (user_id, provider);
 create table if not exists oauth_states (state text primary key, user_id text not null, provider text not null,
     redirect text, created real not null);
+create table if not exists corpora (id text primary key, user_id text not null, name text not null, created real not null,
+    updated real not null);
+create index if not exists corpora_user on corpora (user_id, created);
+create table if not exists corpus_documents (id text primary key, corpus_id text not null, user_id text not null, name text not null,
+    sha256 text not null, bytes integer not null, n_chunks integer not null, chunker text not null, blob text not null,
+    created real not null);
+create index if not exists corpus_documents_corpus on corpus_documents (corpus_id, created);
+create table if not exists corpus_chunks (id text primary key, document_id text not null, corpus_id text not null, ord integer not null,
+    heading text not null, text text not null, tokens integer not null);
+create index if not exists corpus_chunks_document on corpus_chunks (document_id, ord);
+create index if not exists corpus_chunks_corpus on corpus_chunks (corpus_id);
+create table if not exists corpus_vectors (document_id text not null, corpus_id text not null, model text not null, dims integer not null,
+    blob text not null, created real not null, primary key (document_id, model));
 """
 # `create table if not exists` cannot add a column to a table that already exists on a running box.
-MIGRATIONS = ["alter table traces add column steps text"]
+MIGRATIONS = ["alter table traces add column steps text",
+              # a replaced document a published version still searches: kept for that version, gone from the set
+              "alter table corpus_documents add column retired real"]
 JSON_COLS = {"spec", "source", "metrics", "holdout", "inputs", "parsed", "path", "steps"}
 
 
@@ -278,3 +293,171 @@ def take_state(con, state: str) -> dict | None:
     if not r or db.now() - r["created"] > STATE_TTL:
         return None
     return dict(r)
+
+
+# ---- corpora (retrieval documents) -------------------------------------------------------
+# A corpus is a named, user-owned set of documents; a document never changes once added (re-uploading a changed file
+# adds a new document and removes the old one), so a version can pin a corpus by the document ids it held. Chunk text
+# lives here because the document browser and retrieval both read it; the original file is a blob addressed by
+# `blob_path`, never by a path a caller builds. Vectors are one float32 blob per (document, embed model), rows in
+# chunk order, so mock and live vectors of the same document coexist.
+
+BLOBS = db.DATA_DIR / "blobs"
+
+
+def blob_path(key: str):
+    """The one place a blob key becomes a file. S3 replaces this function, not its callers."""
+    if not key or ".." in key or key.startswith("/"):
+        raise ValueError(f"bad blob key {key!r}")
+    p = BLOBS / key
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def create_corpus(con, *, user_id: str, name: str) -> dict:
+    cid = db.new_id()
+    con.execute("insert into corpora values (?,?,?,?,?)", (cid, user_id, name, db.now(), db.now()))
+    con.commit()
+    return get_corpus(con, cid, user_id)
+
+
+def get_corpus(con, cid: str, user_id: str) -> dict | None:
+    r = con.execute("select c.*, count(d.id) n_documents, coalesce(sum(d.n_chunks),0) n_chunks, coalesce(sum(d.bytes),0) bytes"
+                    " from corpora c left join corpus_documents d on d.corpus_id=c.id and d.retired is null where c.id=? and c.user_id=? group by c.id",
+                    (cid, user_id)).fetchone()
+    return dict(r) if r else None
+
+
+def list_corpora(con, user_id: str) -> list[dict]:
+    return [dict(r) for r in con.execute(
+        "select c.*, count(d.id) n_documents, coalesce(sum(d.n_chunks),0) n_chunks, coalesce(sum(d.bytes),0) bytes"
+        " from corpora c left join corpus_documents d on d.corpus_id=c.id and d.retired is null where c.user_id=? group by c.id"
+        " order by c.created desc", (user_id,))]
+
+
+def delete_corpus(con, cid: str, user_id: str) -> None:
+    for d in list_documents(con, cid, user_id, retired=True):
+        delete_document(con, d["id"], user_id, commit=False)
+    con.execute("delete from corpora where id=? and user_id=?", (cid, user_id))
+    con.commit()
+
+
+def add_document(con, *, corpus_id: str, user_id: str, name: str, sha256: str, data: bytes, ext: str, chunker: str,
+                 chunks: list[dict]) -> dict:
+    """`chunks`: dicts with heading, text, tokens, in reading order. The caller owns the corpus check."""
+    did = db.new_id()
+    key = f"corpora/{corpus_id}/{did}{ext}"
+    blob_path(key).write_bytes(data)
+    con.execute("insert into corpus_documents (id, corpus_id, user_id, name, sha256, bytes, n_chunks, chunker, blob, created)"
+                " values (?,?,?,?,?,?,?,?,?,?)", (did, corpus_id, user_id, name, sha256, len(data), len(chunks), chunker, key, db.now()))
+    con.executemany("insert into corpus_chunks values (?,?,?,?,?,?,?)",
+                    [(f"{did}-{i}", did, corpus_id, i, c["heading"], c["text"], c["tokens"]) for i, c in enumerate(chunks)])
+    con.execute("update corpora set updated=? where id=?", (db.now(), corpus_id))
+    con.commit()
+    return get_document(con, did, user_id)
+
+
+def get_document(con, did: str, user_id: str) -> dict | None:
+    r = con.execute("select * from corpus_documents where id=? and user_id=?", (did, user_id)).fetchone()
+    return dict(r) if r else None
+
+
+def list_documents(con, corpus_id: str, user_id: str, *, retired: bool = False) -> list[dict]:
+    """The set as it stands; `retired=True` adds replaced documents that versions still search."""
+    return [dict(r) for r in con.execute("select * from corpus_documents where corpus_id=? and user_id=?"
+                                         + ("" if retired else " and retired is null") + " order by name", (corpus_id, user_id))]
+
+
+def retire_document(con, did: str, user_id: str) -> None:
+    con.execute("update corpus_documents set retired=? where id=? and user_id=?", (db.now(), did, user_id))
+    con.commit()
+
+
+def pinned_documents(con, user_id: str) -> dict[str, list[str]]:
+    """document id -> the versions whose retrieval steps search it (their spec's `tunables.documents`)."""
+    out: dict[str, list[str]] = {}
+    for r in con.execute("select id, spec from versions where user_id=?", (user_id,)):
+        for st in json.loads(r["spec"]).get("steps") or []:
+            for did in (st.get("tunables") or {}).get("documents") or []:
+                out.setdefault(did, []).append(r["id"])
+    return out
+
+
+def document_chunks(con, did: str, user_id: str) -> list[dict]:
+    return [dict(r) for r in con.execute(
+        "select c.id, c.ord, c.heading, c.text, c.tokens from corpus_chunks c join corpus_documents d on d.id=c.document_id"
+        " where c.document_id=? and d.user_id=? order by c.ord", (did, user_id))]
+
+
+def corpus_chunks(con, corpus_id: str, user_id: str, document_ids: list[str] | None = None) -> list[dict]:
+    """Every chunk in the set with its document name: what retrieval searches. `document_ids` (a version's pin)
+    selects exactly those documents, retired ones included; None means the set as it stands."""
+    q = ("select c.id, c.document_id, d.name document, c.ord, c.heading, c.text, c.tokens from corpus_chunks c"
+         " join corpus_documents d on d.id=c.document_id where c.corpus_id=? and d.user_id=?")
+    args: list = [corpus_id, user_id]
+    if document_ids is None:
+        q += " and d.retired is null"
+    else:
+        q += f" and d.id in ({','.join('?' * len(document_ids))})"
+        args += list(document_ids)
+    return [dict(r) for r in con.execute(q + " order by d.name, c.ord", args)]
+
+
+def delete_document(con, did: str, user_id: str, commit: bool = True) -> None:
+    """Deletes the text and the file. Once versions pin documents, a pinned one will need a rule here (keep until the
+    last version pinning it goes, or refuse); nothing pins yet."""
+    d = get_document(con, did, user_id)
+    if not d:
+        return
+    blob_path(d["blob"]).unlink(missing_ok=True)
+    for (key,) in con.execute("select blob from corpus_vectors where document_id=?", (did,)).fetchall():
+        blob_path(key).unlink(missing_ok=True)
+    con.execute("delete from corpus_vectors where document_id=?", (did,))
+    con.execute("delete from corpus_chunks where document_id=?", (did,))
+    con.execute("delete from corpus_documents where id=?", (did,))
+    con.execute("update corpora set updated=? where id=?", (db.now(), d["corpus_id"]))
+    if commit:
+        con.commit()
+
+
+def _model_slug(model: str) -> str:
+    return "".join(ch if ch.isalnum() else "-" for ch in model)
+
+
+def put_vectors(con, *, document_id: str, corpus_id: str, model: str, vectors) -> None:
+    """`vectors`: a float32 array, one row per chunk in `ord` order."""
+    import numpy as np
+    arr = np.asarray(vectors, dtype=np.float32)
+    if arr.ndim != 2 or not len(arr):
+        raise ValueError("a document needs at least one embedded chunk")
+    key = f"corpora/{corpus_id}/{document_id}.{_model_slug(model)}.npy"
+    with open(blob_path(key), "wb") as f:
+        np.save(f, arr, allow_pickle=False)
+    con.execute("insert or replace into corpus_vectors values (?,?,?,?,?,?)", (document_id, corpus_id, model, arr.shape[1], key, db.now()))
+    con.commit()
+
+
+def vector_documents(con, corpus_id: str, model: str) -> set[str]:
+    """Documents in the corpus that have vectors for `model`."""
+    return {r[0] for r in con.execute("select document_id from corpus_vectors where corpus_id=? and model=?", (corpus_id, model))}
+
+
+def load_vectors(con, corpus_id: str, user_id: str, model: str, document_ids: list[str] | None = None):
+    """-> (chunks, matrix): every chunk of every selected document (see `corpus_chunks`) embedded with `model`, rows
+    aligned. Documents without vectors for `model` are left out; the caller decides whether that is acceptable."""
+    import numpy as np
+    chunks, mats = [], []
+    by_doc: dict[str, list[dict]] = {}
+    for c in corpus_chunks(con, corpus_id, user_id, document_ids):
+        by_doc.setdefault(c["document_id"], []).append(c)
+    for r in con.execute("select v.document_id, v.blob from corpus_vectors v join corpus_documents d on d.id=v.document_id"
+                         " where v.corpus_id=? and v.model=? and d.user_id=? order by d.name", (corpus_id, model, user_id)):
+        if r["document_id"] not in by_doc:
+            continue
+        m = np.load(blob_path(r["blob"]), allow_pickle=False)
+        cs = by_doc[r["document_id"]]
+        if len(cs) != len(m):
+            raise ValueError(f"vectors for document {r['document_id']} do not match its chunks")
+        chunks.extend(cs)
+        mats.append(m)
+    return chunks, (np.vstack(mats) if mats else np.zeros((0, 0), dtype=np.float32))

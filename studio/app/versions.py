@@ -5,7 +5,10 @@ A version is a fully pinned snapshot - spec + prompt templates + concrete model 
 has no update statement, and re-fetching a version returns the same prompts that earned its score.
 
 External steps are pinned by `manifest_sha`, taken at publish time: the pin is the declaration itself, not the name
-and version string, which can move under it. Still not pinned: the dataset's content hash rather than its id (a
+and version string, which can move under it. A retrieval step also pins the documents it searches
+(`tunables.documents`), so re-uploading a file changes what the canvas searches, not what a version answers from.
+Asterisk: the documents are taken at publish, not at the fetch-and-freeze the run was scored on; the Documents
+screen should warn when the set changed in between. Still not pinned: the dataset's content hash rather than its id (a
 dataset is mutable today - its rows file can be replaced under the same id).
 """
 from __future__ import annotations
@@ -21,9 +24,10 @@ from .models import ProjectSpec
 BEHAVIOUR = ("modules", "steps", "edges", "entry", "max_steps", "eval_model", "evaluate")
 
 
-def pin(spec: ProjectSpec, templates: dict[str, str] | None = None) -> ProjectSpec:
+def pin(spec: ProjectSpec, templates: dict[str, str] | None = None, documents=None) -> ProjectSpec:
     """A copy of `spec` with `templates` (module id -> template, e.g. a run node's prompts) applied and every model
-    reference made concrete, so nothing about the version depends on a default that may change later."""
+    reference made concrete, so nothing about the version depends on a default that may change later. `documents`
+    maps a document-set id to the ids of the documents it holds now."""
     s = spec.model_copy(deep=True)
     for m in s.modules:
         if templates and m.id in templates:
@@ -37,6 +41,8 @@ def pin(spec: ProjectSpec, templates: dict[str, str] | None = None) -> ProjectSp
         m = __import__("app.steps", fromlist=["load_manifest"]).load_manifest(st.manifest)
         if m is not None:
             st.manifest, st.manifest_sha = m.ref, m.sha()   # freeze the declaration, not just its name
+        if m is not None and m.transport.kind == "local" and documents and st.tunables.get("corpus"):
+            st.tunables = {**st.tunables, "documents": sorted(documents(st.tunables["corpus"]))}
     s.layout = {}  # canvas positions are not part of what runs
     return s
 

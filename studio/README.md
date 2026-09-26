@@ -14,6 +14,9 @@ app/          FastAPI backend (routes are unprefixed; nginx mounts them at /api/
   validation.py  graph, mapping, labels, scorer checks; pilot (root twice + one rewrite); cost projection
   brand.py    the studio's name and public URL (env-driven)
   datasets.py runs.py auth.py db.py main.py
+  corpora.py  documents for retrieval: chunker (heading-aware, tables whole), limits, embedding, the search behind
+              the "Search documents" step (steps/retrieval.json, transport kind `local`), bundle export/import
+  embedding.py  MeteredEmbedder: every bpto embedder gets a Budget and usage_log rows (Titan live, hash under mock)
 web/          React + React Flow canvas (vite); `VITE_STUDIO_BASE=/app/ VITE_API_BASE=/api npm run build` -> web/dist, served at impromptune.com/app/
               (default base /studio/ is what `uvicorn app.main:app` serves in dev). Brand strings live in src/brand.js.
   bundles.py  project bundles: one JSON = spec + dataset + blurb; the examples library, export and import share it
@@ -26,6 +29,10 @@ To add a library entry: build the project in the studio, Export it, drop the fil
 `order`, and replace inline `rows` with `"sample": "<file in sample/>"` if it uses a checked-in dataset. Runs are never
 bundled; "the optimized prompts" is a spec whose templates are them (`GET /projects/{pid}/bundle?run_id=` does that).
 Inline rows are capped at 2 MB; larger datasets export without rows until datasets move to S3.
+
+A template whose step searches documents carries them as `"corpus": {"sample": "<name>.corpus.json"}`, built with
+`python tools/build_corpus.py DOCS_DIR sample/<name>.corpus.json --name ...` (Titan vectors included, so a clone
+embeds nothing; the estimate prints before any spend). Vectors are reused only when the chunker version matches.
 
 ## Run locally
 

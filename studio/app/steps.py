@@ -49,12 +49,15 @@ class StepField(BaseModel):
     required: bool = False
     enum: list[str] | None = None
     path: str = ""        # where to read it in the response: "results.0.properties.email". Default: a top-level field
+    record_only: bool = False  # kept on the row and the trace for people (sources, ids), not meant for a prompt
 
 
 class Transport(BaseModel):
+    # "http": a service somewhere else. "local": runs inside the studio (retrieval over the user's documents); the
+    # caller supplies the function, because only it knows the user, their data and how to meter the call.
     kind: str = "http"
     method: str = "POST"
-    url: str
+    url: str = ""
     timeout_s: float = 5.0
     retries: int = 1
     # The body to send, with "{input}" placeholders. Omitted, the inputs are sent as the body, which is what a
@@ -162,7 +165,8 @@ def list_manifests() -> list[dict[str, Any]]:
         m = Manifest.model_validate_json(p.read_text())
         out.append({"ref": m.ref, "id": m.id, "version": m.version, "name": m.name or m.id, "blurb": m.blurb,
                     "inputs": [f.name for f in m.inputs], "outputs": [f.name for f in m.outputs],
-                    "cacheable": m.cacheable, "price_usd_per_call": m.price_usd_per_call,
+                    "cacheable": m.cacheable, "price_usd_per_call": m.price_usd_per_call, "kind": m.transport.kind,
+                    "tunables": [f.model_dump() for f in m.tunables],
                     "auth": m.auth.get("kind", ""), "provider": m.oauth_provider, "scopes": m.required_scopes})
     return out
 
@@ -212,12 +216,24 @@ async def _bearer(token) -> str:
     return await token()
 
 
-async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx.AsyncClient | None = None
-               ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx.AsyncClient | None = None,
+               local=None) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """One call. Returns (outputs or None when the service says "no record", metrics). Raises StepError for a real
     failure - a timeout, a 5xx, a response that does not match the declared schema - which the caller turns into one
-    bad row, never a dead run."""
+    bad row, never a dead run. `local` is the function behind a "local" step: async (inputs) -> (outputs | None, usd)."""
     t = m.transport
+    if t.kind == "local":
+        if local is None:
+            raise StepError(f"{m.name or m.id} runs inside the studio and was not given what it needs (its document set)")
+        t0 = time.perf_counter()
+        try:
+            out, usd = await local(inputs)
+        except StepError:
+            raise
+        except Exception as e:
+            raise StepError(f"{type(e).__name__}: {e}") from e
+        metrics = {"latency_s": round(time.perf_counter() - t0, 4), "usd": usd, "fail": 0.0, "missing": 0.0 if out else 1.0}
+        return out, metrics
     bearer = await _bearer(token) if m.needs_auth else ""
     headers = {"Authorization": f"Bearer {bearer}"} if bearer else {}
     own = client is None
@@ -271,7 +287,7 @@ async def call(m: Manifest, inputs: dict[str, Any], *, token=None, client: httpx
 
 # ---- enrichment: frozen onto the rows ----------------------------------------------------------
 
-async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], *, token=None,
+async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], *, token=None, local=None,
                  max_concurrency: int = 4) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Run `step` over every row once and return (new rows with the step's columns added, a report).
 
@@ -300,7 +316,7 @@ async def enrich(spec: ProjectSpec, step: StepSpec, rows: list[dict[str, Any]], 
                 inflight[key] = fut
             async with sem:
                 try:
-                    out, met = await call(m, args, token=token, client=client)
+                    out, met = await call(m, args, token=token, client=client, local=local)
                     res = (out, met, None)
                 except StepError as e:
                     res = (None, None, str(e))

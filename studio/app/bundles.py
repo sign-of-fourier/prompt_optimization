@@ -33,6 +33,21 @@ class BundleDataset(BaseModel):
     omitted: str | None = None                   # set on export when rows were too large to inline
 
 
+class BundleCorpus(BaseModel):
+    """The documents a retrieval step searches (corpora.export_corpus's shape), or a library file holding them."""
+    name: str = "documents"
+    sample: str | None = None                    # sample/<name>.corpus.json (library entries only)
+    chunker: str = ""
+    documents: list[dict[str, str]] = Field(default_factory=list)   # {name, text}
+    vectors: dict[str, dict[str, Any]] = Field(default_factory=dict)  # model -> {dims, documents: {name: base64 float32}}
+
+    def data(self) -> dict[str, Any]:
+        if self.sample:
+            p = SAMPLE_DIR / Path(self.sample).name
+            return json.loads(p.read_text())
+        return self.model_dump(exclude={"sample"})
+
+
 class Bundle(BaseModel):
     bundle: int = FORMAT
     name: str
@@ -44,6 +59,7 @@ class Bundle(BaseModel):
     order: int = 100                             # tiebreak for entries we want pinned
     spec: ProjectSpec
     dataset: BundleDataset | None = None
+    corpus: BundleCorpus | None = None           # set when a step searches documents
 
     def rows(self) -> list[dict[str, Any]] | None:
         d = self.dataset
@@ -74,7 +90,7 @@ def list_examples() -> list[dict[str, Any]]:
         # "modules" and "steps" are different things now: prompts the optimizer rewrites, and external steps it does not
         out.append({"slug": p.stem, "name": b.name, "blurb": b.blurb, "description": b.description, "tags": b.tags,
                     "requires": b.requires, "updated": b.updated, "order": b.order,
-                    "modules": len(b.spec.modules), "steps": len(b.spec.steps),
+                    "modules": len(b.spec.modules), "steps": len(b.spec.steps), "documents": bool(b.corpus),
                     "rows": len(rows) if rows else 0, "goal": b.spec.optimizer.goal, "dataset": b.dataset.name if b.dataset else None,
                     "eval_model": b.spec.eval_model, "rounds": b.spec.optimizer.rounds})
     return sorted(out, key=lambda e: (e["order"], e["name"]))
@@ -89,7 +105,8 @@ def tags() -> list[str]:
 
 # ---- export / import ----------------------------------------------------------------------
 
-def export_bundle(con, project: dict, dataset: dict | None, *, templates: dict[str, str] | None = None, blurb: str = "") -> Bundle:  # noqa: E501
+def export_bundle(con, project: dict, dataset: dict | None, *, templates: dict[str, str] | None = None, blurb: str = "",
+                  corpus: dict | None = None) -> Bundle:
     """`project` / `dataset` are db rows (spec already parsed). `templates` (module id -> template), e.g. a run's best
     node, replaces the templates of the spec - the way to bundle 'the optimized prompts'."""
     spec = ProjectSpec.model_validate(project["spec"])
@@ -105,19 +122,30 @@ def export_bundle(con, project: dict, dataset: dict | None, *, templates: dict[s
         ds = BundleDataset(name=dataset["name"], input_map=dataset["input_map"], label_column=dataset["label_column"],
                            rows=rows if size <= MAX_INLINE_BYTES else None,
                            omitted=None if size <= MAX_INLINE_BYTES else f"{size // 1024} KB of rows exceed the {MAX_INLINE_BYTES // 1024 // 1024} MB inline limit; attach the file separately")
-    return Bundle(name=spec.name, blurb=blurb, spec=spec, dataset=ds)
+    for st in spec.steps:  # the importer's own set replaces these; a version's pin means nothing outside this account
+        st.tunables = {k: v for k, v in st.tunables.items() if k not in ("corpus", "documents")}
+    return Bundle(name=spec.name, blurb=blurb, spec=spec, dataset=ds, corpus=BundleCorpus(**corpus) if corpus else None)
 
 
-def import_bundle(con, user_id: str, b: Bundle, *, datasets_dir: Path, unique_name, coerce_models) -> dict[str, Any]:
-    """Creates the project (and its dataset when rows are present) under `user_id`. `unique_name(con, user_id, name)`
-    and `coerce_models(spec)` are main.py's; the same rules as a hand-made project apply."""
+async def import_bundle(con, user_id: str, b: Bundle, *, datasets_dir: Path, unique_name, coerce_models) -> dict[str, Any]:
+    """Creates the project (and its dataset when rows are present, and its document set when the bundle carries
+    one) under `user_id`. `unique_name(con, user_id, name)` and `coerce_models(spec)` are main.py's; the same rules
+    as a hand-made project apply."""
+    from . import corpora, steps
     spec = b.spec.model_copy(deep=True)
+    corpus = await corpora.import_corpus(con, user_id, b.corpus.data()) if b.corpus else None
+    for st in spec.steps:
+        m = steps.load_manifest(st.manifest)
+        if m is not None and m.transport.kind == "local":
+            st.tunables = {k: v for k, v in st.tunables.items() if k not in ("corpus", "documents")}
+            if corpus:
+                st.tunables["corpus"] = corpus["id"]
     spec.name = unique_name(con, user_id, b.name or spec.name or "untitled")
     spec.layout = {**spec.layout, "tutorial": {"step": 0, "dismissed": True}}  # a bundle is never the empty canvas the tutorial opens on
     coerce_models(spec)
     pid = db.new_id()
     con.execute("insert into projects values (?,?,?,?,?)", (pid, user_id, spec.name, spec.model_dump_json(), db.now()))
-    out: dict[str, Any] = {"id": pid, "name": spec.name, "dataset": None}
+    out: dict[str, Any] = {"id": pid, "name": spec.name, "dataset": None, "corpus": corpus}
     rows = b.rows()
     if rows:
         did = db.new_id()

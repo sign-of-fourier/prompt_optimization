@@ -81,6 +81,9 @@ def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationRe
             if col in seen_out:
                 rep.add("error", "step", f"two steps both provide {col!r} ({seen_out[col]} and {s.id})", where=s.id)
             seen_out[col] = s.id
+        for f in m.tunables:
+            if f.required and s.tunables.get(f.name) in (None, ""):
+                rep.add("error", "step", f"choose {f.description or f.name} for this step", where=s.id)
         # what counts as authorised depends on how the manifest says the step signs in (GLOSSARY.md)
         cred, kind = s.credential or "", m.auth.get("kind")
         if not m.needs_auth:
@@ -102,8 +105,9 @@ def check_steps(spec: ProjectSpec, dataset_columns: list[str], rep: ValidationRe
                 used |= set(Prompt(template=mod.template).placeholders)
             except ValueError:
                 pass
-        unused = [f.name for f in m.outputs if column(s.id, f.name) not in used]
-        if len(unused) == len(m.outputs):
+        meant = [f for f in m.outputs if not f.record_only]
+        unused = [f.name for f in meant if column(s.id, f.name) not in used]
+        if meant and len(unused) == len(meant):
             rep.add("warn", "step", "no prompt uses anything this step returns: you are paying for data nobody reads", where=s.id)
         elif unused:
             # This is a data-hygiene finding, not a cost one. The call returns every declared field in one response,
@@ -200,6 +204,13 @@ def check_signal(spec: ProjectSpec, rows: list[dict[str, Any]], label_column: st
         if not s.enabled:
             continue
         m = load_manifest(s.manifest)
+        if m and m.transport.kind == "local":
+            # A search's passages are chosen from the row's own question, so "the passage predicts the answer" means
+            # retrieval worked, not that it leaked, and passages are near-unique per row by nature. These statistics
+            # are for records looked up by key; for a search, the pilot with the step on and off is the measure.
+            rep.add("info", "step", "a search's passages are chosen from the question itself, so the label statistics do not "
+                                    "apply: run the pilot with the step on and off to see what it is worth", where=s.id)
+            continue
         usable: list[list[Any]] = []
         names: list[str] = []
         quiet: list[str] = []

@@ -67,12 +67,10 @@ class RunManager:
             task = build_task(spec, train, client)
             embedder = None
             if o.engine == "bo":
-                if mock:
-                    from bpto.bo import HashEmbedder
-                    embedder = HashEmbedder(dim=64)
-                else:
-                    from bpto.bo import BedrockEmbedder
-                    embedder = BedrockEmbedder(region=__import__("os").environ.get("AWS_REGION", "us-east-1"))
+                # Its own meter, capped at the run's max_usd: charging the run's Budget would spend max_calls on
+                # embeddings. Titan spend now reaches usage_log; the shared per-user cap is BETA.md's parent Budget.
+                from .embedding import make_embedder
+                embedder = make_embedder(mock=mock, purpose="bo-embed", on_call=on_call, max_usd=o.max_usd, dims=256, hash_dims=64)
             schedule, stop = build_schedule(spec, task, embedder=embedder)
             ckpt = d / "tree.json"
             tree = Tree.load(ckpt, task) if ckpt.exists() else Tree(task)

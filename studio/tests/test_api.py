@@ -224,3 +224,144 @@ async def _flow():
 
 def test_full_api_flow():
     asyncio.run(_flow())
+
+
+async def _corpora_flow():
+    from app import store
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            await c.post("/auth/signup", json={"email": "docs@b.co", "password": "password1"})
+            cid = (await c.post("/corpora", json={"name": "kb"})).json()["id"]
+            a = b"# Refunds\n\n## Annual\n\nCredit only.\n\n## Monthly\n\nTo the card within 45 days.\n"
+            r = await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("refunds.md", a)), ("files", ("notes.txt", b"Plain notes."))])
+            assert r.status_code == 200, r.text
+            j = r.json(); assert j["n_documents"] == 2 and j["n_chunks"] == 3 and [d["name"] for d in j["added"]] == ["refunds.md", "notes.txt"]
+            # upload embeds (mock: the offline hash embedder), one usage row, nothing pending
+            assert j["embedded"] == {"model": "hash-v1-256", "documents": 2, "chunks": 3, "usd": 0.0}
+            st = (await c.get(f"/corpora/{cid}?mock=true")).json()["embedding"]; assert st["embedded"] == 2 and st["pending"] == 0
+            live = (await c.get(f"/corpora/{cid}?mock=false")).json()["embedding"]
+            assert live["model"] == "amazon.titan-embed-text-v2:0" and live["pending"] == 2 and 0 < live["pending_usd_est"] < 1e-5
+            chunks, m = store.load_vectors(app.state.db, cid, (await c.get("/auth/me")).json()["id"], "hash-v1-256")
+            assert m.shape == (3, 256) and [ch["heading"] for ch in chunks][-1] == "Refunds > Monthly"
+            assert (await c.post(f"/corpora/{cid}/embed?mock=true")).json()["documents"] == 0  # nothing left to do
+            assert any(u["model"] == "hash-v1-256" for u in (await c.get("/usage")).json()["by_model"])
+            doc = next(d for d in j["added"] if d["name"] == "refunds.md")
+            r = (await c.get(f"/corpora/{cid}/documents/{doc['id']}")).json()
+            assert [ch["heading"] for ch in r["chunks"]] == ["Refunds > Annual", "Refunds > Monthly"] and r["chunker"].startswith("md-v1")
+            assert store.blob_path(doc["blob"]).read_bytes() == a
+            # same bytes: left alone; same name, new bytes: replaces (new id, old file gone); bad type: all refused
+            r = (await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("refunds.md", a))])).json()
+            assert r["unchanged"] == ["refunds.md"] and r["added"] == []
+            r = (await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("refunds.md", a + b"\nNew line.\n"))])).json()
+            assert r["replaced"] == ["refunds.md"] and r["n_documents"] == 2 and not store.blob_path(doc["blob"]).exists()
+            assert r["embedded"]["documents"] == 1 and not list(store.blob_path(doc["blob"]).parent.glob(f"{doc['id']}.*"))
+            assert (await c.get(f"/corpora/{cid}/documents/{doc['id']}")).status_code == 404
+            r = await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("x.md", b"# X\n\nText.")), ("files", ("x.pdf", b"%PDF"))])
+            assert r.status_code == 400 and "x.pdf" in r.text
+            r = await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("h.md", b"# Only headings"))]); assert "no text" in r.text and (await c.get(f"/corpora/{cid}")).json()["n_documents"] == 2
+            # the limits count the set as it would be after the upload
+            many = [("files", (f"f{i}.txt", b"text")) for i in range(49)]
+            r = await c.post(f"/corpora/{cid}/documents?mock=true", files=many); assert r.status_code == 400 and "50 files" in r.text
+            # another user sees none of it
+            await c.post("/auth/logout"); await c.post("/auth/signup", json={"email": "other@b.co", "password": "password1"})
+            assert (await c.get("/corpora")).json()["corpora"] == [] and (await c.get(f"/corpora/{cid}")).status_code == 404
+            assert (await c.delete(f"/corpora/{cid}")).status_code == 404
+            await c.post("/auth/logout"); await c.post("/auth/login", json={"email": "docs@b.co", "password": "password1"})
+            blobs = [d["blob"] for d in (await c.get(f"/corpora/{cid}")).json()["documents"]]
+            assert (await c.delete(f"/corpora/{cid}")).json()["ok"] and not any(store.blob_path(b).exists() for b in blobs)
+            assert (await c.get("/corpora")).json()["corpora"] == []
+
+
+def test_corpora_api():
+    asyncio.run(_corpora_flow())
+
+
+KB = {"refunds.md": b"# Refunds\n\n## Annual plans\n\nAnnual plans are refunded as account credit, never to the card.\n\n"
+                    b"## Monthly plans\n\nMonthly plans are refunded to the card within 45 days.\n",
+      "shipping.md": b"# Shipping\n\n## Delivery times\n\nStandard delivery takes 6 working days to Ireland.\n"}
+RAG_SPEC = {**SPEC, "name": "kb",
+            "modules": [{"id": "answer", "template": "Answer from the passages.\nPassages: {rag_context}\nQuestion: {question}",
+                         "schema_fields": [{"name": "answer"}]}],
+            "steps": [{"id": "rag", "manifest": "retrieval@1.0.0", "inputs": {"query": "question"}, "tunables": {"k": 1}}]}
+
+
+async def _retrieval_flow():
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            await c.post("/auth/signup", json={"email": "rag@b.co", "password": "password1"})
+            assert any(s["id"] == "retrieval" and s["kind"] == "local" for s in (await c.get("/steps")).json())
+            cid = (await c.post("/corpora", json={"name": "kb"})).json()["id"]
+            await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", (n, b)) for n, b in KB.items()])
+            pid = (await c.post("/projects", json=RAG_SPEC)).json()["id"]
+            rows = [{"question": "How long does standard delivery take to Ireland?", "answer": "6 working days"},
+                    {"question": "Are annual plans refunded to the card?", "answer": "no, account credit"}] * 4
+            did = (await c.post(f"/projects/{pid}/datasets", files={"file": ("q.jsonl", "\n".join(json.dumps(r) for r in rows).encode())})).json()["id"]
+            await c.put(f"/datasets/{did}/mapping", json={"input_map": {"question": "question"}, "label_column": "answer"})
+            # no document set chosen: validation says so, and fetching refuses
+            msgs = [i["message"] for i in (await c.post(f"/projects/{pid}/validate", json={"dataset_id": did})).json()["report"]["issues"]]
+            assert any("choose a document set" in m for m in msgs) and any("has not been enriched" in m for m in msgs)
+            assert not any("no prompt reads" in m or "nobody reads" in m for m in msgs)  # sources is record-only
+            r = await c.post(f"/datasets/{did}/enrich", json={"step_id": "rag", "mock": True}); assert r.status_code == 400 and "document sets" in r.text
+            # choose it: fetch and freeze puts the best passage on every row, labelled with where it came from
+            await c.put(f"/projects/{pid}", json={**RAG_SPEC, "steps": [{**RAG_SPEC["steps"][0], "tunables": {"corpus": cid, "k": 1}}]})
+            r = await c.post(f"/datasets/{did}/enrich", json={"step_id": "rag", "mock": True}); assert r.status_code == 200, r.text
+            e = r.json(); assert e["report"]["failed"] == 0 and e["report"]["cached"] == 6  # two distinct questions, six repeats
+            frozen = (await c.get(f"/datasets/{e['id']}")).json()
+            rws = frozen["preview"]
+            assert rws[0]["rag_sources"] == "shipping.md#Delivery times" and rws[0]["rag_context"].startswith("[shipping.md > Shipping > Delivery times]\n")
+            assert rws[1]["rag_sources"] == "refunds.md#Annual plans" and "account credit" in rws[1]["rag_context"]
+            vr = (await c.post(f"/projects/{pid}/validate", json={"dataset_id": e["id"]})).json(); assert vr["ok"], vr["report"]["issues"]
+            r = await c.post(f"/projects/{pid}/steps/rag/probe", json={"dataset_id": e["id"], "mock": True}); pr = r.json()
+            assert pr["ok"] and pr["found"] and pr["missing_ok"]
+            # serving searches live: the caller sends only the question
+            v = (await c.post(f"/projects/{pid}/versions", json={"label": "rag"})).json()
+            assert (await c.get(f"/v/{v['id']}")).json()["inputs"] == ["question"]
+            k = (await c.post("/keys", json={"label": "rag"})).json()
+            r = await c.post(f"/v/{v['id']}/run", headers={"Authorization": f"Bearer {k['key']}"},
+                             json={"inputs": {"question": "When are monthly plans refunded to the card?"}, "mock": True})
+            assert r.status_code == 200, r.text
+            assert r.json()["steps"]["rag_sources"] == "refunds.md#Monthly plans"
+            tr = (await c.get(f"/projects/{pid}/traces")).json()[0]; assert "45 days" in tr["steps"]["rag_context"]
+            # the version pinned the documents it searches; re-uploading refunds.md changes the set, not the version
+            pinned = (await c.get(f"/versions/{v['id']}")).json()["spec"]["steps"][0]["tunables"]["documents"]
+            docs = {d["name"]: d["id"] for d in (await c.get(f"/corpora/{cid}")).json()["documents"]}
+            assert sorted(docs.values()) == pinned
+            new = KB["refunds.md"].replace(b"45 days", b"30 days")
+            r = (await c.post(f"/corpora/{cid}/documents?mock=true", files=[("files", ("refunds.md", new))])).json()
+            now = (await c.get(f"/corpora/{cid}")).json()["documents"]
+            assert r["replaced"] == ["refunds.md"] and len(now) == 2 and docs["refunds.md"] not in {d["id"] for d in now}
+            ask = {"inputs": {"question": "When are monthly plans refunded to the card?"}, "mock": True}
+            H = {"Authorization": f"Bearer {k['key']}"}
+            assert "45 days" in (await c.post(f"/v/{v['id']}/run", headers=H, json=ask)).json()["steps"]["rag_context"]
+            v2 = (await c.post(f"/projects/{pid}/versions", json={"label": "rag 2"})).json()
+            assert v2["fingerprint"] != v["fingerprint"]
+            assert "30 days" in (await c.post(f"/v/{v2['id']}/run", headers=H, json=ask)).json()["steps"]["rag_context"]
+            # deleting is deleting, pinned or not: the versions that searched it are named, and refuse to answer
+            r = (await c.delete(f"/corpora/{cid}/documents/{docs['shipping.md']}")).json()
+            assert sorted(r["versions_affected"]) == sorted([v["id"], v2["id"]])
+            r = await c.post(f"/v/{v['id']}/run", headers=H, json=ask); assert r.status_code == 502 and "since been deleted" in r.text
+            assert "since been deleted" in (await c.get(f"/projects/{pid}/traces")).json()[0]["error"]
+            # a bundle carries the document set: texts plus paid-for vectors, never the offline ones or this account's ids
+            bnd = (await c.get(f"/projects/{pid}/bundle")).json()
+            assert [d["name"] for d in bnd["corpus"]["documents"]] == ["refunds.md"] and bnd["corpus"]["vectors"] == {}
+            assert "corpus" not in bnd["spec"]["steps"][0]["tunables"] and "documents" not in bnd["spec"]["steps"][0]["tunables"]
+            import base64, numpy as np
+            left = (await c.get(f"/corpora/{cid}")).json()["documents"][0]
+            n = left["n_chunks"]
+            fake = base64.b64encode(np.ones((n, 8), dtype="<f4").tobytes()).decode()
+            bnd["corpus"]["vectors"] = {"amazon.titan-embed-text-v2:0": {"dims": 8, "documents": {"refunds.md": fake}}}
+            imp = (await c.post("/projects/import", json=bnd)).json()
+            assert imp["corpus"]["vectors_reused"] == {"amazon.titan-embed-text-v2:0": 1}
+            ip = (await c.get(f"/projects/{imp['id']}")).json()
+            assert ip["spec"]["steps"][0]["tunables"]["corpus"] == imp["corpus"]["id"] != cid
+            st = (await c.get(f"/corpora/{imp['corpus']['id']}?mock=false")).json()["embedding"]; assert st["pending"] == 0  # clone costs nothing
+            r = await c.post(f"/datasets/{imp['dataset']['id']}/enrich", json={"step_id": "rag", "mock": True})
+            assert r.status_code == 200, r.text
+            assert "account credit" in (await c.get(f"/datasets/{r.json()['id']}")).json()["preview"][1]["rag_context"]
+            # vectors from another chunker would not line up with these chunks: re-embedded, not reused
+            bnd["corpus"]["chunker"] = "md-v0"
+            assert (await c.post("/projects/import", json=bnd)).json()["corpus"]["vectors_reused"] == {}
+
+
+def test_retrieval_step():
+    asyncio.run(_retrieval_flow())

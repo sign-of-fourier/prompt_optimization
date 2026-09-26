@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, credentials as C, db, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
+from . import auth, bundles as B, corpora as K, credentials as C, db, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -239,13 +239,13 @@ def list_examples(user=auth.User):
 
 
 @app.post("/examples/{slug}/clone")
-def clone_example(slug: str, request: Request, user=auth.User):
+async def clone_example(slug: str, request: Request, user=auth.User):
     b = B.load_example(slug)
     if b is None:
         raise HTTPException(404, "no such example")
     access = _access(request, user)
-    return B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
-                           coerce_models=lambda spec: _coerce_models(spec, access))
+    return await B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
+                                 coerce_models=lambda spec: _coerce_models(spec, access))
 
 
 @app.get("/projects/{pid}/bundle")
@@ -261,18 +261,27 @@ def export_project(pid: str, request: Request, dataset_id: str | None = None, ru
         if r["project_id"] != pid or not r.get("summary") or not r["summary"].get("best"):
             raise HTTPException(400, "that run has no best node for this project")
         templates = r["summary"]["best"]["modules"]
-    return B.export_bundle(con, p, d, templates=templates).model_dump()
+    corpus = None
+    for st in ProjectSpec.model_validate(p["spec"]).steps:  # one document set travels: the first a step searches
+        m = X.load_manifest(st.manifest)
+        if m and m.transport.kind == "local" and st.tunables.get("corpus") and store.get_corpus(con, st.tunables["corpus"], user["id"]):
+            corpus = K.export_corpus(con, st.tunables["corpus"], user["id"])
+            break
+    return B.export_bundle(con, p, d, templates=templates, corpus=corpus).model_dump()
 
 
 @app.post("/projects/import")
-def import_project(b: B.Bundle, request: Request, user=auth.User):
+async def import_project(b: B.Bundle, request: Request, user=auth.User):
     if b.bundle > B.FORMAT:
         raise HTTPException(400, f"bundle format {b.bundle} is newer than this studio understands ({B.FORMAT})")
-    if b.dataset and b.dataset.sample:
-        raise HTTPException(400, "imported bundles must inline their rows")
+    if (b.dataset and b.dataset.sample) or (b.corpus and b.corpus.sample):
+        raise HTTPException(400, "imported bundles must inline their rows and documents")
     access = _access(request, user)
-    return B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
-                           coerce_models=lambda spec: _coerce_models(spec, access))
+    try:
+        return await B.import_bundle(request.app.state.db, user["id"], b, datasets_dir=DATASETS_DIR, unique_name=_unique_name,
+                                     coerce_models=lambda spec: _coerce_models(spec, access))
+    except K.DocumentError as e:
+        raise HTTPException(400, str(e))
 
 
 # ---- datasets ---------------------------------------------------------------------------
@@ -583,7 +592,7 @@ def publish_version(pid: str, body: PublishBody, request: Request, user=auth.Use
             raise HTTPException(400, "that run has no fully evaluated node to publish")
         extra = V.from_run(r, node)
         templates = extra.pop("templates")
-    pinned = V.pin(spec, templates)
+    pinned = V.pin(spec, templates, documents=lambda cid: [d["id"] for d in store.list_documents(request.app.state.db, cid, user["id"])])
     n = len(store.list_versions(con, pid, user["id"])) + 1
     return store.create_version(con, project_id=pid, user_id=user["id"], label=body.label or f"v{n}",
                                 spec=pinned.model_dump(mode="json"), fingerprint=V.fingerprint(pinned), **extra)
@@ -696,7 +705,13 @@ async def serve_version(vid: str, body: ServeBody, request: Request, user=Depend
         _check_models(spec, access)
     on_call = db.usage_logger(con, user["id"], access.tier, v["project_id"])
     try:
+        locals_ = _step_locals(request, user, spec, mock)
+    except HTTPException as e:  # e.g. a document this version searches was deleted: the version cannot run at all
+        tid = store.create_trace(con, version_id=vid, project_id=v["project_id"], user_id=user["id"], inputs=body.inputs, error=str(e.detail))
+        raise HTTPException(502, {"message": f"this version cannot run: {e.detail}", "trace_id": tid})
+    try:
         out = await serving.serve(spec, body.inputs, access=access, on_call=on_call, tokens=_step_tokens(con, user, spec),
+                                  locals=locals_,
                                   mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None)
     except serving.MissingInputs as e:
         raise HTTPException(400, str(e))
@@ -827,6 +842,25 @@ def _step_tokens(con, user: dict, spec: ProjectSpec) -> dict[str, Any]:
     return out
 
 
+def _step_locals(request: Request, user: dict, spec: ProjectSpec, mock: bool | None) -> dict[str, Any]:
+    """step id -> the function behind each enabled "local" step: today, retrieval over one of the user's document
+    sets. Built per request, so a set the user no longer owns is refused here rather than searched."""
+    out: dict[str, Any] = {}
+    for st in spec.steps:
+        m = X.load_manifest(st.manifest) if st.enabled else None
+        if not m or m.transport.kind != "local":
+            continue
+        cid = st.tunables.get("corpus")
+        if not cid or not store.get_corpus(request.app.state.db, cid, user["id"]):
+            raise HTTPException(400, f"step {st.id!r}: choose one of your document sets")
+        try:
+            out[st.id] = K.make_retriever(request.app.state.db, cid, user["id"], _embedder(request, user, mock, f"step:{st.id}"),
+                                          k=st.tunables.get("k") or K.DEFAULT_K, document_ids=st.tunables.get("documents"))
+        except X.StepError as e:
+            raise HTTPException(400, f"step {st.id!r}: {e}")
+    return out
+
+
 @app.get("/steps")
 def list_steps(user=auth.User):
     """The installed manifests. In v0 these are files in the repo; a registry is what replaces this."""
@@ -865,6 +899,7 @@ def delete_step_credential(cid: str, request: Request, user=auth.User):
 
 class ProbeBody(BaseModel):
     dataset_id: str | None = None
+    mock: bool | None = None
 
 
 @app.post("/projects/{pid}/steps/{sid}/probe")
@@ -883,6 +918,7 @@ async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user
     if m is None:
         raise HTTPException(400, f"no manifest {st.manifest!r} is installed")
     token = _step_tokens(con, user, spec).get(sid)
+    local = _step_locals(request, user, spec, body.mock).get(sid)
     args: dict[str, Any] = {}
     if body.dataset_id:
         d = _dataset(request, body.dataset_id, user)
@@ -893,14 +929,19 @@ async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user
         args = {f.name: "probe" for f in m.inputs}
     out: dict[str, Any] = {"url": m.transport.url, "sent": args}
     try:
-        got, met = await X.call(m, args, token=token)
+        got, met = await X.call(m, args, token=token, local=local)
         out.update({"ok": True, "found": got is not None, "returned": got, "latency_s": met["latency_s"]})
     except X.StepError as e:
         return {**out, "ok": False, "error": str(e)}
+    if local is not None:
+        # a search has no "no record": it always returns its best matches, and whether they answer the question is
+        # what the prompt has to learn to judge
+        return {**out, "missing_behaviour": "a search always returns its closest passages, even for a question the documents do not cover",
+                "missing_ok": True}
     # ... and how it answers for something that does not exist
     unknown = {f.name: "__no_such_id__" for f in m.inputs}
     try:
-        got2, _ = await X.call(m, unknown, token=token)
+        got2, _ = await X.call(m, unknown, token=token, local=local)
         out["missing_behaviour"] = ("returns a record for an unknown id - the step cannot tell you what it does not know"
                                     if got2 is not None else f"status {m.missing.get('status', 404)}: {m.missing.get('means', 'no record')}")
         out["missing_ok"] = got2 is None
@@ -913,6 +954,7 @@ async def probe_step(pid: str, sid: str, body: ProbeBody, request: Request, user
 class EnrichBody(BaseModel):
     step_id: str
     name: str = ""
+    mock: bool | None = None   # local steps only: embed retrieval queries with the offline embedder
 
 
 @app.post("/datasets/{did}/enrich")
@@ -933,7 +975,8 @@ async def enrich_dataset(did: str, body: EnrichBody, request: Request, user=auth
     if missing:
         raise HTTPException(400, f"this dataset has no column {missing[0]!r} for the step to look up")
     try:
-        rows, report = await X.enrich(spec, st, _rows(d), token=_step_tokens(con, user, spec).get(st.id))
+        rows, report = await X.enrich(spec, st, _rows(d), token=_step_tokens(con, user, spec).get(st.id),
+                                      local=_step_locals(request, user, spec, body.mock).get(st.id))
     except X.StepError as e:
         raise HTTPException(400, str(e))
     nid = db.new_id()
@@ -1031,6 +1074,141 @@ async def probe_connection(cid: str, request: Request, user=auth.User):
     body = r.json()
     return {"ok": True, "status": r.status_code, "records": len(body.get("results", [])),
             "has_more": bool(body.get("paging")), "refreshed": bool(c.get("refreshed"))}
+
+# ---- documents for retrieval (v0, flag-gated) ------------------------------------------------------
+
+class CorpusBody(BaseModel):
+    name: str = "documents"
+
+
+def _corpus(request: Request, cid: str, user: dict) -> dict:
+    c = store.get_corpus(request.app.state.db, cid, user["id"])
+    if not c:
+        raise HTTPException(404, "document set not found")
+    return c
+
+
+@app.get("/corpora")
+def list_corpora(request: Request, user=auth.User):
+    _v0()
+    return {"corpora": store.list_corpora(request.app.state.db, user["id"]),
+            "limits": {"files": K.MAX_FILES, "bytes": K.MAX_BYTES, "chunks": K.MAX_CHUNKS, "extensions": list(K.EXTENSIONS)}}
+
+
+@app.post("/corpora")
+def create_corpus(body: CorpusBody, request: Request, user=auth.User):
+    _v0()
+    return store.create_corpus(request.app.state.db, user_id=user["id"], name=body.name.strip() or "documents")
+
+
+def _embedder(request: Request, user: dict, mock: bool | None, purpose: str):
+    """Mock -> the offline hash embedder; live -> Titan on the house account, which needs a tier with house models.
+    (Embedding through a user's own Bedrock endpoint is not wired yet.)"""
+    from . import embedding as E
+    mock = MOCK_DEFAULT if mock is None else mock
+    access = _access(request, user)
+    if not mock and not (access.house_keys and tiers.house_key_present("bedrock")):
+        raise HTTPException(403, "searching documents needs a plan with house models for now")
+    return E.make_embedder(mock=mock, purpose=purpose, on_call=db.usage_logger(request.app.state.db, user["id"], access.tier))
+
+
+def _embed_model(mock: bool | None) -> str:
+    from . import embedding as E
+    return E.HASH if (MOCK_DEFAULT if mock is None else mock) else E.TITAN
+
+
+@app.get("/corpora/{cid}")
+def get_corpus(cid: str, request: Request, user=auth.User, mock: bool | None = None):
+    _v0()
+    con = request.app.state.db
+    return {**_corpus(request, cid, user), "documents": store.list_documents(con, cid, user["id"]),
+            "embedding": K.embedding_status(con, cid, user["id"], _embed_model(mock))}
+
+
+@app.post("/corpora/{cid}/embed")
+async def embed_corpus(cid: str, request: Request, user=auth.User, mock: bool | None = None):
+    """Embeds whatever the set holds that has no vectors yet. Upload does this itself; this is the retry."""
+    _v0()
+    _corpus(request, cid, user)
+    return await K.embed_pending(request.app.state.db, cid, user["id"], _embedder(request, user, mock, "embed"))
+
+
+@app.delete("/corpora/{cid}")
+def delete_corpus(cid: str, request: Request, user=auth.User):
+    _v0()
+    _corpus(request, cid, user)
+    store.delete_corpus(request.app.state.db, cid, user["id"])
+    return {"ok": True}
+
+
+@app.post("/corpora/{cid}/documents")
+async def add_documents(cid: str, request: Request, files: list[UploadFile], user=auth.User, mock: bool | None = None):
+    """All or nothing: every file is read and chunked, and the corpus limits checked on the result, before any is
+    stored. A file whose name is already in the set replaces that document; an identical one is left alone. Then the
+    new documents are embedded; if that fails they stay stored, and `POST /corpora/{cid}/embed` finishes the job."""
+    _v0()
+    con = request.app.state.db
+    c = _corpus(request, cid, user)
+    existing = {d["name"]: d for d in store.list_documents(con, cid, user["id"])}
+    staged, replaced, unchanged = [], set(), []
+    for f in files:
+        name = Path(f.filename or "document.txt").name
+        data = await f.read()
+        try:
+            text, ext, sha = K.read_document(name, data)
+        except K.DocumentError as e:
+            raise HTTPException(400, str(e))
+        if name in existing and existing[name]["sha256"] == sha:
+            unchanged.append(name)
+            continue
+        chunks = K.chunk_dicts(text)
+        if not chunks:
+            raise HTTPException(400, f"{name}: no text to search (headings only?)")
+        if name in existing:
+            replaced.add(name)
+        staged.append((name, data, ext, sha, chunks))
+    kept = [d for n, d in existing.items() if n not in replaced]
+    try:
+        K.check_limits(n_files=len(kept) + len(staged), n_bytes=sum(d["bytes"] for d in kept) + sum(len(s[1]) for s in staged),
+                       n_chunks=sum(d["n_chunks"] for d in kept) + sum(len(s[4]) for s in staged))
+    except K.DocumentError as e:
+        raise HTTPException(400, str(e))
+    pins = store.pinned_documents(con, user["id"]) if replaced else {}
+    for name in replaced:  # a version still searching the old file keeps it; otherwise it goes
+        (store.retire_document if existing[name]["id"] in pins else store.delete_document)(con, existing[name]["id"], user["id"])
+    added = [store.add_document(con, corpus_id=c["id"], user_id=user["id"], name=name, sha256=sha, data=data, ext=ext,
+                                chunker=K.CHUNKER, chunks=chunks) for name, data, ext, sha, chunks in staged]
+    try:
+        embedded = await K.embed_pending(con, cid, user["id"], _embedder(request, user, mock, "embed")) if added else None
+    except Exception as e:
+        embedded = {"error": f"stored, but not yet searchable: {e}"}
+    return {"added": added, "replaced": sorted(replaced), "unchanged": unchanged, "embedded": embedded, **_corpus(request, cid, user)}
+
+
+@app.get("/corpora/{cid}/documents/{did}")
+def get_document(cid: str, did: str, request: Request, user=auth.User):
+    """The document browser's read: the document and the passages retrieval will see."""
+    _v0()
+    _corpus(request, cid, user)
+    d = store.get_document(request.app.state.db, did, user["id"])
+    if not d or d["corpus_id"] != cid:
+        raise HTTPException(404, "document not found")
+    return {**d, "chunks": store.document_chunks(request.app.state.db, did, user["id"])}
+
+
+@app.delete("/corpora/{cid}/documents/{did}")
+def delete_document(cid: str, did: str, request: Request, user=auth.User):
+    _v0()
+    _corpus(request, cid, user)
+    d = store.get_document(request.app.state.db, did, user["id"])
+    if not d or d["corpus_id"] != cid:
+        raise HTTPException(404, "document not found")
+    # Deleting means deleted, even under a published version: whoever uploaded it may need it gone. Those versions
+    # then refuse to search rather than quietly answer from less; the caller is told which ones.
+    breaks = store.pinned_documents(request.app.state.db, user["id"]).get(did, [])
+    store.delete_document(request.app.state.db, did, user["id"])
+    return {"ok": True, "versions_affected": breaks}
+
 
 # dev only: serve the built frontend and accept the nginx-style prefixes (/studio/api, /api) from the same process
 WEB = Path(__file__).resolve().parent.parent / "web" / "dist"
