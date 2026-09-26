@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model
@@ -235,8 +236,15 @@ def build_schedule(spec: ProjectSpec, task: Task, *, embedder=None, bo_selector=
         mb = minibatch_for(r, full, o.minibatch, o.seed)
         is_new = lambda n: n.origin.op == "reflect" and n.evaluation is None
         on_mb = lambda n: n.origin.op == "reflect" and n.evaluation is not None and not ids.issubset(set(n.evaluation.dataset_ids))
-        expander = ReflectiveExpander(fb, minibatch=o.minibatch, n=o.children, seed=o.seed + r, config=reflect_cfg, module=module,
-                                      meta_prompt=meta_prompt, passed=passed)
+        calls = 1
+        if o.engine == "bo":
+            # Fewer candidates than q (early rounds, or a strict gate): each parent gets extra independent rewrites so
+            # the round still proposes q, as bpto's batch-q experiment does by re-drawing a parent during warm-up.
+            # Without this, q = 4 on a one-node pool is q = 1, and a "parallel" run is just a shorter run.
+            k = len(candidates(tree, ids))
+            calls = math.ceil(o.bo.q / max(1, min(o.bo.q, k if k > 1 else 1)))
+        expander = ReflectiveExpander(fb, minibatch=o.minibatch, n=o.children, calls=calls, seed=o.seed + r, config=reflect_cfg,
+                                      module=module, meta_prompt=meta_prompt, passed=passed)
         if o.engine == "bo":
             pool = lambda t: candidates(t, ids)
             def parents(t):

@@ -163,6 +163,24 @@ def test_bo_engine_schedule_runs_offline():
     assert sum(1 for n in tree if n.origin.op == "reflect") == 3
 
 
+def test_bo_round_proposes_q_even_when_the_pool_is_smaller():
+    """q = 4 on a one-node pool must still propose four rewrites (four independent calls on the root), else a parallel
+    run is just a shorter run; with two candidates each parent gets two calls."""
+    from bpto import Stop
+    from bpto.bo import HashEmbedder
+    s = spec(optimizer=OptimizerSpec(engine="bo", rounds=3, minibatch=3, feedback="plain", reflect_model="mock", no_improvement_rounds=None,
+                                     bo={"q": 4}))
+    task, _ = make_task_and_client(s)
+    schedule, _ = build_schedule(s, task, embedder=HashEmbedder(dim=32))
+    tree = Tree(task)
+    asyncio.run(run(tree, schedule, stop=Stop(rounds=1)))  # round 0: the root's full evaluation, nothing else
+    reflect = lambda steps: next(st for st in steps if st.name.endswith("/reflect")).op
+    assert reflect(schedule(tree, 1)).calls == 4
+    child = tree.add_child(tree.root, tree.root.prompt, tree.root.origin)
+    child.evaluation = tree.root.evaluation  # a second fully evaluated candidate
+    assert reflect(schedule(tree, 2)).calls == 2
+
+
 def test_cost_projection_uses_pilot_numbers():
     s = spec()
     c = project_cost(s, n_rows=200, avg_steps=4.0, tokens_per_module={"extract": 400, "shorten": 100, "check": 80, "final": 60})
@@ -272,3 +290,32 @@ def test_balanced_scorer_through_build_task():
     assert not [i for i in validate_static(s, ROWS, INPUT_MAP).issues if "no scorer produces" in i.message]
     off = spec(evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer")], objective={"accuracy_balanced": 1.0}))
     assert [i for i in validate_static(off, ROWS, INPUT_MAP).issues if "no scorer produces" in i.message]
+
+
+def test_routing_client_retries_bedrock_missing_inference_profile(monkeypatch):
+    """Bedrock's intermittent 'Inference Profile ARN not found' is retried; any other error is not."""
+    from bpto.llm.base import Completion
+    from app.clients import RoutingClient
+    monkeypatch.setattr(asyncio, "sleep", lambda s: _noop())  # no real backoff in tests
+
+    class Flaky:
+        def __init__(self, err, fails):
+            self.err, self.fails, self.calls = err, fails, 0
+
+        async def _complete(self, prompt, cfg, schema):
+            self.calls += 1
+            if self.calls <= self.fails:
+                raise RuntimeError(self.err)
+            return Completion(text="ok")
+
+    flaky = Flaky("ResourceNotFoundException: Inference Profile ARN not found", fails=2)
+    c = RoutingClient("m", mock=flaky)
+    assert asyncio.run(c.complete("hi")).text == "ok" and flaky.calls == 3
+    other = Flaky("ValidationException: bad input", fails=1)
+    with pytest.raises(RuntimeError):
+        asyncio.run(RoutingClient("m", mock=other).complete("hi"))
+    assert other.calls == 1
+
+
+async def _noop():
+    return None

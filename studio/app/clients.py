@@ -3,6 +3,7 @@ so modules on one canvas may use different providers while cache, budget, semaph
 (all of that lives in bpto's `ModelClient` base and is inherited here)."""
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -140,7 +141,16 @@ class RoutingClient(ModelClient):
         return self._providers[key]
 
     async def _complete(self, prompt: str, cfg: ModelConfig, schema: type[BaseModel] | None) -> Completion:
-        return await self.provider(cfg.model)._complete(prompt, cfg, schema)
+        # Bedrock intermittently answers a valid cross-region inference profile with ResourceNotFoundException
+        # ("Inference Profile ARN not found"), about once in five runs on 2026-09-26. botocore does not retry it, and
+        # an unretried one scores that example as a failure. A failed call is never charged, so retrying is free.
+        for attempt in range(3):
+            try:
+                return await self.provider(cfg.model)._complete(prompt, cfg, schema)
+            except Exception as e:
+                if attempt == 2 or "Inference Profile ARN not found" not in str(e):
+                    raise
+                await asyncio.sleep(0.5 * 3 ** attempt)
 
     async def count_tokens(self, text: str, config: ModelConfig | None = None) -> int:
         cfg = self.default_config.merged(config)
