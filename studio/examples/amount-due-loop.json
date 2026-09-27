@@ -1,0 +1,178 @@
+{
+ "bundle": 1,
+ "name": "Amount due, with a check loop",
+ "blurb": "A loop in three prompts: extract an amount, check it, and send it back with a note when the check says it is wrong. 14 billing messages.",
+ "description": "The smallest program with a loop. The extract prompt reads a billing message and proposes the amount due; the check prompt either accepts it (done) or sends it back (retry) with a one-sentence note, which arrives in extract's {feedback} placeholder on the next visit. The final prompt only restates the accepted amount, because the scorer scores the last prompt that runs.\n\nWatch three things in the pilot: how often the retry edge is taken, the average steps per row (2 per attempt plus 1), and whether any row hits the step cap of 7, which scores 0. The run view plots accuracy against steps, so a candidate that gets its accuracy by looping more is visible as one.\n\nExpect the starting prompts to fail both ways: the check can reject a correct amount and loop until the cap, and extract can get the same note three times and repeat the same wrong sum. The optimizer rewrites both prompts, and the traces in the run view show which failure a candidate fixed.\n\nA walkthrough, not a benchmark: 14 rows is too few for the accuracy number to mean much. Every row has an empty feedback column because a placeholder fed only by a loop-back edge needs a first-visit value.",
+ "tags": [
+  "loop",
+  "extract",
+  "walkthrough"
+ ],
+ "requires": [],
+ "updated": "2026-09-27",
+ "order": 5,
+ "spec": {
+  "name": "Amount due, with a check loop",
+  "modules": [
+   {
+    "id": "extract",
+    "template": "Find the amount this customer has to pay.\n\nMessage: {message}\n\nReviewer note on your previous attempt (empty on the first try): {feedback}",
+    "description": "finds the amount the customer has to pay",
+    "schema_fields": [
+     {
+      "name": "amount",
+      "type": "number",
+      "description": "the amount due",
+      "enum": null
+     },
+     {
+      "name": "quote",
+      "type": "string",
+      "description": "the words in the message the amount comes from",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 256
+   },
+   {
+    "id": "check",
+    "template": "Message: {message}\n\nProposed amount due: {amount}, taken from: \"{quote}\"\n\nIs this the final amount the customer owes? If yes, choose done. If not, choose retry and say in one sentence what was missed.",
+    "description": "accepts the amount or sends it back with a note",
+    "schema_fields": [
+     {
+      "name": "note",
+      "type": "string",
+      "description": "what was missed; empty if done",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 256
+   },
+   {
+    "id": "final",
+    "template": "Amount due: {amount}\n\nReturn it as a number.",
+    "description": "restates the accepted amount as a number",
+    "schema_fields": [
+     {
+      "name": "total",
+      "type": "number",
+      "description": "",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 64
+   }
+  ],
+  "steps": [],
+  "edges": [
+   {
+    "source": "extract",
+    "target": "check",
+    "name": "",
+    "mapping": {
+     "amount": "amount",
+     "quote": "quote"
+    },
+    "default": false
+   },
+   {
+    "source": "check",
+    "target": "extract",
+    "name": "retry",
+    "mapping": {
+     "feedback": "note"
+    },
+    "default": false
+   },
+   {
+    "source": "check",
+    "target": "final",
+    "name": "done",
+    "mapping": {},
+    "default": true
+   }
+  ],
+  "entry": null,
+  "max_steps": 7,
+  "eval_model": "us.amazon.nova-micro-v1:0",
+  "evaluate": {
+   "label_column": "amount_due",
+   "scorers": [
+    {
+     "type": "numeric",
+     "name": "",
+     "field": "total",
+     "normalize": true,
+     "pattern": null,
+     "tolerance": 0.001,
+     "rubric": "",
+     "judge_model": null,
+     "balanced": false
+    }
+   ],
+   "token_count": true,
+   "objective": {
+    "numeric_match": 1.0
+   },
+   "pareto": {
+    "numeric_match": true,
+    "steps": false
+   }
+  },
+  "optimizer": {
+   "goal": "accuracy",
+   "engine": "gepa",
+   "mode": "weighted",
+   "bo": {
+    "q": 2,
+    "pca": 4,
+    "acquisition": "qei"
+   },
+   "parents_per_round": 1,
+   "children": 1,
+   "minibatch": 5,
+   "rounds": 5,
+   "no_improvement_rounds": 4,
+   "max_usd": 0.5,
+   "max_calls": null,
+   "reflect_model": "us.amazon.nova-lite-v1:0",
+   "reflect_temperature": 1.0,
+   "feedback": "critic",
+   "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
+   "critic_model": null,
+   "eval_rows": null,
+   "holdout_frac": 0.2,
+   "seed": 0
+  },
+  "mutate": null,
+  "layout": {
+   "extract": {
+    "x": 60,
+    "y": 160
+   },
+   "check": {
+    "x": 320,
+    "y": 160
+   },
+   "final": {
+    "x": 580,
+    "y": 160
+   }
+  }
+ },
+ "dataset": {
+  "name": "amounts.jsonl",
+  "rows": null,
+  "sample": "amounts.jsonl",
+  "input_map": {
+   "message": "message",
+   "feedback": "feedback"
+  },
+  "label_column": "amount_due",
+  "omitted": null
+ },
+ "corpus": null
+}

@@ -1,0 +1,14 @@
+{"id": "a01", "message": "Your order: 2 x desk lamp at $34.00 = $68.00. Shipping $7.50. Total due: $75.50.", "feedback": "", "amount_due": 75.5}
+{"id": "a02", "message": "Subtotal $120.00. Loyalty discount -$12.00. Sales tax (8%) on the discounted amount: $8.64. Please pay $116.64.", "feedback": "", "amount_due": 116.64}
+{"id": "a03", "message": "Invoice 4471: consulting, 6 hours at $95/h = $570. You already paid a $200 deposit. Balance remaining: $370.", "feedback": "", "amount_due": 370.0}
+{"id": "a04", "message": "Hi, the quote I sent last week was $1,450, but we removed the second installation visit ($250). Revised total is $1,200.", "feedback": "", "amount_due": 1200.0}
+{"id": "a05", "message": "Monthly plan $49.00, add-on seats 3 x $10.00 = $30.00, account credit applied -$15.00. Amount due today: $64.00.", "feedback": "", "amount_due": 64.0}
+{"id": "a06", "message": "Items: $212.40. Tax: $17.52. Shipping: free. Store credit: -$25.00.", "feedback": "", "amount_due": 204.92}
+{"id": "a07", "message": "Your repair estimate is $380 for parts and $220 for labour. The warranty covers the parts in full.", "feedback": "", "amount_due": 220.0}
+{"id": "a08", "message": "Tickets: 4 x $18.50 = $74.00. There is also a booking fee of $3.00 per ticket.", "feedback": "", "amount_due": 86.0}
+{"id": "a09", "message": "Rent for March is $1,850. A late fee of $75 applies because payment arrived after the 5th. Last month you overpaid by $100, which we have credited.", "feedback": "", "amount_due": 1825.0}
+{"id": "a10", "message": "Catering for 30 guests at $22 per head = $660, plus an 18% service charge. The $150 tasting fee you paid is deducted from the final bill.", "feedback": "", "amount_due": 628.8}
+{"id": "a11", "message": "Order total $89.99. Your promo code SAVE20 takes 20% off orders over $50.", "feedback": "", "amount_due": 71.99}
+{"id": "a12", "message": "Membership renewal is $300/year. Because you signed up for autopay, it's $270. You paid $90 of that in January.", "feedback": "", "amount_due": 180.0}
+{"id": "a13", "message": "Freight: 3 pallets at $140 each = $420, fuel surcharge 12% of freight = $50.40, liftgate $35. Total $505.40.", "feedback": "", "amount_due": 505.4}
+{"id": "a14", "message": "The invoice shows $2,400 for the annual license. Ignore that figure: sales approved a 25% nonprofit discount, and a corrected invoice will follow.", "feedback": "", "amount_due": 1800.0}

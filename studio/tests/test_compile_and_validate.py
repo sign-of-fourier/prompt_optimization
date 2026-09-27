@@ -319,3 +319,20 @@ def test_routing_client_retries_bedrock_missing_inference_profile(monkeypatch):
 
 async def _noop():
     return None
+
+
+def test_library_loop_example_validates_and_loops():
+    """The loop walkthrough: extract -> check -> (retry -> extract | done -> final), fed by an empty first-visit column."""
+    from app.bundles import load_example
+    from app.mock import mock_client
+    b = load_example("amount-due-loop")
+    rows = b.rows()
+    rep = validate_static(b.spec, rows, b.dataset.input_map)
+    assert rep.ok, [i.message for i in rep.issues if i.level == "error"]
+    assert any("has a loop" in i.message for i in rep.issues)
+    assert build_program(b.spec).terminals == ["final"]
+    task = build_task(b.spec, to_dataset(rows, b.dataset.input_map, b.dataset.label_column),
+                      make_client(b.spec.eval_model, mock=mock_client()))
+    out = asyncio.run(pilot(b.spec, task, rows=12, rep=ValidationReport()))
+    paths = [e["path"] for e in out["examples"]]
+    assert ["extract", "check", "final"] in paths and out["avg_steps"] > 3   # some rows took the retry edge

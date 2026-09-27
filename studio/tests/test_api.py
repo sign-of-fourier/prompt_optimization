@@ -64,7 +64,7 @@ async def _flow():
             lib = (await c.get("/examples")).json()
             ex = lib["entries"]
             assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement",
-                                               "hubspot-contact-lookup"]
+                                               "hubspot-contact-lookup", "amount-due-loop"]
             assert ex[0]["rows"] == 50 and ex[1]["goal"] == "compress" and ex[2]["rows"] == 120
             assert ex[2]["modules"] == 1 and ex[2]["steps"] == 1 and ex[0]["modules"] == 2 and ex[0]["steps"] == 0
             # the library screen filters on these, and the entitlement entry says what it needs before it will run
