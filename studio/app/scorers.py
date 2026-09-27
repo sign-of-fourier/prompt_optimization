@@ -12,7 +12,7 @@ from bpto.scoring import JudgeVerdict
 
 from .models import ScorerSpec
 
-DEFAULT_NAMES = {"exact_match": "accuracy", "contains": "contains", "token_f1": "f1", "regex": "regex_match",
+DEFAULT_NAMES = {"exact_match": "accuracy", "contains": "contains", "token_f1": "f1", "set_f1": "set_f1", "regex": "regex_match",
                  "json_field": "field_match", "numeric": "numeric_match", "llm_judge": "judge", "llm_judge_free": "judge"}
 
 
@@ -40,6 +40,35 @@ def token_f1(pred: str, gold: str) -> float:
         return 0.0
     p, r = common / len(a), common / len(b)
     return 2 * p * r / (p + r)
+
+
+def items(x: Any, norm) -> set[str]:
+    """A list-valued output or label as a set of normalized items. A list is taken as is; text that is a JSON list is
+    parsed; any other text splits on commas, semicolons and new lines (so a name like "Smith, John" splits in two -
+    declare the output field as a list to avoid that)."""
+    if isinstance(x, str):
+        t = x.strip()
+        if t.startswith("["):
+            try:
+                x = json.loads(t)
+            except ValueError:
+                pass
+        if isinstance(x, str):
+            x = re.split(r"[,;\n]", t)
+    if not isinstance(x, (list, tuple, set)):
+        x = [] if x is None else [x]
+    return {n for n in (norm(v).strip() for v in x) if n}
+
+
+def set_fbeta(pred: set[str], gold: set[str], beta: float = 1.0) -> float:
+    """F-beta over two sets. Both empty is a perfect answer (nothing to find, nothing claimed)."""
+    if not pred and not gold:
+        return 1.0
+    hit = len(pred & gold)
+    if hit == 0:
+        return 0.0
+    p, r, b2 = hit / len(pred), hit / len(gold), beta * beta
+    return (1 + b2) * p * r / (b2 * p + r)
 
 
 def class_weights(labels: list[Any], norm) -> dict[str, float]:
@@ -75,6 +104,11 @@ def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_confi
     elif t == "token_f1":
         def _s(prompt, ex, comp, ctx):
             return {name: token_f1(str(predicted(comp, spec.field) or ""), str(ex.answer or ""))}
+    elif t == "set_f1":
+        beta = spec.beta if spec.beta > 0 else 1.0
+
+        def _s(prompt, ex, comp, ctx):
+            return {name: set_fbeta(items(predicted(comp, spec.field), norm), items(ex.answer, norm), beta)}
     elif t == "regex":
         rx = re.compile(spec.pattern or "")
 
@@ -99,7 +133,8 @@ def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_confi
                 gold = float(ex.answer)
             except (TypeError, ValueError):
                 return {name: 0.0}
-            return {name: 1.0 if abs(got - gold) <= spec.tolerance * max(1.0, abs(gold)) else 0.0}
+            allowed = spec.tolerance if spec.tolerance_mode == "absolute" else spec.tolerance * max(1.0, abs(gold))
+            return {name: 1.0 if abs(got - gold) <= allowed else 0.0}
     elif t == "llm_judge":
         return llm_judge(spec.rubric or "Is the model answer correct given the reference answer?", name=name,
                          client=judge_client, config=judge_config)
@@ -115,6 +150,17 @@ def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_confi
     else:
         raise ValueError(f"unknown scorer {t}")
     return _s
+
+
+def list_diff(spec: ScorerSpec, predicted_value: Any, gold: Any) -> str:
+    """For the rewriter's feedback: which items a set_f1 scorer found missing and which it found extra."""
+    norm = normalize if spec.normalize else (lambda x: str(x if x is not None else ""))
+    p, g = items(predicted_value, norm), items(gold, norm)
+    missing, extra = sorted(g - p), sorted(p - g)
+    if not missing and not extra:
+        return "all items correct"
+    return "; ".join(part for part in (f"missing: {', '.join(missing)}" if missing else "",
+                                       f"extra (not in the label): {', '.join(extra)}" if extra else "") if part)
 
 
 def needs_label(spec: ScorerSpec) -> bool:

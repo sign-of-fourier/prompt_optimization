@@ -1,6 +1,6 @@
 # Impromptune — full site
 
-Generated 2026-09-26. Index: https://impromptune.com/llms.txt
+Generated 2026-09-27. Index: https://impromptune.com/llms.txt
 
 
 
@@ -359,17 +359,21 @@ URL: https://impromptune.com/docs/evaluate
 
  | Token F1 | word overlap with the label | short free-text answers, QA-style |
 
+ | List (set F1) | the items in the output against the items in the label, in any order, with credit for each one found | extraction: names, SKUs, line items, tags |
+
  | Regex | a pattern extracts the answer, or just must be present | structured strings: ids, amounts, dates |
 
  | JSON field equality | one field of a JSON label | the label is an object and only part of it matters |
 
- | Numeric | numbers within a relative tolerance | quantities, where 4.99 and 5.0 are the same answer |
+ | Numeric | numbers within a tolerance, relative (a share of the label) or absolute (in its units) | quantities, where 4.99 and 5.0 are the same answer |
 
  | LLM judge, vs reference | a judge model grades the output against the label | free text with a right answer but many wordings |
 
  | LLM judge, no reference | a judge model grades against a rubric alone | there is no single right answer — tone, helpfulness |
 
  You can add more than one. Each produces its own named metric, and they all land in the same vector.
+
+ Lists are scored as sets. “Charles, Nantucket”, “nantucket, charles” and a list field holding both names all score 1 against the label ["Charles", "Nantucket"]; finding one of the two scores 0.67. Declare the output field as a list where an item can contain a comma; text is split on commas, semicolons and new lines. The one choice to make is which mistake costs more: a missing item (screening, compliance, where a miss is expensive) or a wrong extra (anything that gets acted on automatically). Either way, the rewriter is told which items were missing and which were extra on each row it sees. Turn normalize off where case carries meaning, as in SKUs or tickers.
 
  When one class dominates, score balanced. Exact match has a balanced option. It adds accuracy_balanced, which weights each row by how rare its label is, so every class counts equally: the average of per-class recall. Plain accuracy on a dataset where most rows are one class rewards a prompt that always answers that class. Put the objective weight on the balanced metric instead.
 

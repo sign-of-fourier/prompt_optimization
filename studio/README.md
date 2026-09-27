@@ -9,7 +9,7 @@ it, run GEPA or BO in the expand seat, watch the tree. Served at `impromptune.co
 app/          FastAPI backend (routes are unprefixed; nginx mounts them at /api/, dev mode also accepts /studio/api/)
   models.py   the canvas spec (ProjectSpec: modules, edges, evaluate, optimizer) - plain JSON
   compile.py  spec -> bpto Program / Task / run() schedule (GEPA or BO parents, minibatch gate, LLM critic feedback)
-  scorers.py  point-and-click scorers (exact match, contains, token F1, regex, JSON field, numeric, LLM judge ± reference)
+  scorers.py  point-and-click scorers (exact match, contains, token F1, list set F1, regex, JSON field, numeric, LLM judge ± reference)
   clients.py  RoutingClient: one bpto ModelClient per run that dispatches on config.model (Bedrock / Anthropic / OpenAI)
   validation.py  graph, mapping, labels, scorer checks; pilot (root twice + one rewrite); cost projection
   brand.py    the studio's name and public URL (env-driven)

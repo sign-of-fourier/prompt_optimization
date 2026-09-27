@@ -12,7 +12,7 @@ import { NAME, SITE_URL, COMPANY_URL } from './brand.js'
 
 const EMPTY = {
   name: 'untitled', modules: [], edges: [], entry: null, max_steps: 8, eval_model: 'us.amazon.nova-micro-v1:0',
-  evaluate: { label_column: 'answer', scorers: [{ type: 'exact_match', name: '', field: null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null, balanced: false }],
+  evaluate: { label_column: 'answer', scorers: [{ type: 'exact_match', name: '', field: null, normalize: true, pattern: null, tolerance: 0, tolerance_mode: 'relative', beta: 1, rubric: '', judge_model: null, balanced: false }],
               token_count: true, objective: { accuracy: 1.0 }, pareto: {} },
   optimizer: { goal: 'accuracy', engine: 'gepa', mode: 'weighted', bo: { q: 2, pca: 4, acquisition: 'qei' }, parents_per_round: 1, children: 1, minibatch: 5, rounds: 10,
                no_improvement_rounds: 4, max_usd: 2.0, max_calls: null, reflect_model: 'us.amazon.nova-lite-v1:0', reflect_temperature: 1.0,

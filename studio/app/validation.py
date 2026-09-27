@@ -209,13 +209,19 @@ def check_labels(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[
             rep.add("warn", "scorer", "exact match on free-text labels almost never matches; use token_f1, contains or an LLM judge")
         if sc.type == "numeric" and kind not in ("number",):
             rep.add("error", "scorer", f"numeric scorer but labels look like {kind}")
+        if sc.type == "set_f1" and sc.field:
+            f = next((f for f in spec.module(_terminal(spec)).schema_fields if f.name == sc.field), None)
+            if f is not None and f.type != "string[]":
+                rep.add("info", "scorer", f"set F1 on the text field {sc.field!r}: items are split on commas, semicolons and new lines; make it a list field if an item can contain a comma", where=f.name)
+        if sc.type == "set_f1" and sc.beta <= 0:
+            rep.add("error", "scorer", "set F1 needs a positive beta (1 = balanced)")
         if sc.type in ("llm_judge",) and not sc.rubric:
             rep.add("info", "scorer", "no rubric given; the judge will use a generic correctness rubric")
         if sc.field:
             term = spec.module(_terminal(spec))
             if sc.field not in {f.name for f in term.schema_fields}:
                 rep.add("error", "scorer", f"scorer compares field {sc.field!r} but the terminal module {term.id!r} has no such output field", where=term.id)
-        if sc.type in ("exact_match", "contains", "json_field", "token_f1") and not sc.field and spec.module(_terminal(spec)).schema_fields:
+        if sc.type in ("exact_match", "contains", "json_field", "token_f1", "set_f1") and not sc.field and spec.module(_terminal(spec)).schema_fields:
             rep.add("warn", "scorer", f"the terminal module returns structured fields but the scorer compares the whole output; pick a field (e.g. {spec.module(_terminal(spec)).schema_fields[0].name!r})")
     for k in spec.evaluate.objective:
         known = {S.DEFAULT_NAMES[s.type] if not s.name else s.name for s in spec.evaluate.scorers} | {"prompt_tokens", "output_tokens", "template_tokens", "steps", "capped"}

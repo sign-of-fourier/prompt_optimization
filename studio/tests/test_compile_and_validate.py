@@ -336,3 +336,53 @@ def test_library_loop_example_validates_and_loops():
     out = asyncio.run(pilot(b.spec, task, rows=12, rep=ValidationReport()))
     paths = [e["path"] for e in out["examples"]]
     assert ["extract", "check", "final"] in paths and out["avg_steps"] > 3   # some rows took the retry edge
+
+
+def test_set_f1_scores_lists_order_and_case_blind():
+    """The Nantucket example: any order, any case, list or text; partial credit; beta trades misses against extras."""
+    from types import SimpleNamespace as NS
+    from app import scorers as S
+    from app.compile import list_feedback
+    gold = ["Charles", "Nantucket"]
+    sc = S.build(ScorerSpec(type="set_f1", field="names"))
+    score = lambda pred, g=gold, s=sc: s(None, NS(answer=g), NS(parsed={"names": pred}, text=str(pred)), None)["set_f1"]
+    for pred in (["Nantucket", "Charles"], ["charles", "nantucket"], "Charles, Nantucket", '["Nantucket", "Charles"]'):
+        assert score(pred) == 1.0, pred
+    assert score(["Charles"]) == pytest.approx(2 / 3) and score([]) == 0.0
+    assert score(["Charles", "Nantucket", "Massachusetts"]) == pytest.approx(0.8)
+    assert score(["Charles", "Charles", "Nantucket"]) == 1.0                  # a repeated item is still one item
+    assert score([], g=[]) == 1.0                                              # nothing to find, nothing claimed
+    assert score(["Charles"], g="Charles; Nantucket") == pytest.approx(2 / 3)  # a text label splits on ; too
+    # normalize off: case counts
+    assert score(["charles", "nantucket"], s=S.build(ScorerSpec(type="set_f1", field="names", normalize=False))) == 0.0
+    # beta 2 punishes the miss more than the extra; beta 0.5 the reverse
+    recall = S.build(ScorerSpec(type="set_f1", field="names", beta=2.0))
+    miss, extra = score(["Charles"], s=recall), score(["Charles", "Nantucket", "Boston", "Salem"], s=recall)
+    assert miss < extra
+    precision = S.build(ScorerSpec(type="set_f1", field="names", beta=0.5))
+    assert score(["Charles"], s=precision) > score(["Charles", "Nantucket", "Boston", "Salem"], s=precision)
+    # the rewriter is told exactly what was dropped and what was invented
+    fb = list_feedback(lambda ex, r: "expected: ...", [ScorerSpec(type="set_f1", field="names")])
+    text = fb(NS(answer=gold), NS(error=None, parsed={"names": ["charles", "Boston"]}, output=""))
+    assert "missing: nantucket" in text and "extra (not in the label): boston" in text
+
+
+def test_numeric_tolerance_modes():
+    from types import SimpleNamespace as NS
+    from app import scorers as S
+    run1 = lambda sc, got, gold: S.build(sc)(None, NS(answer=gold), NS(parsed={"v": got}, text=str(got)), None)["numeric_match"]
+    rel = ScorerSpec(type="numeric", field="v", tolerance=0.01)
+    ab = ScorerSpec(type="numeric", field="v", tolerance=0.5, tolerance_mode="absolute")
+    assert run1(rel, 1009, 1000) == 1.0 and run1(rel, 1011, 1000) == 0.0       # 1% of 1000
+    assert run1(ab, 1000.4, 1000) == 1.0 and run1(ab, 1000.6, 1000) == 0.0     # half a unit, whatever the size
+    assert run1(ab, 0.4, 0) == 1.0
+
+
+def test_set_f1_validation():
+    s = spec(modules=[m if m.id != "final" else ModuleSpec(id="final", template="Answer: {short}", description="final answer",
+                                                              schema_fields=[SchemaField(name="answer")]) for m in spec().modules],
+             evaluate=EvaluateSpec(scorers=[ScorerSpec(type="set_f1", field="answer")], objective={"set_f1": 1.0}))
+    msgs = [i.message for i in validate_static(s, ROWS, INPUT_MAP).issues]
+    assert any("make it a list field" in m for m in msgs) and not any("no scorer produces" in m for m in msgs)
+    s.evaluate.scorers[0].beta = 0
+    assert not validate_static(s, ROWS, INPUT_MAP).ok

@@ -104,9 +104,10 @@ const SCORERS = [
   ['exact_match', 'Exact match (normalized)', 'label equals the output field'],
   ['contains', 'Contains', 'the label appears in the output'],
   ['token_f1', 'Token F1', 'word overlap with the label (QA-style)'],
+  ['set_f1', 'List (set F1)', 'a list of items vs the label list: any order, partial credit for each item found'],
   ['regex', 'Regex', 'a pattern extracts the answer (or just must be present)'],
   ['json_field', 'JSON field equality', 'compare one field of a JSON label'],
-  ['numeric', 'Numeric (tolerance)', 'numbers within a relative tolerance'],
+  ['numeric', 'Numeric (tolerance)', 'numbers within a tolerance'],
   ['llm_judge', 'LLM judge vs reference', 'a judge model grades against the label'],
   ['llm_judge_free', 'LLM judge, no reference', 'a judge model grades with a rubric only'],
 ]
@@ -116,7 +117,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
   const set = patch => update(s => ({ ...s, evaluate: { ...s.evaluate, ...patch } }))
   const term = spec.modules.find(m => !spec.edges.some(e => e.source === m.id))
   const fields = term ? term.schema_fields.map(f => f.name) : []
-  const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge' })[sc.type]
+  const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', set_f1: 'set_f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge' })[sc.type]
   const metrics = [...ev.scorers.flatMap(sc => sc.type === 'exact_match' && sc.balanced ? [metricName(sc), metricName(sc) + '_balanced'] : [metricName(sc)]), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
   return (
     <div>
@@ -130,15 +131,20 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
           {!sc.type.startsWith('llm') && <><label>Output field to compare</label>
             <select value={sc.field || ''} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, field: e.target.value || null } : x) })}><option value="">whole output</option>{fields.map(f => <option key={f}>{f}</option>)}</select></>}
           {sc.type === 'regex' && <><label>Pattern (group 1 = extracted answer)</label><input value={sc.pattern || ''} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, pattern: e.target.value } : x) })} /></>}
-          {sc.type === 'numeric' && <><label>Relative tolerance</label><input type="number" step="0.01" value={sc.tolerance} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, tolerance: +e.target.value } : x) })} /></>}
+          {sc.type === 'numeric' && <><label>Tolerance</label>
+            <div className="row"><input type="number" step="0.01" style={{ width: 110 }} value={sc.tolerance} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, tolerance: +e.target.value } : x) })} />
+              <select className="grow" value={sc.tolerance_mode || 'relative'} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, tolerance_mode: e.target.value } : x) })}><option value="relative">relative (0.01 = within 1%)</option><option value="absolute">absolute (in the label's units)</option></select></div></>}
+          {sc.type === 'set_f1' && <><label>Which mistake costs more</label>
+            <select value={String(sc.beta ?? 1)} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, beta: +e.target.value } : x) })}><option value="1">neither: missing and extra items weigh the same</option><option value="2">a missing item (recall matters: screening, compliance)</option><option value="0.5">a wrong extra item (precision matters: what gets acted on)</option></select>
+            <div className="help">A text output is split on commas, semicolons and new lines; make the output field a list if an item can contain a comma. The rewriter is shown which items were missing and which were extra.</div></>}
           {sc.type.startsWith('llm') && <><label>Rubric</label><textarea style={{ minHeight: 60 }} value={sc.rubric} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, rubric: e.target.value } : x) })} placeholder="Is the answer factually equivalent to the reference?" />
             <label>Judge model</label><select value={sc.judge_model || ''} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, judge_model: e.target.value || null } : x) })}><option value="">same as evaluation model</option>{models.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></>}
           <label>Metric name</label><input value={sc.name} placeholder={metricName({ ...sc, name: '' })} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
-          {['exact_match', 'contains', 'json_field'].includes(sc.type) && <label style={{ textTransform: 'none' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={sc.normalize} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, normalize: e.target.checked } : x) })} />normalize (case, punctuation, articles)</label>}
+          {['exact_match', 'contains', 'json_field', 'set_f1'].includes(sc.type) && <label style={{ textTransform: 'none' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={sc.normalize} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, normalize: e.target.checked } : x) })} />normalize (case, punctuation, articles)</label>}
           {sc.type === 'exact_match' && <label style={{ textTransform: 'none' }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={!!sc.balanced} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, balanced: e.target.checked } : x) })} />also score balanced (<code>{metricName(sc)}_balanced</code>: each class counts equally, so predicting the biggest class stops paying)</label>}
         </div>
       ))}
-      <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, rubric: '', judge_model: null, balanced: false }] })}>+ scorer</button>
+      <button className="small" onClick={() => set({ scorers: [...ev.scorers, { type: 'token_f1', name: '', field: fields[0] || null, normalize: true, pattern: null, tolerance: 0, tolerance_mode: 'relative', beta: 1, rubric: '', judge_model: null, balanced: false }] })}>+ scorer</button>
       <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over prompts), prompt (rendered, with the data) and output</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}

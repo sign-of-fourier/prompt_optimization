@@ -58,7 +58,7 @@ class StepSpec(BaseModel):
         return v
 
 
-ScorerType = Literal["exact_match", "contains", "token_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free"]
+ScorerType = Literal["exact_match", "contains", "token_f1", "set_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free"]
 
 
 class ScorerSpec(BaseModel):
@@ -68,6 +68,10 @@ class ScorerSpec(BaseModel):
     normalize: bool = True         # lowercase/strip punctuation+articles for string comparisons
     pattern: str | None = None     # regex
     tolerance: float = 0.0         # numeric
+    # numeric: "relative" = within tolerance x max(1, |label|); "absolute" = within tolerance, in the label's units
+    tolerance_mode: Literal["relative", "absolute"] = "relative"
+    # set_f1: F-beta over items. 1 = balanced; 2 = a missing item costs more than a wrong extra; 0.5 = the reverse
+    beta: float = 1.0
     rubric: str = ""               # llm_judge*
     judge_model: str | None = None
     # exact_match only: also emit "<name>_balanced", each correct row weighted by 1 / (classes x its label's share of

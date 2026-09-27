@@ -53,13 +53,15 @@
       <tr><td>Exact match</td><td>the field equals the label, optionally normalizing case, punctuation and articles</td><td>classification into known categories</td></tr>
       <tr><td>Contains</td><td>the label appears somewhere in the output</td><td>the answer is embedded in prose</td></tr>
       <tr><td>Token F1</td><td>word overlap with the label</td><td>short free-text answers, QA-style</td></tr>
+      <tr><td>List (set F1)</td><td>the items in the output against the items in the label, in any order, with credit for each one found</td><td>extraction: names, SKUs, line items, tags</td></tr>
       <tr><td>Regex</td><td>a pattern extracts the answer, or just must be present</td><td>structured strings: ids, amounts, dates</td></tr>
       <tr><td>JSON field equality</td><td>one field of a JSON label</td><td>the label is an object and only part of it matters</td></tr>
-      <tr><td>Numeric</td><td>numbers within a relative tolerance</td><td>quantities, where 4.99 and 5.0 are the same answer</td></tr>
+      <tr><td>Numeric</td><td>numbers within a tolerance, relative (a share of the label) or absolute (in its units)</td><td>quantities, where 4.99 and 5.0 are the same answer</td></tr>
       <tr><td>LLM judge, vs reference</td><td>a judge model grades the output against the label</td><td>free text with a right answer but many wordings</td></tr>
       <tr><td>LLM judge, no reference</td><td>a judge model grades against a rubric alone</td><td>there is no single right answer &mdash; tone, helpfulness</td></tr>
     </table></div>
     <p>You can add more than one. Each produces its own named metric, and they all land in the same vector.</p>
+    <p id="lists"><strong>Lists are scored as sets.</strong> &ldquo;Charles, Nantucket&rdquo;, &ldquo;nantucket, charles&rdquo; and a list field holding both names all score 1 against the label <code>["Charles", "Nantucket"]</code>; finding one of the two scores 0.67. Declare the output field as a list where an item can contain a comma; text is split on commas, semicolons and new lines. The one choice to make is which mistake costs more: a missing item (screening, compliance, where a miss is expensive) or a wrong extra (anything that gets acted on automatically). Either way, the rewriter is told which items were missing and which were extra on each row it sees. Turn normalize off where case carries meaning, as in SKUs or tickers.</p>
     <p><strong>When one class dominates, score balanced.</strong> Exact match has a <em>balanced</em> option. It adds <code>accuracy_balanced</code>, which weights each row by how rare its label is, so every class counts equally: the average of per-class recall. Plain accuracy on a dataset where most rows are one class rewards a prompt that always answers that class. Put the objective weight on the balanced metric instead.</p>
     <div class="callout"><strong>A judge costs money and has opinions.</strong> Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.</div>
   </div>

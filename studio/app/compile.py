@@ -168,6 +168,25 @@ def critic_feedback(fallback):
     return _fb
 
 
+def list_feedback(fallback, scorers):
+    """Appends each set_f1 scorer's missing and extra items: the rewriter sees exactly which names it dropped or
+    invented, which neither the metric nor a critic's prose states reliably."""
+    lists = [sc for sc in scorers if sc.type == "set_f1"]
+    if not lists:
+        return fallback
+
+    def _fb(ex: Example, r: ExampleResult) -> str:
+        text = fallback(ex, r)
+        if r.error:
+            return text
+        p = r.parsed if r.parsed is not None else r.output
+        for sc in lists:
+            got = p.get(sc.field) if sc.field and isinstance(p, dict) else p
+            text += f"; {sc.field or 'items'}: {S.list_diff(sc, got, ex.answer)}"
+        return text
+    return _fb
+
+
 class Critique(Op):
     """Before reflection: run the critic over exactly the rows the reflector will show for each parent and stash
     the note in `result.trace["_critic"]`. ~minibatch calls per parent; the reflector's own row pick is reused so
@@ -213,6 +232,7 @@ def build_schedule(spec: ProjectSpec, task: Task, *, embedder=None, bo_selector=
     critic_cfg = ModelConfig(model=o.critic_model or o.reflect_model, max_tokens=512, temperature=0.0)
     base_fb = templated_feedback(o.feedback_template) if o.feedback == "templated" else default_feedback
     fb = critic_feedback(base_fb) if o.feedback == "critic" else base_fb
+    fb = list_feedback(fb, spec.evaluate.scorers)
     compress = o.goal == "compress"
     if compress:
         fb = compress_feedback(fb)
