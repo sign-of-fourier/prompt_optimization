@@ -1,0 +1,23 @@
+# The serving box (studio/app/serve_box.py): hosted versions, on their own EC2 instance. See deploy/SERVE-BOX.md.
+# sudo cp deploy/serve-box.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now serve-box
+[Unit]
+Description=Impromptune serving box (hosted versions)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/prompt_optimization/studio
+Environment=AWS_REGION=us-east-1
+# Bedrock through the instance's IAM role (bedrock:InvokeModel only): no key on this machine
+Environment=STUDIO_BEDROCK_ROLE=1
+# Customer data lives here, one folder per customer under tenants/; nothing of ours goes in it
+Environment=SERVE_DATA=/srv/serve
+# SERVE_TOKEN (the studio's shared secret) goes in /etc/serve-box.env, root-owned, mode 600
+EnvironmentFile=/etc/serve-box.env
+# Bound to the private address: only the studio box's nginx reaches it (security group allows 8200 from it alone)
+ExecStart=/home/ubuntu/venv/bin/uvicorn app.serve_box:app --host 0.0.0.0 --port 8200
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

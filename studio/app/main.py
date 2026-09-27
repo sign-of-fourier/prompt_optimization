@@ -2,6 +2,7 @@
 unprefixed). `uvicorn app.main:app --port 8100`."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
@@ -13,7 +14,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, corpora as K, credentials as C, db, jev as J, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
+from . import auth, bundles as B, corpora as K, credentials as C, db, hosting as H, jev as J, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -42,10 +43,24 @@ async def lifespan(app: FastAPI):
     load_env()
     app.state.db = db.connect()
     store.init(app.state.db)
+    H.init(app.state.db)
     app.state.runs = R.RunManager()
     DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+    puller = asyncio.create_task(_pull_ledger(app)) if H.configured() else None
     yield
+    if puller:
+        puller.cancel()
     app.state.db.close()
+
+
+async def _pull_ledger(app: FastAPI) -> None:
+    """Hosted versions' traces and usage, brought back from the serving box every HOSTING_PULL_S seconds."""
+    while True:
+        await asyncio.sleep(float(os.environ.get("HOSTING_PULL_S", "30")))
+        try:
+            await H.pull(app.state.db)
+        except Exception as e:   # the box being down must not take the studio with it; the cursor makes retries safe
+            print(f"hosting: ledger pull failed: {e}", flush=True)
 
 
 app = FastAPI(title=brand.name(), lifespan=lifespan)
@@ -651,13 +666,20 @@ class KeyBody(BaseModel):
 
 
 @app.post("/keys")
-def create_key(body: KeyBody, request: Request, user=auth.User):
+async def create_key(body: KeyBody, request: Request, user=auth.User):
     """The only time the key itself is returned: only its sha256 is stored."""
     _v0()
+    con = request.app.state.db
     key = KEY_PREFIX + _secrets.token_urlsafe(32)
-    k = store.create_api_key(request.app.state.db, user_id=user["id"], label=body.label or "api key",
+    k = store.create_api_key(con, user_id=user["id"], label=body.label or "api key",
                              hash=_key_hash(key), prefix=key[:len(KEY_PREFIX) + 6])
-    return {**k, "key": key}
+    out = {**k, "key": key}
+    if H.configured() and H.hosted_ids(con, user["id"]):
+        try:
+            await H.push_keys(con, user["id"])
+        except H.HostingError as e:
+            out["hosting_warning"] = f"the key works here, but hosted versions will not accept it until the serving box is reachable ({e})"
+    return out
 
 
 @app.get("/keys")
@@ -667,10 +689,65 @@ def list_keys(request: Request, user=auth.User):
 
 
 @app.delete("/keys/{kid}")
-def delete_key(kid: str, request: Request, user=auth.User):
+async def delete_key(kid: str, request: Request, user=auth.User):
+    """Revoked on the serving box first: a key that still worked there would not be revoked at all."""
     _v0()
-    store.delete_api_key(request.app.state.db, user["id"], kid)
+    con = request.app.state.db
+    if H.configured() and H.hosted_ids(con, user["id"]):
+        try:
+            await H.drop_key(kid)
+        except H.HostingError as e:
+            raise HTTPException(502, f"the serving box did not confirm the revoke, so the key was left in place; try again ({e})")
+    store.delete_api_key(con, user["id"], kid)
     return {"ok": True}
+
+
+# ---- hosting (beta upsell; v0-gated, and needs SERVE_BOX_URL + SERVE_TOKEN) ---------------------
+
+def _hosting() -> None:
+    _v0()
+    if not H.configured():
+        raise HTTPException(503, "hosting is not set up on this server")
+
+
+@app.post("/versions/{vid}/host")
+async def host_version(vid: str, request: Request, user=auth.User):
+    """Copy a version to the serving box and answer it there, on house models."""
+    _hosting()
+    con = request.app.state.db
+    v = store.get_version(con, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    t = tiers.tier_of(user.get("tier"))
+    if not t["house_keys"]:
+        raise HTTPException(403, "hosting runs on house models, which your plan does not include")
+    _check_models(ProjectSpec.model_validate(v["spec"]), Access([], house_keys=True, house_models=t["house_models"]))
+    try:
+        return await H.host(con, v, user["id"])
+    except H.HostingError as e:
+        raise HTTPException(502, str(e))
+
+
+@app.delete("/versions/{vid}/host")
+async def unhost_version(vid: str, request: Request, user=auth.User):
+    _hosting()
+    con = request.app.state.db
+    if not store.get_version(con, vid, user["id"]):
+        raise HTTPException(404, "version not found")
+    try:
+        return await H.unhost(con, vid, user["id"])
+    except H.HostingError as e:
+        raise HTTPException(502, str(e))
+
+
+@app.post("/hosting/sync")
+async def hosting_sync(request: Request, user=auth.User):
+    """Pull this account's hosted traces and usage now, instead of waiting for the background pull."""
+    _hosting()
+    try:
+        return {"imported": await H.pull(request.app.state.db, user["id"])}
+    except H.HostingError as e:
+        raise HTTPException(502, str(e))
 
 
 # ---- serving (v0, flag-gated) -----------------------------------------------------------------

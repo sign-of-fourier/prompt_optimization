@@ -35,7 +35,9 @@ def limit(tier: str | None, what: str) -> int:
 def house_key_present(provider: str) -> bool:
     """Whether the process has a credential for a house provider; house models without one are hidden."""
     if provider == "bedrock":
-        return bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK") or os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE"))
+        # STUDIO_BEDROCK_ROLE=1: the instance's IAM role (boto3's default chain), as on the serving box - no key on disk
+        return bool(os.environ.get("AWS_BEARER_TOKEN_BEDROCK") or os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_PROFILE")
+                    or os.environ.get("STUDIO_BEDROCK_ROLE") == "1")
     if provider == "anthropic":
         return bool(os.environ.get("ANTHROPIC_API_KEY"))
     return bool(os.environ.get("OPENAI_API_KEY"))

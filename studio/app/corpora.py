@@ -297,8 +297,17 @@ def make_retriever(con, corpus_id: str, user_id: str, embedder, k: int = DEFAULT
     if pending:
         raise StepError(f"{len(pending)} document(s) in this set are not searchable yet: open the set and retry embedding")
     chunks, mat = store.load_vectors(con, corpus_id, user_id, embedder.model, document_ids)
+    return retriever_over(chunks, mat, embedder, k)
+
+
+def retriever_over(chunks: list[dict], mat, embedder, k: int = DEFAULT_K):
+    """The search itself, over chunks (dicts with document, heading, text, tokens) and their vectors, rows aligned.
+    Shared by the studio and the serving box, so a hosted version formats its passages byte for byte as evaluation did."""
+    import numpy as np
+    from .steps import StepError
     if not chunks:
         raise StepError("this document set is empty")
+    mat = np.asarray(mat, dtype=np.float32)
     norms = np.linalg.norm(mat, axis=1, keepdims=True)
     mat = mat / np.where(norms == 0, 1, norms)
     k = max(1, min(int(k or DEFAULT_K), len(chunks)))
