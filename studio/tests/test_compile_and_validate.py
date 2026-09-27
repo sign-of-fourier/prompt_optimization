@@ -386,3 +386,18 @@ def test_set_f1_validation():
     assert any("make it a list field" in m for m in msgs) and not any("no scorer produces" in m for m in msgs)
     s.evaluate.scorers[0].beta = 0
     assert not validate_static(s, ROWS, INPUT_MAP).ok
+
+
+def test_cost_projection_counts_judges_per_scored_row():
+    base = spec()
+    c0 = project_cost(base, 100, avg_steps=4.0)
+    assert c0["calls"]["judge"] == 0 and c0["usd"]["judge"] == 0.0
+    s = spec(evaluate=EvaluateSpec(scorers=[ScorerSpec(type="exact_match", field="answer"),
+                                            ScorerSpec(type="llm_judge", field="answer", judge_model="us.amazon.nova-lite-v1:0"),
+                                            ScorerSpec(type="jev_match", field="answer")]))
+    c = project_cost(s, 100, avg_steps=4.0)
+    rollouts = c["calls"]["round0"] + c["calls"]["gate"] + c["calls"]["full"]
+    # once per scored row, not once per prompt call: a four-step loop does not quadruple the judge
+    assert c["calls"]["judge"] == pytest.approx(rollouts / 4) and c["calls"]["jev"] == pytest.approx(rollouts / 4)
+    assert c["usd"]["judge"] > 0 and c["usd"]["total"] == pytest.approx(sum(v for k, v in c["usd"].items() if k != "total"))
+    assert any("Jev" in m for m in c["assumptions"]["unpriced_models"])

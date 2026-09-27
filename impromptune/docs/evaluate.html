@@ -67,6 +67,35 @@
   </div>
 </section>
 
+<section id="choosing">
+  <div class="wrap">
+    <h2>Choosing a scorer, and when to reach for a judge</h2>
+    <p>Start from what the terminal prompt returns. Most projects never need anything below the fourth row.</p>
+    <div class="tablewrap"><table>
+      <tr><th>The output is</th><th>Start with</th><th>The one choice to make</th></tr>
+      <tr><td>a number</td><td>Numeric</td><td>relative tolerance (a share of the label) or absolute (in its units)</td></tr>
+      <tr><td>a label from a fixed set</td><td>Exact match</td><td>balanced, if one class dominates; list the allowed values on the output field</td></tr>
+      <tr><td>a list of items</td><td>List (set F1)</td><td>whether a missing item or a wrong extra costs more</td></tr>
+      <tr><td>a short answer that can be worded several ways</td><td>Exact match first; a judge if it keeps marking right answers wrong</td><td>what counts as the same answer</td></tr>
+      <tr><td>free text with a right answer</td><td>LLM judge, vs reference</td><td>the rubric</td></tr>
+      <tr><td>free text with no single right answer</td><td>LLM judge, no reference</td><td>the rubric</td></tr>
+    </table></div>
+    <p><strong>Before adding a judge, tighten the output.</strong> A judge is often the fix for a format problem that a field would solve for free. If the label is one of six queues, list them as the field's allowed values. If it is several names, make the field a list. If it is a number, make the field a number. Normalization (case, punctuation, articles) belongs in the scorer, where it is free and exact, not in the prompt, where the optimizer may rewrite it away.</p>
+    <p><strong>The sign you need one:</strong> the pilot or a baseline run shows rows marked wrong that you would mark right. <em>&ldquo;45&rdquo;</em> against a label of <em>&ldquo;45 days&rdquo;</em>, or <em>&ldquo;as account credit only&rdquo;</em> against <em>&ldquo;account credit&rdquo;</em>. Read ten failed rows before deciding. If most of them really are wrong, the scorer is fine and the prompt is the problem.</p>
+    <h3 id="judges">Using a judge well</h3>
+    <ul class="prose">
+      <li><strong>Give it the label.</strong> A judge that compares against a reference is far steadier than one asked whether an answer is good. Use the no-reference judge only when there is genuinely no right answer.</li>
+      <li><strong>Write the rubric as the rule for &ldquo;the same answer&rdquo;.</strong> &ldquo;The same number of days, whatever the wording&rdquo; beats &ldquo;Is this correct?&rdquo;.</li>
+      <li><strong>It is frozen.</strong> The judge's model and rubric are never rewritten by the optimizer. That is deliberate: a judge that could change would be optimized into agreeing.</li>
+      <li><strong>Keep a strict scorer beside it.</strong> Exact match and a judge can both be in the vector. Weight the judge for meaning; keep the strict one to watch format, or to weigh it a little if downstream code needs the exact form.</li>
+      <li><strong>Check it before you trust it.</strong> Run a baseline run, open twenty or thirty rows, and mark each verdict right or wrong yourself. If you disagree with the judge on more than a couple, fix the rubric before spending on a run. The optimizer will chase whatever the judge rewards, mistakes included.</li>
+      <li><strong>Expect some noise.</strong> A model judge at temperature 0 does not always give the same verdict twice, so a judged score moves a little between identical evaluations. Treat small differences between candidates as noise, and read the hold-out before believing a gain.</li>
+      <li><strong>It is billed per row, per evaluation.</strong> Every candidate's full evaluation calls the judge once per row. The cost projection counts it.</li>
+    </ul>
+    <div class="callout" id="jev"><strong>Jev judge (beta, by invitation).</strong> Jev is a small model that answers a yes/no question with a probability instead of a sentence: &ldquo;is the model answer the same as the label?&rdquo; comes back as 0.93, not a verdict. It answers in a fraction of a second, so it can be asked on every row, and in <a href="https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-27-jev-judge-pilot" target="_blank" rel="noopener">bpto's first comparison</a> it separated right from wrong answers better than a general model asked for a score, and gave the same probability twice. That comparison is small, so during the beta Jev is <strong>recorded, not optimized</strong>: it scores every row next to your own scorers, its weight stays at 0, and a row Jev cannot answer is counted in <code>jev_match_failed</code> instead of failing. Use a run to see where it disagrees with your strict scorer, and check those rows yourself.</div>
+  </div>
+</section>
+
 <section id="metrics">
   <div class="wrap">
     <h2>The metric vector</h2>

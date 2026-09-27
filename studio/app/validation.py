@@ -344,6 +344,12 @@ def project_cost(spec: ProjectSpec, n_rows: int, *, avg_steps: float | None = No
     rounds = o.rounds
     calls = {"round0": full_rows * steps, "gate": gate * rounds, "full": full * rounds, "reflect": reflect * rounds, "critic": critic * rounds}
     total_eval_rollouts = calls["round0"] + calls["gate"] + calls["full"]
+    # judges score rows, not prompt calls: once per scored row per judge scorer, whatever the loop did
+    judges = [sc for sc in spec.evaluate.scorers if sc.type in ("llm_judge", "llm_judge_free")]
+    jevs = [sc for sc in spec.evaluate.scorers if sc.type == "jev_match"]
+    scored_rows = total_eval_rollouts / steps
+    calls["judge"] = scored_rows * len(judges)
+    calls["jev"] = scored_rows * len(jevs)
     pr = prices()
     def usd(model, n_calls, tin, tout):
         pin, pout = pr.get(model) or pr.get(model.split("/")[-1]) or pr.get(".".join(model.split(".")[1:])) or (0.0, 0.0)
@@ -361,13 +367,19 @@ def project_cost(spec: ProjectSpec, n_rows: int, *, avg_steps: float | None = No
     # the critic reads the example plus the template it reviews (chars/4 ~ tokens, the longest rewritable one)
     rewritable = [m for m in spec.modules if spec.mutate is None or m.id in spec.mutate] or spec.modules
     critic_usd = usd(o.critic_model or o.reflect_model, calls["critic"], 1500 + max(len(m.template) for m in rewritable) / 4, 200)
+    # a judge reads the row's inputs, the label and the output, plus its own instructions
+    judge_usd = sum(usd(sc.judge_model or spec.eval_model, scored_rows, (avg_in or 800) + (avg_out or 80) + 250, 60) for sc in judges)
     worst = dict(calls)
     if _has_cycle(spec) and avg_steps and avg_steps < spec.max_steps:
         f = spec.max_steps / steps
         worst = {k: (v * f if k in ("round0", "gate", "full") else v) for k, v in calls.items()}
-    return {"calls": calls, "calls_worst_case": worst, "usd": {"eval": eval_usd, "reflect": reflect_usd, "critic": critic_usd,
-            "total": eval_usd + reflect_usd + critic_usd}, "assumptions": {"avg_steps": steps, "acceptance": acceptance, "full_rows": full_rows,
-            "rounds": rounds, "unpriced_models": [m for m in {spec.eval_model, o.reflect_model, *[x.model for x in spec.modules if x.model]} if not (pr.get(m) or pr.get(".".join(m.split(".")[1:])))]}}
+    priced = [spec.eval_model, o.reflect_model, *[x.model for x in spec.modules if x.model], *[sc.judge_model for sc in judges if sc.judge_model]]
+    unpriced = [m for m in dict.fromkeys(priced) if not (pr.get(m) or pr.get(".".join(m.split(".")[1:])))]
+    if jevs:
+        unpriced.append("Jev (beta: calls are capped, not priced)")
+    return {"calls": calls, "calls_worst_case": worst, "usd": {"eval": eval_usd, "reflect": reflect_usd, "critic": critic_usd, "judge": judge_usd,
+            "total": eval_usd + reflect_usd + critic_usd + judge_usd}, "assumptions": {"avg_steps": steps, "acceptance": acceptance, "full_rows": full_rows,
+            "rounds": rounds, "unpriced_models": unpriced}}
 
 
 # ---- entry point ---------------------------------------------------------------------

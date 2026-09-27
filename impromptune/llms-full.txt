@@ -284,6 +284,34 @@ Each prompt can run on its own model; empty means the project default. Mixing is
 
  Edges may loop back to an earlier prompt — a draft-and-revise cycle is two prompts and a router. That is what max prompt calls per example caps: without it, a program that keeps deciding to revise never finishes a row. Every row stops at the cap, and the cap is part of the cost projection.
 
+## When a project should be two projects
+
+ Big problems usually come apart along natural seams, and each piece optimizes better on its own dataset than the whole does on one label at the end. The studio has no “run this once per item” node, on purpose: the pieces are separate projects, and your code joins them.
+
+ A freight inbox, for example. One email can carry several loads, and each load needs a quote.
+
+### Project 1: find the loads
+Input: the email. Label: the list of loads in it. Scorer: List, set to punish a missing load more than an extra one, since a missed load is lost business. Dataset: emails you have already worked, with the loads your team entered.
+
+### Project 2: quote one load
+Input: one load's details. Label: the rate you quoted. Scorer: Numeric, with the tolerance you would accept. Dataset: past loads and their quotes, which you probably have far more of than emails.
+
+ In production your code calls the first project's served version, loops over the loads it returns, and calls the second for each. Each piece has its own version, its own hold-out number and its own cost, so when quotes go wrong you know which piece to look at.
+
+ Signs a project wants splitting:
+
+ - A prompt produces a list, and each item needs more work of its own.
+
+ - There is a middle output you could check by hand, and you have, or could write, labels for it.
+
+ - The final label cannot tell you which prompt got it wrong. A run on a four-prompt chain with one label at the end spends its budget guessing where the failure is.
+
+ - The pieces need different scorers: a list here, a number there.
+
+ Where each piece's labels come from: the records you already keep (entered loads, sent quotes, final routing), or a baseline run of the whole program, whose traces show every prompt's output for you to mark right or wrong.
+
+ When one project is right: routers and loops belong in one program, and so do prompts whose outputs only mean something together. If all you have is the label at the end, keep one project and optimize one prompt at a time: turn off rewritten by the optimizer on the prompts you have settled, run, then move on to the next.
+
 ## The other kind of node
 
  A step looks different on the canvas on purpose: square, muted, labelled external · not optimized. It is not part of the program. The optimizer never rewrites it, and it runs once per row before any prompt does. [External steps →](https://impromptune.com/docs/steps)
@@ -378,6 +406,46 @@ URL: https://impromptune.com/docs/evaluate
  When one class dominates, score balanced. Exact match has a balanced option. It adds accuracy_balanced, which weights each row by how rare its label is, so every class counts equally: the average of per-class recall. Plain accuracy on a dataset where most rows are one class rewards a prompt that always answers that class. Put the objective weight on the balanced metric instead.
 
  A judge costs money and has opinions. Every judged row is an extra model call on every evaluation of every candidate, and the judge's bias becomes the thing you optimize. Where an exact-match scorer will do, it is cheaper, faster and more honest.
+
+## Choosing a scorer, and when to reach for a judge
+
+ Start from what the terminal prompt returns. Most projects never need anything below the fourth row.
+
+ | The output is | Start with | The one choice to make |
+
+ | a number | Numeric | relative tolerance (a share of the label) or absolute (in its units) |
+
+ | a label from a fixed set | Exact match | balanced, if one class dominates; list the allowed values on the output field |
+
+ | a list of items | List (set F1) | whether a missing item or a wrong extra costs more |
+
+ | a short answer that can be worded several ways | Exact match first; a judge if it keeps marking right answers wrong | what counts as the same answer |
+
+ | free text with a right answer | LLM judge, vs reference | the rubric |
+
+ | free text with no single right answer | LLM judge, no reference | the rubric |
+
+ Before adding a judge, tighten the output. A judge is often the fix for a format problem that a field would solve for free. If the label is one of six queues, list them as the field's allowed values. If it is several names, make the field a list. If it is a number, make the field a number. Normalization (case, punctuation, articles) belongs in the scorer, where it is free and exact, not in the prompt, where the optimizer may rewrite it away.
+
+ The sign you need one: the pilot or a baseline run shows rows marked wrong that you would mark right. “45” against a label of “45 days”, or “as account credit only” against “account credit”. Read ten failed rows before deciding. If most of them really are wrong, the scorer is fine and the prompt is the problem.
+
+### Using a judge well
+
+ - Give it the label. A judge that compares against a reference is far steadier than one asked whether an answer is good. Use the no-reference judge only when there is genuinely no right answer.
+
+ - Write the rubric as the rule for “the same answer”. “The same number of days, whatever the wording” beats “Is this correct?”.
+
+ - It is frozen. The judge's model and rubric are never rewritten by the optimizer. That is deliberate: a judge that could change would be optimized into agreeing.
+
+ - Keep a strict scorer beside it. Exact match and a judge can both be in the vector. Weight the judge for meaning; keep the strict one to watch format, or to weigh it a little if downstream code needs the exact form.
+
+ - Check it before you trust it. Run a baseline run, open twenty or thirty rows, and mark each verdict right or wrong yourself. If you disagree with the judge on more than a couple, fix the rubric before spending on a run. The optimizer will chase whatever the judge rewards, mistakes included.
+
+ - Expect some noise. A model judge at temperature 0 does not always give the same verdict twice, so a judged score moves a little between identical evaluations. Treat small differences between candidates as noise, and read the hold-out before believing a gain.
+
+ - It is billed per row, per evaluation. Every candidate's full evaluation calls the judge once per row. The cost projection counts it.
+
+ Jev judge (beta, by invitation). Jev is a small model that answers a yes/no question with a probability instead of a sentence: “is the model answer the same as the label?” comes back as 0.93, not a verdict. It answers in a fraction of a second, so it can be asked on every row, and in [bpto's first comparison](https://github.com/sign-of-fourier/bpto/tree/main/experiments/2026-09-27-jev-judge-pilot) it separated right from wrong answers better than a general model asked for a score, and gave the same probability twice. That comparison is small, so during the beta Jev is recorded, not optimized: it scores every row next to your own scorers, its weight stays at 0, and a row Jev cannot answer is counted in jev_match_failed instead of failing. Use a run to see where it disagrees with your strict scorer, and check those rows yourself.
 
 ## The metric vector
 

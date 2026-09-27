@@ -169,7 +169,8 @@ export function Cost({ cost }) {
       <div className="kv">
         <b>eval calls</b><span>{Math.round(c.round0 + c.gate + c.full)} (root {Math.round(c.round0)}, gate {Math.round(c.gate)}, full {Math.round(c.full)}){wtot !== tot && <span className="muted"> · worst case with max_steps: {Math.round(w.round0 + w.gate + w.full)}</span>}</span>
         <b>reflection calls</b><span>{Math.round(c.reflect)}{c.critic ? ` + ${Math.round(c.critic)} critic` : ''}</span>
-        <b>USD</b><span><b>${u.total.toFixed(2)}</b> (eval ${u.eval.toFixed(2)}, reflection ${u.reflect.toFixed(2)}{u.critic ? `, critic $${u.critic.toFixed(2)}` : ''})</span>
+        {(c.judge || c.jev) ? <><b>judge calls</b><span>{c.judge ? Math.round(c.judge) : ''}{c.judge && c.jev ? ' + ' : ''}{c.jev ? `${Math.round(c.jev)} Jev (beta)` : ''}</span></> : null}
+        <b>USD</b><span><b>${u.total.toFixed(2)}</b> (eval ${u.eval.toFixed(2)}, reflection ${u.reflect.toFixed(2)}{u.critic ? `, critic $${u.critic.toFixed(2)}` : ''}{u.judge ? `, judge $${u.judge.toFixed(2)}` : ''})</span>
         <b>assumes</b><span className="muted">{cost.assumptions.full_rows} eval rows, {cost.assumptions.avg_steps.toFixed(1)} prompt calls/example, {Math.round(cost.assumptions.acceptance * 100)}% of children accepted{cost.assumptions.unpriced_models.length ? ` · no price known for ${cost.assumptions.unpriced_models.join(', ')}` : ''}</span>
       </div>
     </div>
