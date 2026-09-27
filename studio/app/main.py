@@ -13,7 +13,7 @@ from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, Up
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, bundles as B, corpora as K, credentials as C, db, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
+from . import auth, bundles as B, corpora as K, credentials as C, db, jev as J, labels as L, oauth as O, runs as R, serving, steps as X, store, tiers, versions as V
 from .clients import Access, make_client
 from .compile import build_task
 from .datasets import columns, flatten, parse_upload, to_dataset
@@ -383,6 +383,7 @@ def validate(pid: str, body: ValidateBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
     rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
+    J.check(spec, user, rep, MOCK_DEFAULT if getattr(body, "mock", None) is None else body.mock)
     return {"report": rep.model_dump(), "ok": rep.ok}
 
 
@@ -391,6 +392,7 @@ async def pilot(pid: str, body: ValidateBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
     rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
+    J.check(spec, user, rep, MOCK_DEFAULT if getattr(body, "mock", None) is None else body.mock)
     if not rep.ok:
         raise HTTPException(400, "fix the static validation errors first")
     mock = MOCK_DEFAULT if body.mock is None else body.mock
@@ -402,7 +404,8 @@ async def pilot(pid: str, body: ValidateBody, request: Request, user=auth.User):
     client = make_client(spec.eval_model, budget=Budget(max_calls=body.rows * 3 * spec.max_steps + 20, prices=__import__("app.clients", fromlist=["prices"]).prices()),
                          mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None, access=access,
                          on_call=db.usage_logger(request.app.state.db, user["id"], access.tier, pid), purpose="pilot")
-    task = build_task(spec, to_dataset(rows, d["input_map"], d["label_column"]), client)
+    task = build_task(spec, to_dataset(rows, d["input_map"], d["label_column"]), client,
+                      jev_client=J.make_client(mock, max_calls=body.rows * 3 + 10) if J.uses_jev(spec) else None)
     out = await run_pilot(spec, task, rows=body.rows, rep=rep)
     cost = project_cost(spec, len(rows), avg_steps=out.get("avg_steps"), tokens_per_module=out.get("tokens_per_module") or None,
                         avg_in=out.get("avg_input_tokens"), avg_out=out.get("avg_output_tokens"))
@@ -436,6 +439,7 @@ async def start_run(pid: str, body: RunBody, request: Request, user=auth.User):
     spec, d, rows = _spec_and_data(request, pid, body, user)
     spec.evaluate.label_column = d["label_column"]
     rep = validate_static(spec, rows, d["input_map"], store.list_connections(request.app.state.db, user["id"]))
+    J.check(spec, user, rep, MOCK_DEFAULT if getattr(body, "mock", None) is None else body.mock)
     if not rep.ok:
         raise HTTPException(400, {"message": "validation errors", "issues": [i.model_dump() for i in rep.issues if i.level == "error"]})
     v = db.row(request.app.state.db.execute("select pilot from validations where project_id=? and dataset_id=? order by created desc limit 1", (pid, d["id"])).fetchone())
@@ -555,8 +559,9 @@ def _v0() -> None:
 
 
 @app.get("/features")
-def features():
-    return {"v0": V0}
+def features(user=auth.User):
+    from . import jev
+    return {"v0": V0, "jev": jev.enabled_for(user, MOCK_DEFAULT)}
 
 
 class PublishBody(BaseModel):

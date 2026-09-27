@@ -110,22 +110,25 @@ const SCORERS = [
   ['numeric', 'Numeric (tolerance)', 'numbers within a tolerance'],
   ['llm_judge', 'LLM judge vs reference', 'a judge model grades against the label'],
   ['llm_judge_free', 'LLM judge, no reference', 'a judge model grades with a rubric only'],
+  ['jev_match', 'Jev judge (beta)', 'Jev gives the probability that the output means the same as the label. Beta: recorded next to your other scorers so you can compare, never optimized'],
 ]
 
-export function EvaluatePanel({ spec, update, models, onClose }) {
+export function EvaluatePanel({ spec, update, models, features = {}, onClose }) {
   const ev = spec.evaluate
   const set = patch => update(s => ({ ...s, evaluate: { ...s.evaluate, ...patch } }))
   const term = spec.modules.find(m => !spec.edges.some(e => e.source === m.id))
   const fields = term ? term.schema_fields.map(f => f.name) : []
-  const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', set_f1: 'set_f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge' })[sc.type]
-  const metrics = [...ev.scorers.flatMap(sc => sc.type === 'exact_match' && sc.balanced ? [metricName(sc), metricName(sc) + '_balanced'] : [metricName(sc)]), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
+  const metricName = sc => sc.name || ({ exact_match: 'accuracy', contains: 'contains', token_f1: 'f1', set_f1: 'set_f1', regex: 'regex_match', json_field: 'field_match', numeric: 'numeric_match', llm_judge: 'judge', llm_judge_free: 'judge', jev_match: 'jev_match' })[sc.type]
+  const shadow = new Set(ev.scorers.filter(sc => sc.type === 'jev_match').flatMap(sc => [metricName(sc), metricName(sc) + '_failed']))
+  const offered = SCORERS.filter(([k]) => k !== 'jev_match' || features.jev || ev.scorers.some(sc => sc.type === k))
+  const metrics = [...ev.scorers.flatMap(sc => sc.type === 'exact_match' && sc.balanced ? [metricName(sc), metricName(sc) + '_balanced'] : sc.type === 'jev_match' ? [] : [metricName(sc)]), ...(ev.token_count ? ['template_tokens', 'prompt_tokens', 'output_tokens'] : []), 'steps']
   return (
     <div>
       <div className="row"><h3 className="grow">Evaluate<Hint id="evaluate" /></h3><button className="small" onClick={onClose}>×</button></div>
       <div className="help">Scores the terminal prompt's output{term ? ` (${term.id})` : ''} on every dataset row. Metrics are a vector; the objective weighs them.</div>
       {ev.scorers.map((sc, i) => (
         <div className="card" key={i}>
-          <div className="row"><select className="grow" value={sc.type} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, type: e.target.value } : x) })}>{SCORERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          <div className="row"><select className="grow" value={sc.type} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, type: e.target.value } : x) })}>{offered.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             {ev.scorers.length > 1 && <button className="small" onClick={() => set({ scorers: ev.scorers.filter((_, j) => j !== i) })}>×</button>}</div>
           <div className="help">{SCORERS.find(s => s[0] === sc.type)[2]}</div>
           {!sc.type.startsWith('llm') && <><label>Output field to compare</label>
@@ -137,6 +140,8 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
           {sc.type === 'set_f1' && <><label>Which mistake costs more</label>
             <select value={String(sc.beta ?? 1)} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, beta: +e.target.value } : x) })}><option value="1">neither: missing and extra items weigh the same</option><option value="2">a missing item (recall matters: screening, compliance)</option><option value="0.5">a wrong extra item (precision matters: what gets acted on)</option></select>
             <div className="help">A text output is split on commas, semicolons and new lines; make the output field a list if an item can contain a comma. The rewriter is shown which items were missing and which were extra.</div></>}
+          {sc.type === 'jev_match' && <><label>Question (yes/no)</label><input value={sc.rubric} placeholder="Is the model answer the same answer as the reference answer?" onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, rubric: e.target.value } : x) })} />
+            <div className="help">Records <code>{metricName(sc)}</code> (the probability) and <code>{metricName(sc)}_failed</code> (rows Jev could not answer). Jev sees the row's inputs, the label and the output, in that order. Compare it with your other scorers on the run page; its weight stays 0 during the beta.</div></>}
           {sc.type.startsWith('llm') && <><label>Rubric</label><textarea style={{ minHeight: 60 }} value={sc.rubric} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, rubric: e.target.value } : x) })} placeholder="Is the answer factually equivalent to the reference?" />
             <label>Judge model</label><select value={sc.judge_model || ''} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, judge_model: e.target.value || null } : x) })}><option value="">same as evaluation model</option>{models.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></>}
           <label>Metric name</label><input value={sc.name} placeholder={metricName({ ...sc, name: '' })} onChange={e => set({ scorers: ev.scorers.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
@@ -148,6 +153,7 @@ export function EvaluatePanel({ spec, update, models, onClose }) {
       <label style={{ textTransform: 'none', marginTop: 12 }}><input type="checkbox" style={{ width: 'auto', marginRight: 6 }} checked={ev.token_count} onChange={e => set({ token_count: e.target.checked })} />also record tokens: template (the prompts themselves, summed over prompts), prompt (rendered, with the data) and output</label>
       <label>Objective: weight per metric</label>
       {metrics.map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><input type="number" step="0.001" style={{ width: 110 }} value={ev.objective[k] ?? ''} placeholder="0" onChange={e => { const o = { ...ev.objective }; if (e.target.value === '') delete o[k]; else o[k] = +e.target.value; set({ objective: o }) }} /></div>)}
+      {[...shadow].map(k => <div className="row" key={k} style={{ marginBottom: 4 }}><code style={{ width: 150 }}>{k}</code><span className="help">recorded, not weighted (beta)</span></div>)}
       <div className="help">Score = Σ weight × metric. A negative weight is an exchange rate: <code>template_tokens</code> −0.002 says 100 tokens are worth 0.2 of accuracy, and the search will make that trade if the rewriter offers it; −0.0005 says 100 tokens are worth 5 points. Pair it with the Optimizer's goal set to Compress (a penalty alone only rejects rewrites; the goal changes what the rewriter is asked for) and read the front on the run page, not just the best score.</div>
     </div>
   )

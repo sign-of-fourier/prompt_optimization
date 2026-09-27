@@ -176,7 +176,7 @@ function Inner({ spec, update, models, features = {}, datasets = [], pid }) {
       <div className="side">
         {sel && sel.type === 'module' && <ModulePanel spec={spec} update={update} id={sel.id} models={models} onClose={() => setSel(null)} />}
         {sel && sel.type === 'edge' && <EdgePanel spec={spec} update={update} idx={sel.id} onClose={() => setSel(null)} />}
-        {sel && sel.type === 'evaluate' && <EvaluatePanel spec={spec} update={update} models={models} onClose={() => setSel(null)} />}
+        {sel && sel.type === 'evaluate' && <EvaluatePanel spec={spec} update={update} models={models} features={features} onClose={() => setSel(null)} />}
         {sel && sel.type === 'step' && <StepPanel spec={spec} update={update} id={sel.id} manifests={manifests} datasets={datasets} pid={pid} onClose={() => setSel(null)} />}
         {!sel && <div className="muted"><h3 style={{ color: 'var(--text)' }}>Program</h3>
           <p>{spec.modules.length} prompt{spec.modules.length === 1 ? '' : 's'}, {spec.edges.length} edge{spec.edges.length === 1 ? '' : 's'}. Entry: <code>{entry || '—'}</code>. Terminal: <code>{terminals.join(', ') || '—'}</code>.</p>

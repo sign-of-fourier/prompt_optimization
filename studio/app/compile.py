@@ -54,13 +54,15 @@ def build_program(spec: ProjectSpec) -> Program:
 
 # ---- task --------------------------------------------------------------------------
 
-def build_task(spec: ProjectSpec, dataset: Dataset, client: ModelClient, *, judge_client: ModelClient | None = None) -> Task:
+def build_task(spec: ProjectSpec, dataset: Dataset, client: ModelClient, *, judge_client: ModelClient | None = None,
+               jev_client=None) -> Task:
+    """`jev_client`: the Jev beta's client (app/jev.py); without one a jev_match scorer records every row as failed."""
     ev = spec.evaluate
     parts = []
     for sc in ev.scorers:
         jc = ModelConfig(model=sc.judge_model, temperature=0.0) if sc.judge_model else ModelConfig(temperature=0.0)
         parts.append(S.build(sc, judge_client=judge_client or client, judge_config=jc,
-                             labels=[ex.answer for ex in dataset] if sc.balanced else None))
+                             labels=[ex.answer for ex in dataset] if sc.balanced else None, jev_client=jev_client))
     if ev.token_count:
         parts += [token_count(), output_token_count(), S.program_template_tokens()]
     return Task(

@@ -46,6 +46,12 @@ STUDIO_MOCK=1 STUDIO_INSECURE_COOKIE=1 uvicorn app.main:app --port 8100   # open
 `STUDIO_MOCK=1` routes every model call to a schema-generic mock (no keys, no spend) - plumbing only.
 Live runs read keys from `.env` (`AWS_BEARER_TOKEN_BEDROCK`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 
+**Jev judge beta** (`app/jev.py`): off unless `STUDIO_JEV=1` and a key (`OPENROUTER_API_KEY` or `TYPESAFE_API_KEY`)
+are set, and only for the emails in `STUDIO_JEV_USERS` (`*` = everyone signed in). Shadow-only: `jev_match` is
+recorded beside the project's scorers and validation refuses a weight on it; every Jev failure becomes
+`jev_match_failed` = 1 on that row, never a row error. Own call cap per run (`STUDIO_JEV_MAX_CALLS`, default 3000);
+model pinned by `STUDIO_JEV_MODEL` (default `jev-1.13`). Unset `STUDIO_JEV` and restart to switch it off.
+
 ## Invariants carried over from bpto
 
 - Evaluation calls pin `temperature=0`; reflection has its own temperature.

@@ -226,6 +226,7 @@ def check_labels(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[
     for k in spec.evaluate.objective:
         known = {S.DEFAULT_NAMES[s.type] if not s.name else s.name for s in spec.evaluate.scorers} | {"prompt_tokens", "output_tokens", "template_tokens", "steps", "capped"}
         known |= {(s.name or S.DEFAULT_NAMES[s.type]) + "_balanced" for s in spec.evaluate.scorers if s.type == "exact_match" and s.balanced}
+        known |= {(s.name or S.DEFAULT_NAMES[s.type]) + "_failed" for s in spec.evaluate.scorers if s.type == "jev_match"}
         if k not in known and not k.startswith(("tokens_per_module.", "parse_fail.")):
             rep.add("error", "scorer", f"objective weighs metric {k!r} which no scorer produces (available: {sorted(known)})")
     if spec.optimizer.goal == "compress":

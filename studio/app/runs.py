@@ -64,7 +64,8 @@ class RunManager:
             budget = Budget(max_usd=o.max_usd, max_calls=o.max_calls, prices=prices())
             client = make_client(spec.eval_model, cache_path=d / "cache.jsonl", budget=budget, access=access, on_call=on_call, purpose="run",
                                  mock=__import__("app.mock", fromlist=["mock_client"]).mock_client() if mock else None)
-            task = build_task(spec, train, client)
+            from . import jev
+            task = build_task(spec, train, client, jev_client=jev.make_client(mock) if jev.uses_jev(spec) else None)
             embedder = None
             if o.engine == "bo":
                 # Its own meter, capped at the run's max_usd: charging the run's Budget would spend max_calls on

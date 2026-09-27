@@ -58,7 +58,7 @@ class StepSpec(BaseModel):
         return v
 
 
-ScorerType = Literal["exact_match", "contains", "token_f1", "set_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free"]
+ScorerType = Literal["exact_match", "contains", "token_f1", "set_f1", "regex", "json_field", "numeric", "llm_judge", "llm_judge_free", "jev_match"]
 
 
 class ScorerSpec(BaseModel):

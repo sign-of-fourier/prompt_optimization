@@ -13,7 +13,8 @@ from bpto.scoring import JudgeVerdict
 from .models import ScorerSpec
 
 DEFAULT_NAMES = {"exact_match": "accuracy", "contains": "contains", "token_f1": "f1", "set_f1": "set_f1", "regex": "regex_match",
-                 "json_field": "field_match", "numeric": "numeric_match", "llm_judge": "judge", "llm_judge_free": "judge"}
+                 "json_field": "field_match", "numeric": "numeric_match", "llm_judge": "judge", "llm_judge_free": "judge",
+                 "jev_match": "jev_match"}
 
 
 def normalize(s: Any) -> str:
@@ -80,7 +81,7 @@ def class_weights(labels: list[Any], norm) -> dict[str, float]:
 
 
 def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_config: ModelConfig | None = None,
-          labels: list[Any] | None = None):
+          labels: list[Any] | None = None, jev_client=None):
     name = spec.name or DEFAULT_NAMES[spec.type]
     norm = normalize if spec.normalize else (lambda x: str(x if x is not None else ""))
     t = spec.type
@@ -135,6 +136,9 @@ def build(spec: ScorerSpec, judge_client: ModelClient | None = None, judge_confi
                 return {name: 0.0}
             allowed = spec.tolerance if spec.tolerance_mode == "absolute" else spec.tolerance * max(1.0, abs(gold))
             return {name: 1.0 if abs(got - gold) <= allowed else 0.0}
+    elif t == "jev_match":
+        from . import jev
+        return jev.scorer(spec, jev_client)
     elif t == "llm_judge":
         return llm_judge(spec.rubric or "Is the model answer correct given the reference answer?", name=name,
                          client=judge_client, config=judge_config)
