@@ -9,6 +9,8 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "pydantic>=2.0",
     "python-multipart",
+    "cryptography",   # encrypts the keys and connections users store (credentials.py)
+    "boto3",   # Bedrock (house models); bpto imports it lazily, so a fresh machine only fails at the first call
 ]
 
 [project.optional-dependencies]
