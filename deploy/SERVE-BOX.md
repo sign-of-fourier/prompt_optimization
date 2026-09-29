@@ -19,12 +19,23 @@ half). Design and invariants are in those docstrings; this file is the runbook.
 1. Security group `serve-box`: inbound 8200 from the studio box's security group only; 22 from nowhere (use SSM or
    a temporary rule to set up). Outbound: everything (Bedrock, pip).
 2. IAM role `serve-box` with an inline policy allowing `bedrock:InvokeModel` on the house models; instance profile.
-3. Instance: Ubuntu, t3.small, same region/VPC as the studio box, the role and security group above.
+3. Instance: Ubuntu 24.04, t3.micro (0.5 GB nano risks the pip install), same region/VPC as the studio box, the role
+   and security group above, private address 172.31.3.108, user data `deploy/serve-box-userdata.sh` with the commit
+   filled in (step 4 is what that script does).
 4. On the box: `git clone https://github.com/sign-of-fourier/prompt_optimization` at the commit being deployed,
    `python3 -m venv ~/venv && ~/venv/bin/pip install -e prompt_optimization/studio`, create `/srv/serve` (owned by
    ubuntu), write `/etc/serve-box.env` with `SERVE_TOKEN=...`, install `deploy/serve-box.service`.
 5. On the studio box: `SERVE_BOX_URL=http://<private ip>:8200` and the same `SERVE_TOKEN` in `studio/.env`, enable
    the `/serve/` location in `deploy/nginx.conf`, restart the studio and nginx.
+
+## Stopping and starting (the dev placeholder)
+
+A stopped instance costs only its disk and keeps its private address and its disk, so hosted versions and key
+hashes survive a stop; nginx and SERVE_BOX_URL stay valid. While stopped, hosted versions answer 502 and the
+studio's ledger pull logs a failure every 30 s (harmless; the cursor makes the next pull catch up).
+
+    aws ec2 stop-instances  --region us-east-2 --instance-ids i-0c58e1f0efc44c66a    # the t3.micro, 2026-09-29
+    aws ec2 start-instances --region us-east-2 --instance-ids i-0c58e1f0efc44c66a   # healthy about a minute later
 
 ## Replacing the box (how its code changes)
 
