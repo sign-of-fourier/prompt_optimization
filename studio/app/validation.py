@@ -384,6 +384,25 @@ def project_cost(spec: ProjectSpec, n_rows: int, *, avg_steps: float | None = No
 
 # ---- entry point ---------------------------------------------------------------------
 
+def check_split(spec: ProjectSpec, rows: list[dict[str, Any]], rep: ValidationReport) -> None:
+    """A time split needs a column every row can be dated by; say which dates train and hold-out will cover."""
+    o = spec.optimizer
+    if o.split != "time" or o.holdout_frac <= 0:
+        return
+    if not o.time_column:
+        rep.add("error", "split", "a time split needs a date column: choose which column holds each row's date"); return
+    if rows and o.time_column not in rows[0] and not any(o.time_column in r for r in rows[:50]):
+        rep.add("error", "split", f"no column {o.time_column!r} in this dataset"); return
+    from .splits import describe
+    d = describe(rows, o.holdout_frac, o.time_column)
+    if d["dated"] == 0:
+        rep.add("error", "split", f"no row has a readable date in {o.time_column!r} (ISO dates like 2026-09-29, or epoch seconds)"); return
+    if d["undated"]:
+        rep.add("warn", "split", f"{d['undated']}/{d['rows']} rows have no readable date in {o.time_column!r}; they go to training as if oldest")
+    rep.add("info", "split", f"hold-out: the most recent {d['holdout_rows']} rows ({d['holdout_from']} to {d['holdout_to']}); "
+            f"training {d['train_from']} to {d['train_to']}")
+
+
 def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: dict[str, str],
                     connections: list[dict] | None = None) -> ValidationReport:
     rep = ValidationReport()
@@ -392,6 +411,7 @@ def validate_static(spec: ProjectSpec, rows: list[dict[str, Any]], input_map: di
     cols = columns(rows)
     check_mapping(spec, cols, input_map, rep)
     rep.summary.update(check_labels(spec, rows, input_map, rep))
+    check_split(spec, rows, rep)
     if spec.steps:
         # external steps: the wiring (tier 0), then arithmetic over the frozen columns (tier 2). No model calls.
         from .step_validation import age_note, check_coverage, check_frozen, check_scopes, check_signal, check_steps

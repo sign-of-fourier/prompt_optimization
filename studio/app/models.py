@@ -119,6 +119,10 @@ class OptimizerSpec(BaseModel):
     eval_rows: int | None = None                                 # downsample the eval set (never the minibatch)
     holdout_frac: float = 0.2
     seed: int = 0
+    # "time": hold out the most recent holdout_frac of rows by time_column (a date or epoch column) instead of a random
+    # share - the honest split whenever rows have a timeline (app/splits.py)
+    split: Literal["random", "time"] = "random"
+    time_column: str | None = None
 
     @model_validator(mode="after")
     def _floors(self):
@@ -156,7 +160,7 @@ class ProjectSpec(BaseModel):
 
 class Issue(BaseModel):
     level: Literal["error", "warn", "info"]
-    stage: str          # graph | mapping | labels | scorer | pilot | cost
+    stage: str          # graph | mapping | labels | split | scorer | pilot | cost
     where: str = ""     # module id, column, row id
     message: str
     data: dict[str, Any] = Field(default_factory=dict)

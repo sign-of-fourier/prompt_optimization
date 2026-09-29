@@ -1,6 +1,6 @@
 # promptcompression.ai — full site
 
-Generated 2026-09-27. Index: https://promptcompression.ai/llms.txt
+Generated 2026-09-29. Index: https://promptcompression.ai/llms.txt
 
 
 

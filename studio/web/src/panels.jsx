@@ -212,6 +212,13 @@ export function OptimizerPanel({ spec, update, models, tier, onClose }) {
           <div><label>Downsample the eval set to N rows</label><input type="number" min={10} value={o.eval_rows ?? ''} placeholder="all" onChange={e => set({ eval_rows: e.target.value === '' ? null : +e.target.value })} /><div className="help">Cheaper rounds. Downsample here, never the minibatch.</div></div>
           <div><label>Seed</label><input type="number" value={o.seed} onChange={e => set({ seed: +e.target.value })} /></div>
         </div>
+        <div className="grid3">
+          <div><label>Which rows to hold out</label><select value={o.split || 'random'} onChange={e => set({ split: e.target.value })}>
+            <option value="random">a random share</option><option value="time">the most recent, by date</option></select>
+            <div className="help">When rows have dates (tickets, leads), hold out the latest: a random share lets the search learn from the future.</div></div>
+          {(o.split === 'time') && <div><label>Date column</label><input value={o.time_column || ''} placeholder="created_at" onChange={e => set({ time_column: e.target.value || null })} />
+            <div className="help">ISO dates (2026-09-29) or epoch seconds. Validation says which dates training and hold-out cover.</div></div>}
+        </div>
         <div className="row" style={{ marginTop: 16 }}><button className="primary" onClick={onClose}>Done</button></div>
       </div>
     </div>

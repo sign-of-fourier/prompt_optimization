@@ -1,6 +1,6 @@
 # Impromptune — full site
 
-Generated 2026-09-27. Index: https://impromptune.com/llms.txt
+Generated 2026-09-29. Index: https://impromptune.com/llms.txt
 
 
 
@@ -345,6 +345,8 @@ URL: https://impromptune.com/docs/data
  - Training up and hold-out down means overfitting, and it is common enough to be worth looking for every time. A run in our own testing gained 7.3 points on training and lost 4.2 on the hold-out; the entire training gain sat in one class going from 0/7 to 4/7, while another class stayed 0/8 throughout. The average moved. Nothing got better.
 
  That is why the run page has a per-class table as well as a score. An aggregate that moved for one reason is not an improvement.
+
+ When rows have dates, hold out the latest. Tickets, leads and orders drift: products change, policies change, people phrase things differently. A random hold-out mixes next month's rows in with last month's, so the search learns a little from the future and the reported number flatters it. In the Optimizer settings, choose the most recent, by date and name the date column; validation says which dates training and the hold-out cover, and the run page's hold-out table then shows each label's recall for the starting prompt and the winner, and the mistakes the winner still makes most.
 
 ## The pilot
 

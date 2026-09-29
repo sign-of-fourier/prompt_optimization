@@ -97,8 +97,30 @@ function HoldoutTable({ h }) {
       <table style={{ marginTop: 4 }}><thead><tr><th>metric</th><th>root</th><th>best</th><th>Δ</th></tr></thead><tbody>
         {keys.map(k => <tr key={k}><td><code>{k}</code></td><td>{fmt(h.root[k])}</td><td>{fmt(h.best[k])}</td><td className="muted">{h.root[k] == null || h.best[k] == null ? '—' : (h.best[k] - h.root[k] >= 0 ? '+' : '') + fmt(h.best[k] - h.root[k])}</td></tr>)}
       </tbody></table>
+      {h.split === 'time' && <div className="help" style={{ marginTop: 4 }}>Held out by date: these are the most recent rows.</div>}
+      {h.per_class && h.per_class.best && <PerClass pc={h.per_class} />}
     </div>
   )
+}
+
+// Hold-out recall per label, root vs best, and what the best prompt confuses each label with: accuracy hides the
+// long tail, and the costliest mistakes are usually one label routed to another.
+function PerClass({ pc }) {
+  const root = Object.fromEntries((pc.root ? pc.root.classes : []).map(c => [c.label, c]))
+  const pct = x => x == null ? '—' : Math.round(x * 100) + '%'
+  return <div style={{ marginTop: 10 }}>
+    <div className="row"><b style={{ fontSize: 13 }}>Per class, hold-out</b><span className="muted" style={{ fontSize: 12 }}>worst first · balanced recall {pct(pc.root && pc.root.balanced_recall)} → {pct(pc.best.balanced_recall)}</span></div>
+    <table style={{ marginTop: 4 }}><thead><tr><th>label</th><th>rows</th><th>root</th><th>best</th></tr></thead><tbody>
+      {[...pc.best.classes].sort((a, b) => a.recall - b.recall).map(c => <tr key={c.label}><td><code>{c.label}</code></td><td className="muted">{c.n}</td>
+        <td className="muted">{root[c.label] ? `${root[c.label].right}/${c.n}` : '—'}</td>
+        <td style={{ color: c.recall >= 0.8 ? 'var(--accent)' : c.recall >= 0.4 ? 'var(--accent2)' : 'var(--danger)' }}>{c.right}/{c.n}</td></tr>)}
+    </tbody></table>
+    {pc.best.confusions.length > 0 && <>
+      <div className="help" style={{ marginTop: 8 }}>Most common mistakes of the best prompt</div>
+      <table><thead><tr><th>should be</th><th>answered</th><th>rows</th></tr></thead><tbody>
+        {pc.best.confusions.map((x, i) => <tr key={i}><td><code>{x.label}</code></td><td><code>{x.answered}</code></td><td>{x.n}</td></tr>)}
+      </tbody></table></>}
+  </div>
 }
 
 // Every fully evaluated prompt on the accuracy / template-token plane, root starred, the non-dominated ones joined:

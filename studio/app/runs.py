@@ -58,7 +58,8 @@ class RunManager:
             tmp.replace(d / "status.json")
         try:
             full = to_dataset(rows, input_map, label)
-            train, held = full.split(1 - o.holdout_frac, seed=o.seed) if o.holdout_frac > 0 else (full, Dataset([]))
+            from .splits import split as split_rows
+            train, held = split_rows(full, o.holdout_frac, o.seed, o.split, o.time_column)
             if o.eval_rows:
                 train = train.sample(o.eval_rows, o.seed)
             budget = Budget(max_usd=o.max_usd, max_calls=o.max_calls, prices=prices())
@@ -109,7 +110,15 @@ class RunManager:
                 held_best = await evaluate(dataset=held).score(tree, best)
                 held_root = await evaluate(dataset=held).score(tree, tree.root)
                 summary["holdout"] = {"best": held_best.metrics, "root": held_root.metrics, "best_score": held_best.score, "root_score": held_root.score,
-                                      "se": {k: v / math.sqrt(max(1, held_best.n)) for k, v in held_best.metrics_std.items()}}
+                                      "se": {k: v / math.sqrt(max(1, held_best.n)) for k, v in held_best.metrics_std.items()},
+                                      "split": o.split if o.split == "time" and o.time_column else "random"}
+                # per-class recall and confusions, when the first scorer compares classes (exact match on a field)
+                from .splits import per_class
+                sc = next((x for x in spec.evaluate.scorers if x.type == "exact_match"), None)
+                if sc is not None:
+                    summary["holdout"]["per_class"] = {
+                        "best": per_class(held, held_best.per_example, sc.field, sc.normalize),
+                        "root": per_class(held, held_root.per_example, sc.field, sc.normalize)}
             # commit the row before the status file says "done": readers poll the file, then read the row
             con.execute("update runs set status='done', finished=?, summary=? where id=?", (db.now(), json.dumps(summary, default=str), run_id))
             con.commit()
