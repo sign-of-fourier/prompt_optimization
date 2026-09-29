@@ -576,7 +576,8 @@ def _v0() -> None:
 @app.get("/features")
 def features(user=auth.User):
     from . import jev
-    return {"v0": V0, "jev": jev.enabled_for(user, MOCK_DEFAULT)}
+    return {"v0": V0, "jev": jev.enabled_for(user, MOCK_DEFAULT),
+            "hosting": V0 and H.configured() and bool(tiers.tier_of(user.get("tier")).get("hosting"))}
 
 
 class PublishBody(BaseModel):
@@ -622,7 +623,10 @@ def publish_version(pid: str, body: PublishBody, request: Request, user=auth.Use
 def list_versions(pid: str, request: Request, user=auth.User):
     _v0()
     _project(request, pid, user)
-    return store.list_versions(request.app.state.db, pid, user["id"])
+    con = request.app.state.db
+    hosted = H.hosted_ids(con, user["id"])
+    return [{**v, "hosted": v["id"] in hosted, "hosted_url": H.public_url(v["id"]) if v["id"] in hosted else None}
+            for v in store.list_versions(con, pid, user["id"])]
 
 
 @app.get("/versions/{vid}")
@@ -719,13 +723,25 @@ async def host_version(vid: str, request: Request, user=auth.User):
     if not v:
         raise HTTPException(404, "version not found")
     t = tiers.tier_of(user.get("tier"))
-    if not t["house_keys"]:
-        raise HTTPException(403, "hosting runs on house models, which your plan does not include")
+    if not t.get("hosting"):
+        raise HTTPException(403, "hosting is part of the advanced plan")
     _check_models(ProjectSpec.model_validate(v["spec"]), Access([], house_keys=True, house_models=t["house_models"]))
     try:
         return await H.host(con, v, user["id"])
     except H.HostingError as e:
         raise HTTPException(502, str(e))
+
+
+@app.get("/versions/{vid}/host")
+def host_estimate(vid: str, request: Request, user=auth.User):
+    """What the Host confirmation shows: whether it is hosted, where, and the estimated cost per request."""
+    _hosting()
+    con = request.app.state.db
+    v = store.get_version(con, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    hosted = H.is_hosted(con, vid)
+    return {"version_id": vid, "hosted": hosted, "url": H.public_url(vid) if hosted else None, "estimate": H.estimate(v)}
 
 
 @app.delete("/versions/{vid}/host")

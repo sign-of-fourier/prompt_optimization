@@ -159,7 +159,7 @@ function Editor({ pid, models, features, user, onBack, onKeys, onLogout }) {
         {tab === 'build' && <Canvas spec={spec} update={update} models={models.models} features={features} datasets={datasets} pid={pid} />}
         {tab === 'data' && <DataPanel pid={pid} spec={spec} update={update} datasets={datasets} reload={load} mock={models.mock} features={features} />}
         {tab === 'run' && <RunView pid={pid} spec={spec} datasets={datasets} mock={models.mock} features={features} />}
-        {tab === 'serve' && <Serving pid={pid} reload={load} />}
+        {tab === 'serve' && <Serving pid={pid} reload={load} features={features} />}
       </div>
       {showOpt && <OptimizerPanel spec={spec} update={update} models={models.models} tier={models} onClose={() => setShowOpt(false)} />}
       {showTut && <Tutorial spec={spec} update={update} datasets={datasets} reload={load} pid={pid} tab={tab} setTab={setTab} onClose={() => setShowTut(false)} />}

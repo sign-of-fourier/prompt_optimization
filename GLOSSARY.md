@@ -58,6 +58,7 @@ A step's manifest declares how it signs in:
 | **gate** | filter | The minibatch check a rewrite must pass before earning a full evaluation. |
 | **hold-out** | test set, validation set | Rows the search never sees. The number that counts. |
 | **version** | deployment, release | An immutable published snapshot: prompts, models, steps, the score it earned. |
+| **hosted version** | deployment, endpoint | A version answering requests on the serving box at its own URL (advanced plan, beta). The verb is **host** ("Host this version"), never "deploy". Added 2026-09-29. |
 | **trace** | log, record | One served request and what it produced. |
 | **outcome** | feedback, correction | What happened after the answer. A trace plus an outcome is a **label**. |
 | **template** | example, sample, demo | A library entry you add to your projects. What you get is a **project**. |

@@ -6,16 +6,17 @@
 - max_concurrency  in-flight model calls per run (wall-clock parallelism)
 - max_q          parents per round (GEPA parents_per_round, BO batch q) - the algorithm's parallelism
 - assignable     False = defined but nobody can be put on it yet (enterprise)
+- hosting        may host versions on the serving box (the beta upsell; DASHBOARD.md)
 """
 from __future__ import annotations
 
 import os
 
 TIERS: dict[str, dict] = {
-    "free":       {"house_keys": False, "own_keys": True, "house_models": [],                             "max_concurrency": 1,  "max_q": 1,  "assignable": True},
-    "beginner":   {"house_keys": True,  "own_keys": True, "house_models": ["us.amazon.nova-micro-v1:0", "us.amazon.nova-lite-v1:0"], "max_concurrency": 4,  "max_q": 4,  "assignable": True},
-    "advanced":   {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 16, "max_q": 16, "assignable": True},
-    "enterprise": {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 64, "max_q": 64, "assignable": False},
+    "free":       {"house_keys": False, "own_keys": True, "house_models": [],                             "max_concurrency": 1,  "max_q": 1,  "assignable": True,  "hosting": False},
+    "beginner":   {"house_keys": True,  "own_keys": True, "house_models": ["us.amazon.nova-micro-v1:0", "us.amazon.nova-lite-v1:0"], "max_concurrency": 4,  "max_q": 4,  "assignable": True,  "hosting": False},
+    "advanced":   {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 16, "max_q": 16, "assignable": True,  "hosting": True},
+    "enterprise": {"house_keys": True,  "own_keys": True, "house_models": None,                           "max_concurrency": 64, "max_q": 64, "assignable": False, "hosting": True},
 }
 DEFAULT_TIER = os.environ.get("STUDIO_DEFAULT_TIER", "beginner")  # what a new signup gets until the paywall exists
 

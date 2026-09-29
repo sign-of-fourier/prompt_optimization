@@ -4,11 +4,11 @@ import Hint from './Hint.jsx'
 
 // The Serving tab: what is published, what production did with it, and what came back. One page for PLAN.md's
 // second half - publish a version, call it, collect outcomes, turn those into the next dataset.
-export default function Serving({ pid, reload }) {
+export default function Serving({ pid, reload, features = {} }) {
   const [n, setN] = useState(0)
   return (
     <div className="page">
-      <Versions pid={pid} reloadKey={n} onRestore={reload} />
+      <Versions pid={pid} reloadKey={n} onRestore={reload} hosting={!!features.hosting} />
       <Traces pid={pid} onPromoted={() => { setN(x => x + 1); reload && reload() }} />
     </div>
   )
@@ -16,14 +16,34 @@ export default function Serving({ pid, reload }) {
 
 // A version is a frozen copy of the program: the prompts that earned the score, with every model id spelled out.
 // Publishing one is how a run's result stops being a row in a tree and becomes something that can be served.
-function Versions({ pid, reloadKey, onRestore }) {
+function Versions({ pid, reloadKey, onRestore, hosting }) {
   const [vs, setVs] = useState([])
   const [open, setOpen] = useState(null)
-  useEffect(() => { api.get(`/projects/${pid}/versions`).then(setVs).catch(() => {}) }, [pid, reloadKey])
+  const [msg, setMsg] = useState('')
+  const load = () => api.get(`/projects/${pid}/versions`).then(setVs).catch(() => {})
+  useEffect(() => { load() }, [pid, reloadKey])
+  // Hosting (beta, advanced plan): the confirmation carries the estimate, because every request is billed
+  const host = async (v) => {
+    setMsg('')
+    try {
+      const { estimate: e } = await api.get(`/versions/${v.id}/host`)
+      const cost = e.available
+        ? `Estimated cost: about $${e.usd_per_request.toPrecision(2)} per request (${Math.round(e.tokens_per_request)} tokens${e.steps ? `, ${e.steps.toFixed(1)} prompt calls` : ''}, from the ${e.basis}).`
+          + (e.unpriced_models.length ? ` No price known for ${e.unpriced_models.join(', ')}.` : '')
+        : `No cost estimate: ${e.reason}.`
+      if (!window.confirm(`Host ${v.label}? (beta)\n\nIt will answer requests at its own URL, on house models. Every request is billed: AWS cost passed through, plus a surcharge.\n\n${cost}`)) return
+      const h = await api.post(`/versions/${v.id}/host`)
+      setMsg(`${v.label} is hosted at ${h.url}`); load()
+    } catch (err) { setMsg(err.message) }
+  }
+  const unhost = async (v) => {
+    if (!window.confirm(`Stop hosting ${v.label}? Requests to its URL will be refused. The version itself is kept.`)) return
+    try { await api.del(`/versions/${v.id}/host`); setMsg(`${v.label} is no longer hosted`); load() } catch (err) { setMsg(err.message) }
+  }
   return (
     <div className="card"><h3>Versions<Hint id="versions" /></h3>
       {vs.length === 0 && <div className="muted">None yet. Open a finished run and publish its best prompt as a version.</div>}
-      {vs.length > 0 && <table><thead><tr><th>label</th><th>from</th><th>score</th><th>rows</th><th>hold-out</th><th>published</th><th>fingerprint</th><th></th></tr></thead><tbody>
+      {vs.length > 0 && <table><thead><tr><th>label</th><th>from</th><th>score</th><th>rows</th><th>hold-out</th><th>published</th><th>fingerprint</th>{hosting && <th>hosting <span className="muted" style={{ fontWeight: 400 }}>beta</span></th>}<th></th></tr></thead><tbody>
         {vs.map(v => <tr key={v.id} style={{ cursor: 'pointer' }} onClick={() => setOpen(open === v.id ? null : v.id)}>
           <td><b>{v.label}</b></td>
           <td className="muted">{v.source.kind === 'canvas' ? 'the canvas' : `run ${v.source.run_id.slice(0, 6)} · node ${(v.source.node_id || '').slice(0, 6)}`}</td>
@@ -31,23 +51,27 @@ function Versions({ pid, reloadKey, onRestore }) {
           <td>{v.holdout ? v.holdout.best_score.toFixed(3) : '—'}</td>
           <td className="muted">{new Date(v.created * 1000).toLocaleString()}</td>
           <td className="mono muted" title="sha256 of what the version runs: same fingerprint, same behaviour">{v.fingerprint.slice(0, 8)}</td>
+          {hosting && <td onClick={e => e.stopPropagation()}>{v.hosted
+            ? <><span className="ok" style={{ fontSize: 12.5, marginRight: 6 }}>hosted</span><button className="small" onClick={() => unhost(v)}>Unhost</button></>
+            : <button className="small" title="Answer requests on the serving box, billed per request" onClick={() => host(v)}>Host</button>}</td>}
           <td><button className="small" title="Put these prompts back on the canvas, so the next run starts from what is deployed"
             onClick={e => { e.stopPropagation(); if (window.confirm(`Replace the canvas with ${v.label}? The version itself is unchanged.`)) api.post(`/projects/${pid}/versions/${v.id}/restore`).then(() => onRestore && onRestore()) }}>Load onto canvas</button></td>
         </tr>)}
       </tbody></table>}
-      {open && <VersionDetail vid={open} />}
+      {msg && <div className="help" style={{ marginTop: 6 }}>{msg}</div>}
+      {open && <VersionDetail vid={open} hostedUrl={(vs.find(x => x.id === open) || {}).hosted_url} />}
       <div className="help">A version never changes: editing the canvas afterwards does not touch one already published. Load one back
         onto the canvas when you want the next run to start from what is deployed rather than from whatever you last edited.</div>
     </div>
   )
 }
 
-function VersionDetail({ vid }) {
+function VersionDetail({ vid, hostedUrl }) {
   const [v, setV] = useState(null)
   const [c, setC] = useState(null)
   useEffect(() => { setV(null); setC(null); api.get(`/versions/${vid}`).then(setV); api.get(`/v/${vid}`).then(setC).catch(() => {}) }, [vid])
   if (!v) return null
-  const curl = c && ['curl -X POST ' + c.url, "  -H 'Authorization: Bearer <your api key>'", "  -H 'Content-Type: application/json'",
+  const curl = c && ['curl -X POST ' + (hostedUrl || c.url), "  -H 'Authorization: Bearer <your api key>'", "  -H 'Content-Type: application/json'",
     '  -d \'{"inputs": {' + c.inputs.map(i => `"${i}": "…"`).join(', ') + '}}\''].join(' \\\n')
   return <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
     <div className="help">{v.label} · {v.spec.eval_model}{v.dataset_id ? ` · scored on dataset ${v.dataset_id.slice(0, 6)}` : ''}</div>

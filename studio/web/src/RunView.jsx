@@ -67,7 +67,7 @@ function Run({ pid, rid, spec, features = {}, onBack }) {
         <span className="muted">round {live.round ?? 0} · {live.step || ''} · {live.nodes || tree.nodes.length} nodes · {live.usage && live.usage.calls} calls · ${(live.spent_usd || 0).toFixed(3)}</span>
         <span className="muted">accepted {live.accepted ?? 0} / proposed {live.proposed ?? 0}</span>
         <div className="grow" />{live.state === 'running' && <button className="danger small" onClick={() => api.post(`/runs/${rid}/stop`)}>stop</button>}
-        {features.v0 && best && live.state !== 'running' && <Publish pid={pid} rid={rid} nid={null} label="Publish best as version" />}</div>
+        {features.v0 && best && live.state !== 'running' && <Publish pid={pid} rid={rid} nid={null} label="Publish best as version" hosting={features.hosting} />}</div>
       {live.error && <div className="err">{live.error}</div>}
       <div className="grid3">
         <div className="stat card"><div className="num">{best ? best.score.toFixed(3) : '—'}</div><div className="lbl">best objective on the eval set ({live.train_rows} rows)</div></div>
@@ -238,7 +238,7 @@ function diffWords(a, b) {
   return out
 }
 
-function Publish({ pid, rid, nid, label, onDone }) {
+function Publish({ pid, rid, nid, label, onDone, hosting }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(null)
@@ -249,7 +249,7 @@ function Publish({ pid, rid, nid, label, onDone }) {
   }
   return <>
     <button className="small" disabled={busy} onClick={go} title="Freeze these prompts, with their score, as something that can be served">{busy ? 'publishing…' : label}</button>
-    {done && <span className="ok" style={{ fontSize: 12.5 }}>published as <b>{done.label}</b> — see the Serving tab</span>}
+    {done && <span className="ok" style={{ fontSize: 12.5 }}>published as <b>{done.label}</b> — see the Serving tab to call it{hosting ? ', or Host it there' : ''}</span>}
     {err && <span className="err">{err}</span>}
   </>
 }
@@ -264,7 +264,7 @@ function NodeDetail({ rid, nid, tree, spec, pid, features = {} }) {
   return (
     <div className="card">
       <div className="row"><h3 style={{ margin: 0 }}>Node {n.id} <span className="muted">· {n.origin.op}{n.origin.params.module ? ` on ${n.origin.params.module}` : ''} · depth {n.depth}{ev ? ` · score ${ev.score.toFixed(3)} on ${ev.n} rows` : ' · not evaluated'}</span></h3>
-        <div className="grow" />{features.v0 && ev && <Publish pid={pid} rid={rid} nid={n.id} label="Publish this node as a version" />}</div>
+        <div className="grow" />{features.v0 && ev && <Publish pid={pid} rid={rid} nid={n.id} label="Publish this node as a version" hosting={features.hosting} />}</div>
       {ev && <div className="help">metrics: {Object.entries(ev.metrics).map(([k, v]) => `${k} ${v.toFixed(3)}`).join(' · ')}</div>}
       {Object.keys(mods).map(k => (
         <div key={k} style={{ marginBottom: 10 }}>

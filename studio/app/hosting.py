@@ -59,6 +59,36 @@ async def _call(method: str, path: str, **kw) -> dict:
     return r.json()
 
 
+def estimate(v: dict) -> dict[str, Any]:
+    """Cost per request, from what the version cost per row in evaluation: every prompt call of a row (loops
+    included, `tokens_per_module.*`) at its model's price. Input and output are split by the last prompt's ratio,
+    the only one measured separately. A version published from the canvas was never scored: no estimate."""
+    from .clients import prices
+    from .models import ProjectSpec
+    m = v.get("metrics") or {}
+    spec = ProjectSpec.model_validate(v["spec"])
+    per = {k.split(".", 1)[1]: t for k, t in m.items() if k.startswith("tokens_per_module.")}
+    pin, pout = m.get("prompt_tokens"), m.get("output_tokens")
+    if not per and len(spec.modules) == 1 and (pin or pout):
+        per = {spec.modules[0].id: (pin or 0.0) + (pout or 0.0)}   # one prompt: its own counts are the whole request
+    if not per:
+        return {"available": False, "reason": "published from the canvas, so never scored: publish from a run for an estimate"}
+    share_out = pout / (pin + pout) if pin and pout else 0.15
+    pr = prices()
+    usd, tokens, unpriced = 0.0, 0.0, []
+    for mod in spec.modules:
+        t = per.get(mod.id, 0.0)
+        model = mod.model or spec.eval_model
+        p = pr.get(model) or pr.get(".".join(model.split(".")[1:]))
+        if p is None:
+            unpriced.append(model)
+            continue
+        usd += (t * (1 - share_out) * p[0] + t * share_out * p[1]) / 1e6
+        tokens += t
+    return {"available": True, "usd_per_request": usd, "tokens_per_request": tokens, "steps": m.get("steps"),
+            "unpriced_models": sorted(set(unpriced)), "basis": f"evaluation of {v.get('n_rows') or '?'} rows"}
+
+
 def is_hosted(con, vid: str) -> bool:
     return con.execute("select 1 from hosted_versions where version_id=?", (vid,)).fetchone() is not None
 

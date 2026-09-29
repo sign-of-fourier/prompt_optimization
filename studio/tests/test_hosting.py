@@ -29,9 +29,12 @@ def _box_client():
     return AsyncClient(transport=ASGITransport(app=serve_box.app), base_url="http://box")
 
 
-async def _signup(c, email):
+async def _signup(c, email, tier="advanced"):
     r = await c.post("/auth/signup", json={"email": email, "password": "password1"}); assert r.status_code == 200, r.text
-    return (await c.get("/auth/me")).json()["id"]
+    uid = (await c.get("/auth/me")).json()["id"]
+    if tier:   # hosting is an advanced-plan feature; signups start on the default tier
+        app.state.db.execute("update users set tier=? where id=?", (tier, uid)); app.state.db.commit()
+    return uid
 
 
 async def _hosting_flow(root):
@@ -55,7 +58,13 @@ async def _hosting_flow(root):
             KA = {"Authorization": f"Bearer {k['key']}"}
 
             # host it: the version and the key hash land in the customer's folder, nothing else does
+            # the confirmation's numbers: an estimate from evaluation, before anything is hosted
+            est = (await a.get(f"/versions/{v['id']}/host")).json()
+            assert est["hosted"] is False and est["estimate"]["available"] and est["estimate"]["tokens_per_request"] > 0
+            assert (await a.get("/features")).json()["hosting"] is True
             h = (await a.post(f"/versions/{v['id']}/host")).json()
+            lst = (await a.get(f"/projects/{pid}/versions")).json()
+            assert [x["hosted"] for x in lst if x["id"] == v["id"]] == [True] and lst[0]["hosted_url"] if lst[0]["id"] == v["id"] else True
             assert h["hosted"] and h["url"].endswith(f"/serve/v/{v['id']}/run")
             assert (root / "tenants" / ua / "versions" / v["id"] / "version.json").exists()
             assert sorted(p.name for p in root.iterdir()) == ["keys.json", "tenants"]
@@ -80,6 +89,14 @@ async def _hosting_flow(root):
             assert con.execute("select count(*) from usage_log where user_id=? and purpose='serve'", (ua,)).fetchone()[0] >= 1
 
             # another customer: their own folder; A's key cannot reach B's version, nor B's A's
+            # a plan without hosting is refused, however valid the version
+            uc = await _signup(b, "host-c@b.co", tier=None)
+            pc = (await b.post("/projects", json=SPEC)).json()["id"]
+            vc = (await b.post(f"/projects/{pc}/versions", json={})).json()
+            r = await b.post(f"/versions/{vc['id']}/host"); assert r.status_code == 403 and "advanced" in r.text
+            assert (await b.get(f"/versions/{vc['id']}/host")).json()["estimate"]["available"] is False   # canvas: never scored
+            assert (await b.get("/features")).json()["hosting"] is False
+            await b.post("/auth/logout")
             ub = await _signup(b, "host-b@b.co")
             pb = (await b.post("/projects", json=SPEC)).json()["id"]
             vb = (await b.post(f"/projects/{pb}/versions", json={})).json()
@@ -177,3 +194,20 @@ def test_hosting_refuses_steps_that_sign_in(box):
                 r = await c.post(f"/versions/{v['id']}/host")
                 assert r.status_code == 502 and "signs in" in r.text
     asyncio.run(go())
+
+
+def test_cost_estimate_counts_every_prompt_call():
+    """Loops included: tokens_per_module is per row over every visit, at each prompt's own model price."""
+    from app.bundles import load_example
+    from app.clients import prices
+    spec = load_example("amount-due-loop").spec
+    for m in spec.modules:
+        m.model = m.model or spec.eval_model
+    v = {"spec": spec.model_dump(mode="json"), "n_rows": 11,
+         "metrics": {"tokens_per_module.extract": 900.0, "tokens_per_module.check": 700.0, "tokens_per_module.final": 100.0,
+                     "prompt_tokens": 80.0, "output_tokens": 20.0, "steps": 4.2}}
+    e = H.estimate(v)
+    pr = prices(); pin, pout = pr.get(spec.eval_model) or pr[".".join(spec.eval_model.split(".")[1:])]
+    assert e["available"] and e["tokens_per_request"] == 1700.0 and e["steps"] == 4.2
+    assert e["usd_per_request"] == pytest.approx(1700 * (0.8 * pin + 0.2 * pout) / 1e6)
+    assert H.estimate({**v, "metrics": {"accuracy": 1.0}})["available"] is False
