@@ -34,8 +34,8 @@ A stopped instance costs only its disk and keeps its private address and its dis
 hashes survive a stop; nginx and SERVE_BOX_URL stay valid. While stopped, hosted versions answer 502 and the
 studio's ledger pull logs a failure every 30 s (harmless; the cursor makes the next pull catch up).
 
-    aws ec2 stop-instances  --region us-east-2 --instance-ids i-0c58e1f0efc44c66a    # the t3.micro, 2026-09-29
-    aws ec2 start-instances --region us-east-2 --instance-ids i-0c58e1f0efc44c66a   # healthy about a minute later
+    aws ec2 stop-instances  --region us-east-2 --instance-ids i-08956f13a662671a2    # the t3.micro, replaced 2026-09-29 at 223b040
+    aws ec2 start-instances --region us-east-2 --instance-ids i-08956f13a662671a2   # healthy about a minute later
 
 ## Replacing the box (how its code changes)
 
