@@ -45,6 +45,7 @@ class Move:
     group: int | None
     author: int
     by: str                        # "rule" | "person"
+    trigger: str | None = None     # the trigger's title when a rule made the move
 
 
 @dataclass
@@ -69,7 +70,8 @@ def replay(ticket: dict, audits: list[dict], agents: set[int]) -> Replay:
         t = ts(a["created_at"])
         for e in a["events"]:
             f, v = e.get("field_name"), e.get("value")
-            ev_rule = (e.get("via") or {}).get("channel") == "rule" or a["via"]["channel"] == "rule"
+            via = e.get("via") if (e.get("via") or {}).get("channel") == "rule" else a["via"]
+            ev_rule = via.get("channel") == "rule"
             if i == 0 and e["type"] == "Create":
                 if f == "subject":
                     r.subject = v or ""
@@ -82,7 +84,8 @@ def replay(ticket: dict, audits: list[dict], agents: set[int]) -> Replay:
             if f == "group_id":
                 g = int(v) if v else None
                 if not r.moves or r.moves[-1].group != g:
-                    r.moves.append(Move(t, g, a["author_id"], "rule" if ev_rule else "person"))
+                    title = (((via.get("source") or {}).get("from") or {}).get("title")) if ev_rule else None
+                    r.moves.append(Move(t, g, a["author_id"], "rule" if ev_rule else "person", title))
             if f == "status" and v == "solved":
                 r.solved = t
             if e["type"] == "Comment" and e.get("public") and a["author_id"] in agents and r.first_agent_reply is None and i > 0:
@@ -176,6 +179,9 @@ def build(tickets: Iterable[dict], audits: Iterable[dict], users: Iterable[dict]
             "label": label, "tier": tier, "tier_reason": why,
             "first_group": gname.get(first.group) if first else None, "first_by": first.by if first else None,
             "first_agent": name.get(first.author) if first and first.by == "person" else None,
+            "first_trigger": first.trigger if first else None,
+            "moves": [[round((m.t - r.created) / 3600, 2), gname.get(m.group, str(m.group)) if m.group else None, m.by] for m in r.moves],
+            "solved_h": round((r.solved - r.created) / 3600, 2) if r.solved else None,
         })
 
     kept = [x for x in rows if x["tier"] in keep]

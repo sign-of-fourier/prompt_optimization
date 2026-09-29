@@ -86,3 +86,20 @@ def test_settings():
     assert rows[3]["tier"] == "strong"                                                           # 30 h is within 48
     rows, _ = build([mk(8, [(1, A, "person"), (2, GEN, "person")])], catch_all=())
     assert rows[8]["tier"] == "strong"                                                           # no catch-all named
+
+
+def test_roast():
+    from app import zendesk_roast as RR
+    rows, _ = build([
+        mk(1, [(0, A, "rule")]), mk(2, [(1, A, "person"), (3, B, "person")], org=ORG),
+        mk(3, [(1, A, "person"), (31, B, "person")], org=ORG, start=2), mk(11, [(1, B, "person")]),
+        mk(4, [(0.1, GEN, "person")], channel="chat", solved=0.2), mk(6, [], status="deleted"),
+    ])
+    rep = RR.analyze(list(rows.values()), agent_min=1)
+    assert rep["kept"] == 4 and rep["first_right"]["people"] == 1 / 3 and rep["first_right"]["triggers"] == 1.0
+    assert rep["moved"]["n"] == 2 and rep["moved"]["hours"] == 2 + 30                       # A for 2 h, then A for 30 h
+    assert rep["pairs"][0] == {"from": "A", "to": "B", "n": 2, "hours": 32.0, "median_h": 16.0}
+    assert rep["excluded"] == {"answered at first contact": 1, "deleted": 1}
+    assert RR.hours_wrong({"label": "B", "moves": [[1, "A", "person"], [2, "C", "person"], [5, "B", "person"]]}) == 4
+    page = RR.render(rep, "Acme")
+    assert page.startswith("<title>Acme Routing Review</title>") and "33%" in page and "upper bound" in page
