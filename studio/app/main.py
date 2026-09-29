@@ -756,6 +756,15 @@ async def unhost_version(vid: str, request: Request, user=auth.User):
         raise HTTPException(502, str(e))
 
 
+@app.get("/dashboard")
+def dashboard(request: Request, window: str = "24h", user=auth.User):
+    """What each hosted version is doing (DASHBOARD.md step 2). Empty rows mean nothing is hosted: the canvas lands on
+    Projects then."""
+    _v0()
+    from . import dashboard as DB
+    return DB.summary(request.app.state.db, user["id"], window)
+
+
 @app.post("/hosting/sync")
 async def hosting_sync(request: Request, user=auth.User):
     """Pull this account's hosted traces and usage now, instead of waiting for the background pull."""

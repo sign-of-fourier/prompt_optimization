@@ -6,6 +6,7 @@ import { OptimizerPanel } from './panels.jsx'
 import RunView from './RunView.jsx'
 import Serving from './Serving.jsx'
 import Library from './Library.jsx'
+import Dashboard from './Dashboard.jsx'
 import KeysPanel from './KeysPanel.jsx'
 import Tutorial, { tutorialVisible } from './Tutorial.jsx'
 import { NAME, SITE_URL, COMPANY_URL } from './brand.js'
@@ -66,16 +67,23 @@ function Login({ onUser }) {
 function Workspace({ user, models, features, onKeys, onLogout }) {
   const [projects, setProjects] = useState([])
   const [pid, setPid] = useState(null)
+  const [openTab, setOpenTab] = useState(null)   // a dashboard row opens its project on the Serving tab
+  const [hosted, setHosted] = useState(0)
   const refresh = useCallback(() => api.get('/projects').then(setProjects), [])
   useEffect(() => { refresh() }, [refresh])
   const [err, setErr] = useState('')
   const fileRef = useRef(null)
   // #library or #library/<slug> opens the library directly, so the marketing site can link at one entry
   const hash = () => (location.hash || '').replace(/^#/, '')
-  const [view, setView] = useState(hash().startsWith('library') ? 'library' : 'projects')
+  const [view, setView] = useState(hash().startsWith('library') ? 'library' : hash() === 'dashboard' ? 'dashboard' : 'projects')
+  // landing (DASHBOARD.md): with something hosted, the dashboard; otherwise Projects. A deep link always wins.
+  useEffect(() => {
+    if (!features.v0) return
+    api.get('/dashboard').then(d => { setHosted(d.rows.length); if (d.rows.length && !hash()) setView('dashboard') }).catch(() => {})
+  }, [features.v0])
   const [deepLink, setDeepLink] = useState(hash().split('/')[1] || null)
   useEffect(() => {
-    const on = () => { const h = hash(); setView(h.startsWith('library') ? 'library' : 'projects'); setDeepLink(h.split('/')[1] || null) }
+    const on = () => { const h = hash(); setView(h.startsWith('library') ? 'library' : h === 'dashboard' ? 'dashboard' : 'projects'); setDeepLink(h.split('/')[1] || null) }
     window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on)
   }, [])
   const openLibrary = () => { location.hash = 'library'; setView('library') }
@@ -87,12 +95,17 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
     try { const b = JSON.parse(await file.text()); const r = await api.post('/projects/import', b); await refresh(); setPid(r.id) }
     catch (e) { setErr('import failed: ' + e.message) }
   }
-  if (pid) return <Editor pid={pid} models={models} features={features} user={user} onBack={() => { setPid(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
+  if (pid) return <Editor pid={pid} initialTab={openTab} models={models} features={features} user={user} onBack={() => { setPid(null); setOpenTab(null); refresh() }} onKeys={onKeys} onLogout={onLogout} />
+  const showDash = features.v0 && (hosted > 0 || features.hosting)
+  const go = v => { location.hash = v === 'dashboard' ? 'dashboard' : ''; setView(v) }
   return (
     <div className="shell">
-      <div className="top"><div className="brand"><span>{NAME}</span></div><a className="muted" style={{ fontSize: 12.5 }} href={SITE_URL}>Why compress</a><a className="muted" style={{ fontSize: 12.5 }} href={COMPANY_URL}>About</a>
+      <div className="top"><div className="brand"><span>{NAME}</span></div>
+        {showDash && <div className="tabs">{[['dashboard', 'Dashboard'], ['projects', 'Projects']].map(([k, l]) => <button key={k} className={view === k ? 'active' : ''} onClick={() => go(k)}>{l}</button>)}</div>}
+        <a className="muted" style={{ fontSize: 12.5 }} href={SITE_URL}>Why compress</a><a className="muted" style={{ fontSize: 12.5 }} href={COMPANY_URL}>About</a>
         <div className="grow" /><KeysHint models={models} onKeys={onKeys} /><span className="muted email" title={user.email}>{user.email}</span><button className="small" onClick={onLogout}>Sign out</button></div>
-      {view === 'library'
+      {view === 'dashboard' ? <Dashboard onOpen={id => { setOpenTab('serve'); setPid(id) }} />
+        : view === 'library'
         ? <Library deepLink={deepLink} onBack={closeLibrary} onOpen={async id => { await refresh(); closeLibrary(); setPid(id) }} />
         : <div className="page">
         {!models.house_keys && models.models.length === 0 && <div className="card" style={{ borderColor: 'var(--accent2)' }}><b>Add an endpoint to run anything.</b> Your account runs on your own model credentials. <a href="#" onClick={e => { e.preventDefault(); onKeys() }}>Add one under Endpoints &amp; keys</a>.</div>}
@@ -115,10 +128,10 @@ function Workspace({ user, models, features, onKeys, onLogout }) {
   )
 }
 
-function Editor({ pid, models, features, user, onBack, onKeys, onLogout }) {
+function Editor({ pid, initialTab, models, features, user, onBack, onKeys, onLogout }) {
   const [spec, setSpec] = useState(null)
   const [datasets, setDatasets] = useState([])
-  const [tab, setTab] = useState('build')
+  const [tab, setTab] = useState(initialTab || 'build')
   const [showOpt, setShowOpt] = useState(false)
   const [showTut, setShowTut] = useState(false)
   const [saved, setSaved] = useState('saved')

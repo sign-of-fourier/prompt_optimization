@@ -165,6 +165,19 @@ per-hosted-version, per-hour table. The row screens read aggregates; only the dr
 the two apart now is what makes the max-security tier possible later (trace contents stay on the tenant's box; the
 studio only ever holds aggregates).
 
+## Built so far
+
+- **Step 1 (2026-09-29):** tier gate, Host / Unhost with the per-request estimate, hosted chip. The estimate matched the
+  first live request to three significant figures ($0.0000147).
+- **Step 2 (2026-09-29):** `GET /dashboard?window=24h|7d` (`studio/app/dashboard.py`) and the Dashboard view; landing
+  on it when anything is hosted; a row opens the project's Serving tab (the drill-in is step 3). Asterisks:
+  - computed on request from `traces`, not an hourly rollup table - `summary()` is the one entry point a table replaces;
+  - cost is each trace's own `usd` (usage_log rows do not name the version), as AWS cost: no surcharge exists yet;
+  - no plan has a spending cap yet, so the strip shows spend and forecast without a cap bar;
+  - the account forecast appears only when every hosted version is 3+ days old;
+  - Reviewed, Quality (Jev), the out-of-date badge and alerts are not shown until their steps exist; the one status
+    rule is errors over 5% with 20+ requests, else healthy, or idle with no traffic.
+
 ## Not in v1
 
 Customer-side outcome connectors (helpdesk, CRM) - a separate lift, PLAN.md Piece 5; the outcomes API stays
