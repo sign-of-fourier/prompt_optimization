@@ -773,6 +773,26 @@ class ServeBody(BaseModel):
     mock: bool | None = None
 
 
+def _example_inputs(request: Request, v: dict, spec: ProjectSpec, user: dict) -> dict | None:
+    """The first row of the dataset the version was scored on, as the inputs a caller would send: so the example
+    command in the Serving tab is one that works, not a list of "…". None when there is no such dataset any more."""
+    if not v.get("dataset_id"):
+        return None
+    try:
+        d = _dataset(request, v["dataset_id"], user)
+        rows = _rows(d)
+    except (HTTPException, OSError, ValueError):
+        return None
+    if not rows:
+        return None
+    imap = d.get("input_map") or {}
+    if isinstance(imap, str):
+        imap = json.loads(imap)
+    row = rows[0]
+    optional = set(serving.optional_inputs(spec))
+    return {p: row.get(imap.get(p, p)) for p in serving.required_inputs(spec) if p not in optional}
+
+
 @app.get("/v/{vid}")
 def version_contract(vid: str, request: Request, user=auth.User):
     """What to POST to this version: its input names, and the fields it returns."""
@@ -783,6 +803,7 @@ def version_contract(vid: str, request: Request, user=auth.User):
     spec = ProjectSpec.model_validate(v["spec"])
     terminal = next((m for m in spec.modules if not spec.outgoing(m.id)), spec.modules[0] if spec.modules else None)
     return {"version_id": vid, "label": v["label"], "inputs": serving.required_inputs(spec), "optional": serving.optional_inputs(spec),
+            "example": _example_inputs(request, v, spec, user),
             "outputs": [f.name for f in terminal.schema_fields] if terminal else [], "eval_model": spec.eval_model,
             "url": f"{brand.public_url()}/api/v/{vid}/run"}
 

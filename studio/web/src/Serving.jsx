@@ -72,7 +72,7 @@ function VersionDetail({ vid, hostedUrl }) {
   useEffect(() => { setV(null); setC(null); api.get(`/versions/${vid}`).then(setV); api.get(`/v/${vid}`).then(setC).catch(() => {}) }, [vid])
   if (!v) return null
   const curl = c && ['curl -X POST ' + (hostedUrl || c.url), "  -H 'Authorization: Bearer <your api key>'", "  -H 'Content-Type: application/json'",
-    '  -d \'{"inputs": {' + c.inputs.map(i => `"${i}": "…"`).join(', ') + '}}\''].join(' \\\n')
+    '  -d \'' + JSON.stringify({ inputs: c.example || Object.fromEntries(c.inputs.filter(i => !(c.optional || []).includes(i)).map(i => [i, '…'])) }).replace(/'/g, "'\\''") + '\''].join(' \\\n')
   return <div style={{ marginTop: 10, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
     <div className="help">{v.label} · {v.spec.eval_model}{v.dataset_id ? ` · scored on dataset ${v.dataset_id.slice(0, 6)}` : ''}</div>
     {v.spec.modules.map(m => <div key={m.id} style={{ marginBottom: 8 }}><div className="row"><b>{m.id}</b><span className="muted" style={{ fontSize: 12 }}>{m.model}</span></div><pre>{m.template}</pre></div>)}

@@ -133,6 +133,8 @@ async def _flow():
             assert [x["id"] for x in (await c.get("/keys")).json()] == [k["id"]]
             ct = (await c.get(f"/v/{v['id']}")).json()
             assert ct["inputs"] == ["context", "question"] and ct["outputs"] == ["answer"] and ct["url"].endswith(f"/api/v/{v['id']}/run")
+            # the example command uses a real row of the dataset the version was scored on
+            assert ct["example"] == {"context": ROWS[0]["context"], "question": ROWS[0]["question"]}
             H = {"Authorization": f"Bearer {k['key']}"}
             assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}})).status_code == 401          # the cookie is not enough
             assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}}, headers={"Authorization": "Bearer imp_nope"})).status_code == 401
@@ -147,6 +149,7 @@ async def _flow():
             assert r.status_code == 200, r.text
             served = r.json()
             assert served["output"] == scored["output"], (served["output"], scored["output"])
+            assert served["usage"]["usd"] == round(served["usage"]["usd"], 10)
             assert served["parsed"] == scored["parsed"] and served["path"] == ["answer"]
             # the request left a trace, and it carries what a later outcome will be attached to
             tr2 = (await c.get(f"/projects/{pid}/traces")).json()

@@ -106,5 +106,6 @@ async def serve(spec: ProjectSpec, inputs: dict[str, Any], *, access: Access, mo
             "metrics": {**dict(r.metrics), **step_metrics}, "steps": step_out,
             "input_tokens": client.usage.input_tokens, "output_tokens": client.usage.output_tokens,
             # the request's bill: the program's model calls plus what the steps charged (a retrieval query's embedding)
-            "usd": budget.spent_usd + sum(v for k, v in step_metrics.items() if k.endswith(".usd")),
+            # rounded: float sums print as 1.4700000000000002e-05 otherwise; a tenth of a millionth of a dollar is plenty
+            "usd": round(budget.spent_usd + sum(v for k, v in step_metrics.items() if k.endswith(".usd")), 10),
             "latency_s": round(time.perf_counter() - t0, 4)}
