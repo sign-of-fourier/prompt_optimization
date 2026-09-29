@@ -1,6 +1,6 @@
 # The dashboard: what a hosted version is doing
 
-**Status:** design, not built. Written 2026-09-29 from Mark's decisions the same day. Depends on hosting
+**Status:** design, not built; clickable mock-up with sample numbers in `mockups/dashboard.html` (accepted as the layout, 2026-09-29). Written 2026-09-29 from Mark's decisions the same day. Depends on hosting
 (`deploy/SERVE-BOX.md`, `studio/app/hosting.py`), which is built and accepted.
 
 Once someone hosts a version, what matters after login is what it is doing: traffic, errors, speed, cost and

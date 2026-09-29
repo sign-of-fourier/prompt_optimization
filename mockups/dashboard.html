@@ -1,0 +1,322 @@
+<title>Impromptune Dashboard</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b1020;--bg2:#111a33;--card:#161f3d;--card2:#1b2548;--line:#26325a;
+  --text:#e8ecf7;--muted:#9aa6c8;--faint:#6d7aa3;
+  --accent:#5ee3c8;--accent-ink:#06251f;--ok:#7ee787;--warn:#ffb454;--bad:#ff7a90;--info:#7fb4ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+button{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{filter:brightness(1.15)}
+button:focus-visible,.hv:focus-visible,.trace:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.small{padding:3px 9px;font-size:12.5px}
+.num{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.muted{color:var(--muted)} .faint{color:var(--faint)}
+h1,h2,h3{text-wrap:balance;margin:0}
+.eyebrow{font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+
+/* top bar, as in the studio */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;height:54px;border-bottom:1px solid var(--line);background:rgba(11,16,32,.94);display:flex;align-items:center;gap:12px;padding-inline:16px;white-space:nowrap;overflow-x:auto}
+.brand{font-weight:700;font-size:16px}.brand span{color:var(--accent)}
+.tabs{display:flex;gap:4px;margin-left:8px}
+.tabs button{border:none;background:none;color:var(--muted);padding:8px 12px}
+.tabs button.active{background:var(--card);color:var(--text)}
+.mockflag{margin-left:auto;font-size:12px;color:var(--warn);border:1px solid rgba(255,180,84,.45);border-radius:999px;padding:3px 10px}
+
+/* summary strip */
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:22px 0 14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:none;color:var(--muted);padding:5px 12px}
+.seg button.on{background:var(--card2);color:var(--text)}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.stat{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.stat .v{font-size:22px;font-weight:600;margin-top:2px}
+.stat .s{font-size:12.5px;color:var(--muted)}
+.bar{height:6px;border-radius:99px;background:var(--line);margin-top:8px;position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:99px}
+.bar b{position:absolute;inset:0 auto 0 0;background:repeating-linear-gradient(90deg,rgba(94,227,200,.35) 0 4px,transparent 4px 7px);border-radius:99px}
+
+/* hosted versions table */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+table{border-collapse:collapse;width:100%;min-width:1040px}
+th{font-weight:500;font-size:11.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.hv{cursor:pointer}
+.hv:hover td,.hv.sel td{background:rgba(94,227,200,.045)}
+.hv.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.name b{display:block}
+.name small{color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 9px;font-size:12px;border:1px solid;white-space:nowrap}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .info{color:var(--info)}
+.chip.ok{border-color:rgba(126,231,135,.4)} .chip.warn{border-color:rgba(255,180,84,.45)} .chip.bad{border-color:rgba(255,122,144,.45)} .chip.info{border-color:rgba(127,180,255,.45)}
+.chip.grey{color:var(--muted);border-color:var(--line)}
+.beta{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent);border:1px solid rgba(94,227,200,.45);border-radius:4px;padding:0 4px;margin-left:4px;vertical-align:1px}
+.sub{font-size:12px;color:var(--muted);display:block}
+.stack{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+
+/* drill-in */
+.drill{margin-top:20px;border:1px solid var(--line);border-radius:14px;background:var(--bg2);padding:16px}
+.drillhead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.panel h3{font-size:14.5px;margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panel p{margin:6px 0;color:var(--muted);font-size:13px;max-width:62ch}
+.changes{list-style:none;margin:8px 0 12px;padding:0;display:flex;flex-direction:column;gap:6px}
+.changes li{display:flex;gap:8px;align-items:baseline;font-size:13px}
+.changes li span:first-child{color:var(--muted);min-width:118px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.result{margin-top:10px;border-top:1px dashed var(--line);padding-top:10px;font-size:13px}
+.result table{min-width:0;width:100%}
+.result td,.result th{padding:5px 6px;border-bottom:1px solid var(--line)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.filters button{border-radius:999px;padding:2px 10px;font-size:12.5px;color:var(--muted)}
+.filters button.on{color:var(--text);border-color:var(--accent)}
+.traces{display:flex;flex-direction:column}
+.trace{display:grid;grid-template-columns:62px minmax(0,1fr) 92px 58px 62px;gap:8px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer;border-radius:6px}
+.trace:hover{background:rgba(255,255,255,.03)}
+.trace .msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trace.open{background:rgba(94,227,200,.06)}
+.tdetail{margin:6px 0 10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:#0a0f1e;font-size:12.5px}
+.tdetail pre{margin:4px 0 8px;white-space:pre-wrap;font-family:var(--mono);font-size:12px;color:var(--text)}
+.review{border:1px solid var(--line);border-radius:10px;padding:12px;background:#0a0f1e;margin-top:8px}
+.review .q{font-size:13px;margin:6px 0}
+.review .a{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+.review .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.review input{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 8px;width:140px}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+.costrow{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 10px}
+.costrow div{min-width:0}
+.costrow .v{font-size:17px;font-weight:600}
+svg text{fill:var(--muted);font-family:var(--sans);font-size:10px}
+.hist{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.hist li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.foot{margin-top:22px;font-size:12px;color:var(--faint);max-width:80ch}
+@media (max-width:860px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+@media (max-width:460px){.strip{grid-template-columns:1fr}.trace{grid-template-columns:54px minmax(0,1fr) 70px}.trace .hide-sm{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="top">
+  <div class="brand">impromp<span>tune</span></div>
+  <div class="tabs"><button class="active">Dashboard</button><button>Projects</button><button>Models &amp; keys</button></div>
+  <div class="mockflag">Mock-up · sample numbers</div>
+</div>
+
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="eyebrow">Hosted versions</div>
+      <h1 style="font-size:22px">What your hosted versions are doing</h1>
+      <div class="muted" style="font-size:12.5px">Updated 20 seconds ago · data is at most a minute old</div>
+    </div>
+    <div class="seg" role="group" aria-label="Time window"><button id="w24" class="on">24 h</button><button id="w7">7 d</button></div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>Hosted version</th><th>Requests</th><th>Errors</th><th>Latency p50 / p95</th><th>Cost</th>
+        <th>Earned</th><th>Reviewed</th><th>Quality <span class="beta">beta</span></th><th>Status</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <section class="drill" id="drill"></section>
+
+  <p class="foot">Mock-up of DASHBOARD.md with sample numbers, not your data. What is real today: hosting, per-request cost, traces and reviews exist in the studio; this screen, the forecast, alerts, the out-of-date badge and the Jev quality line are designed, not built. Buttons here act on the sample only.</p>
+</div>
+
+<script>
+const hv = [
+  { id:'a34299fb8bec', name:'Ticket triage with customer records', label:'v3', project:'Ticket triage with customer records', since:'Sep 29',
+    req24:1102, req7:6810, spark:[31,38,40,36,44,52,61,58,49,47,55,63,71,66,58,50,46,42,39,44,51,48,45,52],
+    err:0.2, p50:1.3, p95:2.1, today:0.0162, mtd:0.29, forecast:0.52, lastMonth:null, perReq:0.0000147, est:0.0000150,
+    earned:0.83, earnedN:24, reviewed:[17,20], quality:0.86, agree:[17,20], status:['ok','healthy'],
+    changes:[['14 reviewed traces','4 wrong'],['Dataset','40 rows uploaded Sep 30']], level:'info',
+    daily:[0.021,0.024,0.026,0.023,0.028,0.031,0.029,0.027,0.016] },
+  { id:'7c1e2a90d4f3', name:'Amount due, with a check loop', label:'v2', project:'Amount due, with a check loop', since:'Sep 29',
+    req24:182, req7:1190, spark:[4,6,5,7,9,8,6,7,10,12,9,8,7,6,8,9,11,10,7,6,8,7,9,8],
+    err:1.6, p50:3.9, p95:7.8, today:0.0071, mtd:0.061, forecast:0.18, lastMonth:null, perReq:0.000039, est:0.000029,
+    earned:0.64, earnedN:11, reviewed:[6,10], quality:0.71, agree:[7,10], status:['warn','loops hitting the cap'],
+    alert:'14% of requests hit the step cap (7 prompt calls) in the last hour',
+    changes:[['10 reviewed traces','4 wrong'],['Program','canvas differs: the check prompt was edited'],['Dataset','3 rows edited']], level:'warn',
+    daily:[0.006,0.008,0.007,0.009,0.011,0.007,0.0071] }
+];
+let win = '24', open = hv[1].id, filter = 'all', openTrace = null, reviewIdx = 0, reviews = { right:0, wrong:0 }, update = 0;
+
+const $ = s => document.querySelector(s);
+const usd = (x, d) => x < 0.01 ? '$' + x.toPrecision(2) : '$' + x.toFixed(d ?? 2);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function spark(vals, w = 110, h = 28) {
+  const max = Math.max(...vals), min = 0, n = vals.length;
+  const x = i => 2 + i * (w - 4) / (n - 1), y = v => h - 3 - (v - min) / (max - min || 1) * (h - 6);
+  const d = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const area = d + ` L${x(n - 1).toFixed(1)} ${h - 1} L${x(0).toFixed(1)} ${h - 1} Z`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <path d="${area}" fill="rgba(94,227,200,.12)"/><path d="${d}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+    <circle cx="${x(n - 1).toFixed(1)}" cy="${y(vals[n - 1]).toFixed(1)}" r="2.5" fill="var(--accent)"/></svg>`;
+}
+
+function strip() {
+  const req = hv.reduce((a, h) => a + (win === '24' ? h.req24 : h.req7), 0);
+  const mtd = hv.reduce((a, h) => a + h.mtd, 0), fc = hv.reduce((a, h) => a + h.forecast, 0), cap = 25;
+  const alerts = hv.filter(h => h.alert).length;
+  $('#strip').innerHTML = `
+    <div class="stat"><div class="eyebrow">Requests, ${win === '24' ? 'last 24 h' : 'last 7 days'}</div><div class="v num">${req.toLocaleString()}</div><div class="s">across all hosted versions</div></div>
+    <div class="stat"><div class="eyebrow">Spend this month</div><div class="v num">${usd(mtd)} <span class="muted" style="font-size:14px;font-weight:400">of ${usd(cap, 0)} cap</span></div>
+      <div class="s">forecast <span class="num">${usd(fc)}</span> by month end</div><div class="bar" title="solid: spent · hatched: forecast"><b style="width:${(fc / cap * 100).toFixed(1)}%"></b><i style="width:${(mtd / cap * 100).toFixed(1)}%"></i></div></div>
+    <div class="stat"><div class="eyebrow">Hosted versions</div><div class="v num">${hv.length}</div><div class="s">answering requests</div></div>
+    <div class="stat"><div class="eyebrow">Alerts</div><div class="v num ${alerts ? 'warn' : 'ok'}">${alerts}</div><div class="s">${alerts ? 'loops hitting the step cap' : 'nothing needs attention'}</div></div>`;
+}
+
+function rows() {
+  $('#rows').innerHTML = hv.map(h => {
+    const req = win === '24' ? h.req24 : h.req7;
+    const badge = h.level === 'warn' ? 'warn' : 'info';
+    return `<tr class="hv ${open === h.id ? 'sel' : ''}" data-id="${h.id}" tabindex="0">
+      <td class="name"><b>${esc(h.name)}</b><small>${h.label} · hosted since ${h.since}</small>
+        <div style="margin-top:6px"><span class="chip ${badge}">out of date · ${h.changes.length} changes</span></div></td>
+      <td><div class="num">${req.toLocaleString()}</div>${spark(h.spark)}</td>
+      <td class="num ${h.err > 1 ? 'warn' : ''}">${h.err.toFixed(1)}%</td>
+      <td class="num">${h.p50.toFixed(1)} s / ${h.p95.toFixed(1)} s</td>
+      <td><span class="num">${usd(h.today, 3)}</span> <span class="sub">today</span>
+        <span class="num">${usd(h.mtd)}</span> <span class="sub">month · forecast ${usd(h.forecast)}</span>
+        <span class="sub num ${h.perReq > h.est * 1.2 ? 'warn' : ''}">${usd(h.perReq)} / request (est. ${usd(h.est)})</span></td>
+      <td><span class="num">${h.earned.toFixed(2)}</span><span class="sub">hold-out, ${h.earnedN} rows</span></td>
+      <td><span class="num">${h.reviewed[0]} of ${h.reviewed[1]}</span><span class="sub">right (n=${h.reviewed[1]}, random)</span></td>
+      <td><span class="num">${h.quality.toFixed(2)}</span><span class="sub">agrees with ${h.agree[0]} of ${h.agree[1]} reviews</span></td>
+      <td><div class="stack"><span class="chip ${h.status[0]}">${h.status[1]}</span></div></td></tr>`;
+  }).join('');
+  document.querySelectorAll('.hv').forEach(r => {
+    const go = () => { open = r.dataset.id; openTrace = null; update = 0; rows(); drill(); };
+    r.onclick = go; r.onkeydown = e => { if (e.key === 'Enter') go(); };
+  });
+}
+
+const TRACES = {
+  '7c1e2a90d4f3': [
+    { t:'14:12', msg:'Rent for March is $1,850. A late fee of $75 applies because payment arrived after the 5th. Last month you overpaid by $100.', out:'{"total":1825.0}', path:['extract','check','final'], lat:3.1, usd:0.000031, err:null, rev:'right' },
+    { t:'14:09', msg:'Tickets: 4 x $18.50 = $74.00. There is also a booking fee of $3.00 per ticket.', out:'{"amount":77.0,"quote":"booking fee of $3.00"}', path:['extract','check','extract','check','extract','check','extract'], lat:8.4, usd:0.000061, err:'capped', rev:'wrong' },
+    { t:'14:07', msg:'Your order: 2 x desk lamp at $34.00 = $68.00. Shipping $7.50. Total due: $75.50.', out:'{"total":75.5}', path:['extract','check','final'], lat:2.6, usd:0.000024, err:null, rev:null },
+    { t:'14:02', msg:'Catering for 30 guests at $22 per head = $660, plus an 18% service charge. The $150 tasting fee is deducted.', out:'{"total":628.8}', path:['extract','check','extract','check','final'], lat:5.2, usd:0.000044, err:null, rev:'right' },
+    { t:'13:58', msg:'Membership renewal is $300/year. With autopay it is $270. You paid $90 of that in January.', out:'{"total":180.0}', path:['extract','check','final'], lat:2.9, usd:0.000027, err:null, rev:null },
+    { t:'13:51', msg:'Order total $89.99. Your promo code SAVE20 takes 20% off orders over $50.', out:'{"amount":63.99,"quote":"SAVE20 takes 20% off"}', path:['extract','check','extract','check','extract','check','extract'], lat:8.9, usd:0.000063, err:'capped', rev:null }
+  ],
+  'a34299fb8bec': [
+    { t:'14:13', msg:'Timestamps are showing in the wrong timezone across the inbox.', out:'{"queue":"bug"}', path:['route'], lat:1.34, usd:0.0000147, err:null, rev:'right' },
+    { t:'14:11', msg:'I was charged twice for September, please fix this.', out:'{"queue":"billing"}', path:['route'], lat:1.21, usd:0.0000151, err:null, rev:null },
+    { t:'14:10', msg:'We are renewing in 3 weeks but want a refund for last month.', out:'{"queue":"refund"}', path:['route'], lat:1.30, usd:0.0000149, err:null, rev:'wrong' },
+    { t:'14:06', msg:'Can you add dark mode to the mobile app?', out:'{"queue":"other"}', path:['route'], lat:1.18, usd:0.0000144, err:null, rev:null },
+    { t:'14:01', msg:'The export button does nothing on Safari.', out:'{"queue":"bug"}', path:['route'], lat:1.27, usd:0.0000146, err:null, rev:null }
+  ]
+};
+
+function costChart(h) {
+  const d = h.daily, days = 30, w = 320, hgt = 90, pad = 22;
+  const avg7 = d.slice(-7).reduce((a, b) => a + b, 0) / Math.min(7, d.length);
+  const max = Math.max(...d, avg7) * 1.15;
+  const bw = (w - pad - 6) / days;
+  const y = v => hgt - 14 - v / max * (hgt - 26);
+  let bars = d.map((v, i) => `<rect x="${(pad + i * bw).toFixed(1)}" y="${y(v).toFixed(1)}" width="${(bw - 1.5).toFixed(1)}" height="${(hgt - 14 - y(v)).toFixed(1)}" fill="var(--accent)" rx="1"/>`).join('');
+  for (let i = d.length; i < days; i++) bars += `<rect x="${(pad + i * bw).toFixed(1)}" y="${y(avg7).toFixed(1)}" width="${(bw - 1.5).toFixed(1)}" height="${(hgt - 14 - y(avg7)).toFixed(1)}" fill="none" stroke="rgba(94,227,200,.45)" stroke-dasharray="2 2" rx="1"/>`;
+  return `<svg viewBox="0 0 ${w} ${hgt}" width="100%" style="max-width:100%" role="img" aria-label="Daily spend this month, spent and forecast">
+    <line x1="${pad}" x2="${w - 4}" y1="${hgt - 14}" y2="${hgt - 14}" stroke="var(--line)"/>
+    <line x1="${pad}" x2="${w - 4}" y1="${y(max / 1.15).toFixed(1)}" y2="${y(max / 1.15).toFixed(1)}" stroke="var(--line)" stroke-dasharray="3 3"/>
+    <text x="2" y="${(y(max / 1.15) + 3).toFixed(1)}">${usd(max / 1.15, 3)}</text><text x="2" y="${hgt - 11}">$0</text>
+    ${bars}<text x="${pad}" y="${hgt - 1}">1</text><text x="${(pad + (d.length - 1) * bw).toFixed(1)}" y="${hgt - 1}">today</text><text x="${w - 18}" y="${hgt - 1}">30</text></svg>`;
+}
+
+function drill() {
+  const h = hv.find(x => x.id === open), ts = TRACES[h.id];
+  const shown = ts.filter(t => filter === 'all' || (filter === 'errors' && t.err) || (filter === 'reviewed' && t.rev));
+  const reviewPool = ts.filter(t => !t.rev);
+  const cur = reviewPool[reviewIdx % Math.max(1, reviewPool.length)];
+  const doneReviews = reviews.right + reviews.wrong;
+  $('#drill').innerHTML = `
+    <div class="drillhead">
+      <div><div class="eyebrow">Hosted version</div><h2 style="font-size:18px">${esc(h.name)} · ${h.label}</h2>
+        <div class="muted" style="font-size:12.5px"><span class="num">/serve/v/${h.id}/run</span> · hosted since ${h.since}</div>
+        ${h.alert ? `<div style="margin-top:8px"><span class="chip warn">${esc(h.alert)}</span></div>` : ''}</div>
+      <button class="small">Unhost</button>
+    </div>
+    <div class="grid2">
+      <div class="panel">
+        <h3>Out of date <span class="chip ${h.level === 'warn' ? 'warn' : 'info'}">${h.changes.length} changes since scoring</span></h3>
+        <ul class="changes">${h.changes.map(c => `<li><span>${esc(c[0])}</span><span>${esc(c[1])}</span></li>`).join('')}</ul>
+        <div class="steps">
+          <button class="primary" id="score">${update ? 'Scored' : 'Update: score on current data'}</button>
+          <button id="opt" ${update ? '' : 'disabled title="Score first"'} style="${update ? '' : 'opacity:.45;cursor:not-allowed'}">Optimize from here · est. $0.04</button>
+        </div>
+        <p>Score costs about a cent and never changes what is hosted. Optimize starts a run from this version on the original rows plus the new ones, and offers the winner only if it beats this version on held-out rows by more than the noise.</p>
+        ${update ? `<div class="result"><table>
+          <tr><th></th><th>this version</th>${h.changes.some(c => c[0] === 'Program') ? '<th>edited program</th>' : ''}</tr>
+          <tr><td class="muted">original rows (${h.earnedN})</td><td class="num">${h.earned.toFixed(2)}</td>${h.changes.some(c => c[0] === 'Program') ? '<td class="num">0.73</td>' : ''}</tr>
+          <tr><td class="muted">${h.reviewed[1]} new labelled traces</td><td class="num">${(h.reviewed[0] / h.reviewed[1]).toFixed(2)}</td>${h.changes.some(c => c[0] === 'Program') ? '<td class="num">0.70</td>' : ''}</tr>
+        </table><div class="hint">Scores are per source. A lower score on new rows can mean drift, which traces were picked, label noise or chance; the data cannot tell which.</div></div>` : ''}
+      </div>
+      <div class="panel">
+        <h3>Cost</h3>
+        <div class="costrow">
+          <div><div class="eyebrow">Month to date</div><div class="v num">${usd(h.mtd)}</div></div>
+          <div><div class="eyebrow">Forecast</div><div class="v num">${usd(h.forecast)}</div></div>
+          <div><div class="eyebrow">Per request</div><div class="v num ${h.perReq > h.est * 1.2 ? 'warn' : ''}">${usd(h.perReq)}</div></div>
+        </div>
+        ${costChart(h)}
+        <p>Forecast: month to date plus the last 7 days' average for each remaining day (dashed). ${h.perReq > h.est * 1.2 ? `Live cost per request is above the evaluation estimate (${usd(h.est)}): more loop steps live than in evaluation.` : `Live cost per request matches the evaluation estimate (${usd(h.est)}).`} Last month: none yet.</p>
+      </div>
+      <div class="panel">
+        <h3>Traces</h3>
+        <div class="filters">${['all', 'errors', 'reviewed'].map(f => `<button data-f="${f}" class="${filter === f ? 'on' : ''}">${f}</button>`).join('')}</div>
+        <div class="traces">${shown.map((t, i) => `
+          <div class="trace ${openTrace === t.t ? 'open' : ''}" data-t="${t.t}" tabindex="0">
+            <span class="num muted">${t.t}</span><span class="msg">${esc(t.msg)}</span>
+            <span class="num" style="overflow:hidden;text-overflow:ellipsis">${esc(JSON.parse(t.out)[Object.keys(JSON.parse(t.out))[0]])}</span>
+            <span class="num muted hide-sm">${t.lat.toFixed(1)} s</span>
+            <span class="hide-sm">${t.err ? '<span class="warn">capped</span>' : t.rev === 'right' ? '<span class="ok">right</span>' : t.rev === 'wrong' ? '<span class="bad">wrong</span>' : '<span class="faint">·</span>'}</span>
+          </div>${openTrace === t.t ? `<div class="tdetail"><div class="eyebrow">Input</div><pre>${esc(t.msg)}</pre>
+            <div class="eyebrow">Path</div><pre>${t.path.join(' → ')}</pre><div class="eyebrow">Output</div><pre>${esc(t.out)}</pre>
+            <div class="muted num">${t.lat.toFixed(2)} s · ${usd(t.usd)} · trace ${h.id.slice(0, 4)}${t.t.replace(':', '')}</div></div>` : ''}`).join('') || '<div class="muted" style="padding:8px">No traces match.</div>'}</div>
+      </div>
+      <div class="panel">
+        <h3>Review traces</h3>
+        <p>Mark whether each answer is right. Reviewing a random sample of real traffic is what makes the Reviewed figure an estimate of live accuracy.</p>
+        ${cur ? `<div class="review">
+          <div class="eyebrow">Random recent trace · ${doneReviews + 1} of 10</div>
+          <div class="q">${esc(cur.msg)}</div>
+          <div class="a">${esc(cur.out)}</div>
+          <div class="btns"><button id="rv-right">Right</button><button id="rv-wrong">Wrong</button>
+            <input id="rv-fix" placeholder="the right answer" aria-label="The right answer"><button id="rv-save" class="small">Save correction</button></div>
+        </div>` : '<div class="muted">Nothing left to review.</div>'}
+        <div class="hint">This session: ${reviews.right} right, ${reviews.wrong} wrong. About 10 wrong answers make an optimization worth running; you can run one at any time.</div>
+      </div>
+      <div class="panel" style="grid-column:1/-1">
+        <h3>Version history</h3>
+        <ul class="hist">
+          <li><span class="chip ok">hosted</span><b>${h.label}</b><span class="muted">earned ${h.earned.toFixed(2)} on ${h.earnedN} held-out rows · published Sep 29</span></li>
+          <li><span class="chip grey">not hosted</span><b>v1</b><span class="muted">earned ${(h.earned - 0.09).toFixed(2)} · published Sep 27</span></li>
+        </ul>
+      </div>
+    </div>`;
+  document.querySelectorAll('.filters button').forEach(b => b.onclick = () => { filter = b.dataset.f; openTrace = null; drill(); });
+  document.querySelectorAll('.trace').forEach(r => { const go = () => { openTrace = openTrace === r.dataset.t ? null : r.dataset.t; drill(); }; r.onclick = go; r.onkeydown = e => { if (e.key === 'Enter') go(); }; });
+  const next = k => { reviews[k]++; reviewIdx++; drill(); };
+  if ($('#rv-right')) { $('#rv-right').onclick = () => next('right'); $('#rv-wrong').onclick = () => next('wrong'); $('#rv-save').onclick = () => { if ($('#rv-fix').value.trim()) next('wrong'); }; }
+  $('#score').onclick = () => { update = 1; drill(); };
+}
+
+$('#w24').onclick = () => { win = '24'; $('#w24').classList.add('on'); $('#w7').classList.remove('on'); strip(); rows(); };
+$('#w7').onclick = () => { win = '7'; $('#w7').classList.add('on'); $('#w24').classList.remove('on'); strip(); rows(); };
+strip(); rows(); drill();
+</script>
