@@ -185,6 +185,21 @@ studio only ever holds aggregates).
   column counts random reviews only (last verdict per trace) and shows wrong answers found by any route. Not done:
   a route filter (by the router's choice) and turning reviews into dataset rows (Update, step 7).
 
+## Update: guided feedback (thinking, not decided - 2026-09-29)
+
+Paused on purpose: the Zendesk shadow-mode direction (labels from human routing) may reshape all of this.
+
+- **We pick, they label.** The guided path to Update is "review these 30": a random sample of live requests chosen by
+  the system, so the sample is proper by construction. Hand-picked labels still count as training rows (provenance
+  "picked") but never toward the estimate. The trigger that matters most becomes "a batch of 30 is complete".
+- **Weights (optional, undecided).** If used: each completed batch reduces the weight of older rows; applied to which
+  rows the optimizer samples, not inside metrics. Guards against forgetting rare cases: a weight floor for old rows,
+  and **pinned** rows ("must stay right") that never decay. Weights should be designed once, together with label
+  tiers and provenance, not three times.
+- **Measurement.** 30 random reviews put accuracy within about +/-15 points; pool recent batches for the estimate, use
+  each batch for training as it arrives, and judge an Update's winner on recent held-out batches.
+- Later: stratify batches by route so rare queues get samples (unbiased with weights).
+
 ## Not in v1
 
 Customer-side outcome connectors (helpdesk, CRM) - a separate lift, PLAN.md Piece 5; the outcomes API stays
