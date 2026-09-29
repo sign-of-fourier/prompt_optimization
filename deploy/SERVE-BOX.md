@@ -49,3 +49,15 @@ box; a revoked key is refused; an unhosted version is 404; the calls appear in t
 
 Terminate the instance, delete the security group, the instance profile and the role. Remove SERVE_BOX_URL from
 `studio/.env` and the `/serve/` location, and restart: serving falls back to in-process, nothing else changes.
+
+## Result (2026-09-29, t3.small in us-east-2, commit e2cb97a)
+
+Live, through `https://impromptune.com/serve/`: the amount-due loop example, baseline run, published, hosted.
+- 4/5 served answers byte-identical to the evaluated rows, including two that looped three times. The fifth took a
+  different path; the same row run three times through the same code on the studio box gave 204.92, 194.88 and
+  204.92 by two paths, so that is Nova at temperature 0, not the box (offline tests show identical code paths).
+- Median latency 1.31 s idle, 1.22 s while a 3-round optimization run was going on the studio box.
+- 25 hosted calls -> 25 studio traces with cost; revoked key 401, another key 200, unhosted 404.
+- Found on the way: loop versions could not be served at all (a first-visit placeholder counted as missing), in
+  the studio's in-process serving too; fixed in e2cb97a. The box's code changes only by replacement (no SSH/SSM),
+  hence `hosting resync`.
