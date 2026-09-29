@@ -36,3 +36,6 @@ hubspot.config.yml
 # until the use case is reviewed; sealed/ must never reach the public remote before a run is published.
 /lead_qual_synth/
 /kb_synth/
+# Synthetic Zendesk-shaped export (Fernhollow support, 6 months of tickets with audits). sealed/ holds the true
+# routing and must never reach the public remote; the whole folder stays local until it has been reviewed.
+/zendesk_synth/
