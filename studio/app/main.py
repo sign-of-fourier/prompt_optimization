@@ -766,7 +766,7 @@ def version_contract(vid: str, request: Request, user=auth.User):
         raise HTTPException(404, "version not found")
     spec = ProjectSpec.model_validate(v["spec"])
     terminal = next((m for m in spec.modules if not spec.outgoing(m.id)), spec.modules[0] if spec.modules else None)
-    return {"version_id": vid, "label": v["label"], "inputs": serving.required_inputs(spec),
+    return {"version_id": vid, "label": v["label"], "inputs": serving.required_inputs(spec), "optional": serving.optional_inputs(spec),
             "outputs": [f.name for f in terminal.schema_fields] if terminal else [], "eval_model": spec.eval_model,
             "url": f"{brand.public_url()}/api/v/{vid}/run"}
 

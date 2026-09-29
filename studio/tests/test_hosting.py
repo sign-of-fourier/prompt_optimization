@@ -108,9 +108,19 @@ async def _hosting_flow(root):
             assert (await bx.post(f"/v/{v['id']}/run", headers=K2, json=ask)).status_code == 404
             assert (await a.get(f"/versions/{v['id']}")).status_code == 200
 
+            # the box replaced: a new, empty box gets every hosted version and key back from the studio's records
+            import shutil
+            shutil.rmtree(root)
+            assert (await bx.post(f"/v/{vb['id']}/run", headers=KB_, json=ask)).status_code == 401
+            out = await H.resync(con)
+            assert vb["id"] in out["pushed"] and not out["failed"]
+            assert (await bx.post(f"/v/{vb['id']}/run", headers=KB_, json=ask)).status_code == 200
+            # unhosted stays unhosted; A has nothing hosted, so the new box does not even know A's keys
+            assert (await bx.post(f"/v/{v['id']}/run", headers=K2, json=ask)).status_code in (401, 404)
+
             # a customer leaving: their folder and key hashes, and nobody else's
             await H.delete_tenant(con, ub)
-            assert not (root / "tenants" / ub).exists() and (root / "tenants" / ua).exists()
+            assert not (root / "tenants" / ub).exists() and (root / "tenants").exists()
             assert all(r["user_id"] != ub for r in json.loads((root / "keys.json").read_text()).values())
 
 

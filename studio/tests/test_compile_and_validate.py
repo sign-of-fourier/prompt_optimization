@@ -401,3 +401,18 @@ def test_cost_projection_counts_judges_per_scored_row():
     assert c["calls"]["judge"] == pytest.approx(rollouts / 4) and c["calls"]["jev"] == pytest.approx(rollouts / 4)
     assert c["usd"]["judge"] > 0 and c["usd"]["total"] == pytest.approx(sum(v for k, v in c["usd"].items() if k != "total"))
     assert any("Jev" in m for m in c["assumptions"]["unpriced_models"])
+
+
+def test_serving_a_loop_needs_no_first_visit_value():
+    """The acceptance test's find: `{feedback}` is written by the loop-back edge, so a served request may omit it."""
+    from app import serving
+    from app.bundles import load_example
+    from app.clients import Access
+    from app.mock import mock_client
+    b = load_example("amount-due-loop")
+    assert serving.required_inputs(b.spec) == ["message", "feedback"] and serving.optional_inputs(b.spec) == ["feedback"]
+    for inputs in ({"message": "Total due: $75.50."}, {"message": "Total due: $75.50.", "feedback": ""}):
+        out = asyncio.run(serving.serve(b.spec, inputs, access=Access([]), mock=mock_client()))
+        assert out["path"][0] == "extract" and out["path"][-1] in ("final", "check", "extract")
+    with pytest.raises(serving.MissingInputs):
+        asyncio.run(serving.serve(b.spec, {"feedback": "x"}, access=Access([]), mock=mock_client()))

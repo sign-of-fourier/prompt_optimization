@@ -26,6 +26,19 @@ half). Design and invariants are in those docstrings; this file is the runbook.
 5. On the studio box: `SERVE_BOX_URL=http://<private ip>:8200` and the same `SERVE_TOKEN` in `studio/.env`, enable
    the `/serve/` location in `deploy/nginx.conf`, restart the studio and nginx.
 
+## Replacing the box (how its code changes)
+
+The box has no SSH and no SSM: its code changes only by replacement, and a new box starts empty. Its copies of hosted
+versions are rebuilt from the studio's records, and the old ledger is pulled first so nothing is lost:
+
+1. `cd studio && python -m app.hosting pull` on the studio box.
+2. Terminate the instance; launch a new one with the same role, security group and bring-up script (pointed at the
+   new commit), and `--private-ip-address` set to the old one so nginx and `SERVE_BOX_URL` stay as they are.
+3. When `/health` answers: `python -m app.hosting resync` (re-pushes every hosted version and its owners' key hashes,
+   and restarts the ledger cursor).
+
+Requests in the minute between terminate and resync get a 502 from nginx.
+
 ## Acceptance
 
 Publish the amount-due loop example, host it, and call `https://impromptune.com/serve/v/<vid>/run` with a key:

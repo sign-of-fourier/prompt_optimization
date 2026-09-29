@@ -157,3 +157,34 @@ async def pull(con, user_id: str | None = None) -> int:
         con.commit()
         n += len(got["rows"])
     return n
+
+
+async def resync(con) -> dict:
+    """Re-push every hosted version and its owner's key hashes: after the serving box is replaced (a new instance
+    starts empty; its code only changes by replacement). Pull the old box's ledger before replacing it."""
+    done, failed = [], []
+    rows = con.execute("select version_id, user_id from hosted_versions").fetchall()
+    for vid, uid in rows:
+        v = store.get_version(con, vid, uid)
+        try:
+            if v is None:
+                raise HostingError("the version no longer exists")
+            await _call("PUT", f"/internal/tenants/{uid}/versions/{vid}", json=_bundle(con, v, uid))
+            done.append(vid)
+        except HostingError as e:
+            failed.append({"version_id": vid, "error": str(e)})
+    for uid in {u for _, u in rows}:
+        await push_keys(con, uid)
+    con.execute("update hosting_ledger set next=0")   # a new box starts a new ledger
+    con.commit()
+    return {"pushed": done, "failed": failed}
+
+
+if __name__ == "__main__":   # python -m app.hosting pull|resync   (on the studio box, from studio/)
+    import asyncio
+    import sys
+    from .main import load_env
+    load_env()
+    c = db.connect()
+    init(c)
+    print(asyncio.run({"pull": pull, "resync": resync}[sys.argv[1]](c)))

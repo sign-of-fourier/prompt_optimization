@@ -53,6 +53,13 @@ def required_inputs(spec: ProjectSpec) -> list[str]:
     return need
 
 
+def optional_inputs(spec: ProjectSpec) -> list[str]:
+    """Required inputs a loop-back edge also writes (`{feedback}` in extract -> check -> retry): empty on the first
+    visit, exactly as the dataset's first-visit column is, so a caller may leave them out."""
+    written = {ph for e in spec.edges for ph in e.mapping}
+    return [p for p in required_inputs(spec) if p in written]
+
+
 class MissingInputs(ValueError):
     def __init__(self, missing: list[str], required: list[str]):
         self.missing, self.required = missing, required
@@ -69,9 +76,11 @@ async def serve(spec: ProjectSpec, inputs: dict[str, Any], *, access: Access, mo
     steps returned goes back to the caller so the trace can record it - without that, a production answer cannot be
     explained later, because the data behind it has moved on."""
     required = required_inputs(spec)
-    missing = [p for p in required if inputs.get(p) in (None, "")]
+    optional = optional_inputs(spec)
+    missing = [p for p in required if p not in optional and inputs.get(p) in (None, "")]
     if missing:
         raise MissingInputs(missing, required)
+    inputs = {**{p: "" for p in optional}, **{k: v for k, v in inputs.items() if v is not None}}
     step_out: dict[str, Any] = {}
     step_metrics: dict[str, float] = {}
     for st in spec.steps:
