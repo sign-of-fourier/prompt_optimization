@@ -1,6 +1,10 @@
 # RAG library template: a made-up company's knowledge base
 
-**Status:** scoping. Written 2026-09-26. Order: parallelism bench → this → BETA.md.
+**Status:** shipped 2026-09-29 as the library entry "Help desk answers from your documents"
+(`studio/examples/help-desk-rag.json`, `studio/sample/kb-questions.jsonl`, `studio/sample/kb.corpus.json`), after Mark
+reviewed the content ("fine for now"). The company name (Fernhollow) is still unchecked against trademarks. Closed-book
+vs open-book pilot on the starting prompt: 0.11 without the search step, 0.65 with it (141 questions, Nova Micro;
+`kb_synth/README.md`). Written 2026-09-26.
 
 One library template that shows retrieval earning its place: questions about a fictional company that no model and
 no search engine can know, answered from that company's documents. It ships already embedded, so a beta tester

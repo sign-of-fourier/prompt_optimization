@@ -1,0 +1,141 @@
+{"id": "kb000", "question": "How many days do I have to return an item bought from the Store?", "plan": "", "answer": "45 days", "kind": "counter_prior"}
+{"id": "kb001", "question": "I got my monitor stand delivered five weeks ago and want to send it back unused. Is it too late?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb002", "question": "How long do deleted messages stay in the trash before they are gone for good?", "plan": "", "answer": "21 days", "kind": "counter_prior"}
+{"id": "kb003", "question": "I bought an Academy course 20 days ago and have not started it. Can I get a refund?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb004", "question": "Within how many days of purchase can an Academy course be refunded?", "plan": "", "answer": "14 days", "kind": "counter_prior"}
+{"id": "kb005", "question": "Can I get a course refund within the 30-day window?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb006", "question": "I cancelled our annual Workspace plan after three months. Will the unused part be refunded to my card?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb007", "question": "How is the refund paid when an annual Workspace plan is cancelled after the first 14 days?", "plan": "", "answer": "account credit", "kind": "counter_prior"}
+{"id": "kb008", "question": "My keyboard stopped working after two months. Can I get my money back?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb009", "question": "My headphones broke 40 days after delivery. What will you do?", "plan": "", "answer": "a repair or a replacement", "kind": "counter_prior"}
+{"id": "kb010", "question": "Is there a fee for returning an office chair that is not defective?", "plan": "", "answer": "10%", "kind": "counter_prior"}
+{"id": "kb011", "question": "Our Pro workspace has 14 guests. How many extra seats are we billed for?", "plan": "", "answer": "4", "kind": "counter_prior"}
+{"id": "kb012", "question": "Do guests cost anything on the Basic plan?", "plan": "", "answer": "yes", "kind": "counter_prior"}
+{"id": "kb013", "question": "We removed three seats from our annual plan in month four. When do we get credit for them?", "plan": "", "answer": "at renewal", "kind": "counter_prior"}
+{"id": "kb014", "question": "Can I get SMS backup codes for two-factor authentication in Portugal?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb015", "question": "Can our Pro workspace move its data from the US region to the EU region?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb016", "question": "Can I use the student discount on the Pro plan?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb017", "question": "Does the student discount apply to Store purchases?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb018", "question": "I added our VAT ID today. Can you reissue an invoice from 75 days ago with reverse-charge VAT?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb019", "question": "Up to how many days old can an invoice be and still be reissued?", "plan": "", "answer": "60 days", "kind": "counter_prior"}
+{"id": "kb020", "question": "I forgot to enter my promo code at checkout 10 days ago. Can it still be applied?", "plan": "", "answer": "yes", "kind": "counter_prior"}
+{"id": "kb021", "question": "Within how many days of purchase can support apply a promo code I missed at checkout?", "plan": "", "answer": "14 days", "kind": "counter_prior"}
+{"id": "kb022", "question": "Is a SAML single sign-on setup possible on the Pro plan?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb023", "question": "Can a Basic workspace get an uptime guarantee?", "plan": "", "answer": "no", "kind": "counter_prior"}
+{"id": "kb024", "question": "How many users can the Free plan have?", "plan": "", "answer": "3", "kind": "single"}
+{"id": "kb025", "question": "What does Basic cost per seat per month on monthly billing?", "plan": "", "answer": "$9", "kind": "single"}
+{"id": "kb026", "question": "What does Basic cost per seat per year on annual billing?", "plan": "", "answer": "$90", "kind": "single"}
+{"id": "kb027", "question": "What is the current monthly price of Pro per seat?", "plan": "", "answer": "$19", "kind": "single"}
+{"id": "kb028", "question": "What is the current annual price of Pro per seat?", "plan": "", "answer": "$190", "kind": "single"}
+{"id": "kb029", "question": "What is the minimum number of seats on Enterprise?", "plan": "", "answer": "25", "kind": "single"}
+{"id": "kb030", "question": "What is the largest file I can upload on Enterprise?", "plan": "", "answer": "250 MB", "kind": "single"}
+{"id": "kb031", "question": "How much storage does the Free plan include?", "plan": "", "answer": "2 GB", "kind": "single"}
+{"id": "kb032", "question": "Does the Free plan include API access?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb033", "question": "What HTTP status code does the API return when I exceed the rate limit?", "plan": "", "answer": "429", "kind": "single"}
+{"id": "kb034", "question": "Which plan has unlimited reports history?", "plan": "", "answer": "Enterprise", "kind": "single"}
+{"id": "kb035", "question": "Is the Workspace interface available in Portuguese?", "plan": "", "answer": "yes", "kind": "single"}
+{"id": "kb036", "question": "Is the API documentation available in Spanish?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb037", "question": "What is the oldest version of Safari you support?", "plan": "", "answer": "17", "kind": "single"}
+{"id": "kb038", "question": "What is the minimum Android version for the mobile app?", "plan": "", "answer": "12", "kind": "single"}
+{"id": "kb039", "question": "After how long without use does the mobile app log me out?", "plan": "", "answer": "30 days", "kind": "single"}
+{"id": "kb040", "question": "Can I export Workspace data as JSON?", "plan": "", "answer": "yes", "kind": "single"}
+{"id": "kb041", "question": "Is there a yearly summary export?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb042", "question": "Can I use Markdown in notes?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb043", "question": "Within how many days of my request is my account deletion complete?", "plan": "", "answer": "45 days", "kind": "single"}
+{"id": "kb044", "question": "How long until my data is purged from backups after I ask for deletion?", "plan": "", "answer": "90 days", "kind": "single"}
+{"id": "kb045", "question": "Which city hosts the EU data region?", "plan": "", "answer": "Frankfurt", "kind": "single"}
+{"id": "kb046", "question": "Which type of SOC 2 report do you have?", "plan": "", "answer": "Type II", "kind": "single"}
+{"id": "kb047", "question": "What is the monthly uptime commitment on Enterprise?", "plan": "", "answer": "99.95%", "kind": "single"}
+{"id": "kb048", "question": "Within how many days of the end of the affected month must a service credit be claimed?", "plan": "", "answer": "30 days", "kind": "single"}
+{"id": "kb049", "question": "How fast does support first respond to a Basic customer?", "plan": "", "answer": "2 business days", "kind": "single"}
+{"id": "kb050", "question": "How fast does support respond to a Severity 1 incident on Enterprise?", "plan": "", "answer": "2 hours", "kind": "single"}
+{"id": "kb051", "question": "What time do support business hours start, Irish time?", "plan": "", "answer": "09:00", "kind": "single"}
+{"id": "kb052", "question": "How long is a live onboarding session?", "plan": "", "answer": "90 minutes", "kind": "single"}
+{"id": "kb053", "question": "How many people can attend one live onboarding session?", "plan": "", "answer": "20", "kind": "single"}
+{"id": "kb054", "question": "How much is the student discount on Basic?", "plan": "", "answer": "50%", "kind": "single"}
+{"id": "kb055", "question": "How much do registered nonprofits get off Basic and Pro?", "plan": "", "answer": "30%", "kind": "single"}
+{"id": "kb056", "question": "How many times do you retry a failed payment?", "plan": "", "answer": "3", "kind": "single"}
+{"id": "kb057", "question": "What happens to my workspace if every payment retry fails?", "plan": "", "answer": "downgraded to Free", "kind": "single"}
+{"id": "kb058", "question": "How much notice do you give before a price increase?", "plan": "", "answer": "60 days", "kind": "single"}
+{"id": "kb059", "question": "How quickly is a duplicate card charge refunded after I report it?", "plan": "", "answer": "5 business days", "kind": "single"}
+{"id": "kb060", "question": "What word do your charges start with on my card statement?", "plan": "", "answer": "FERNHOLLOW*", "kind": "single"}
+{"id": "kb061", "question": "Can I pay for a Store order with PayPal?", "plan": "", "answer": "yes", "kind": "single"}
+{"id": "kb062", "question": "Can I pay for a Workspace subscription with PayPal?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb063", "question": "How much is a return label in the UK?", "plan": "", "answer": "\u00a37.95", "kind": "single"}
+{"id": "kb064", "question": "How far ahead must I book a courier pickup to return a standing desk?", "plan": "", "answer": "3 business days", "kind": "single"}
+{"id": "kb065", "question": "How long after the warehouse receives my return is the refund issued?", "plan": "", "answer": "5 business days", "kind": "single"}
+{"id": "kb066", "question": "Can I return an item marked Clearance?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb067", "question": "How long is the warranty on an office chair?", "plan": "", "answer": "2 years", "kind": "single"}
+{"id": "kb068", "question": "How long is the warranty on headphones?", "plan": "", "answer": "1 year", "kind": "single"}
+{"id": "kb069", "question": "Is there a warranty on a Fernhollow mug?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb070", "question": "How long does standard delivery to Canada take?", "plan": "", "answer": "3-7 business days", "kind": "single"}
+{"id": "kb071", "question": "Above what order value is standard shipping free in the US?", "plan": "", "answer": "$85", "kind": "single"}
+{"id": "kb072", "question": "What is the cutoff time for express orders?", "plan": "", "answer": "13:00", "kind": "single"}
+{"id": "kb073", "question": "Do you ship to Australia?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb074", "question": "Can I get express delivery to Germany?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb075", "question": "How long can an order that has not shipped yet be held?", "plan": "", "answer": "14 days", "kind": "single"}
+{"id": "kb076", "question": "How long will the courier hold my parcel at the depot?", "plan": "", "answer": "7 days", "kind": "single"}
+{"id": "kb077", "question": "Until what order status can I change the delivery address?", "plan": "", "answer": "Packed", "kind": "single"}
+{"id": "kb078", "question": "My order says delivered but it is not here. How long should I wait before filing a claim?", "plan": "", "answer": "48 hours", "kind": "single"}
+{"id": "kb079", "question": "Within how many days of delivery must I report a damaged parcel?", "plan": "", "answer": "7 days", "kind": "single"}
+{"id": "kb080", "question": "After how many business days without a tracking update do you open an investigation?", "plan": "", "answer": "5 business days", "kind": "single"}
+{"id": "kb081", "question": "How many delivery attempts does the courier make?", "plan": "", "answer": "2", "kind": "single"}
+{"id": "kb082", "question": "How long do I keep access to an Academy course?", "plan": "", "answer": "12 months", "kind": "single"}
+{"id": "kb083", "question": "What score do I need on the final quiz to get a certificate?", "plan": "", "answer": "80%", "kind": "single"}
+{"id": "kb084", "question": "How many lessons are in Reporting That Gets Read?", "plan": "", "answer": "8", "kind": "single"}
+{"id": "kb085", "question": "How much does Admin Essentials cost?", "plan": "", "answer": "\u20ac129", "kind": "single"}
+{"id": "kb086", "question": "Where is Fernhollow headquartered?", "plan": "", "answer": "Galway", "kind": "single"}
+{"id": "kb087", "question": "Do you have an office in Berlin?", "plan": "", "answer": "no", "kind": "single"}
+{"id": "kb088", "question": "Are you hiring support engineers in Lisbon?", "plan": "", "answer": "yes", "kind": "single"}
+{"id": "kb089", "question": "Where do I check the current service status?", "plan": "", "answer": "status.fernhollow.example", "kind": "single"}
+{"id": "kb090", "question": "After an admin removes a user, how long until that user's sessions end?", "plan": "", "answer": "5 minutes", "kind": "single"}
+{"id": "kb091", "question": "I'm a student. What would Basic cost me per seat per month on monthly billing?", "plan": "", "answer": "$4.50", "kind": "multi"}
+{"id": "kb092", "question": "We're a registered nonprofit on Pro with monthly billing. What do we pay per seat per month?", "plan": "", "answer": "$13.30", "kind": "multi"}
+{"id": "kb093", "question": "What is the price per seat if we buy 5 seats of Inbox Zero for Teams?", "plan": "", "answer": "\u20ac119.20", "kind": "multi"}
+{"id": "kb094", "question": "Our Pro workspace had 99.5% uptime last month. What service credit do we get?", "plan": "", "answer": "10%", "kind": "multi"}
+{"id": "kb095", "question": "Our Enterprise workspace had 98.7% uptime last month. What service credit do we get?", "plan": "", "answer": "25%", "kind": "multi"}
+{"id": "kb096", "question": "An Enterprise customer with 3 open tickets reports that Reports is throwing errors. Which queue does the ticket go to?", "plan": "", "answer": "escalation", "kind": "multi"}
+{"id": "kb097", "question": "A customer whose contract renews in 45 days asks for a refund. Which queue?", "plan": "", "answer": "retention", "kind": "multi"}
+{"id": "kb098", "question": "A customer whose contract renews in 90 days asks for a refund. Which queue?", "plan": "", "answer": "refund", "kind": "multi"}
+{"id": "kb099", "question": "I cancelled our annual Pro plan 10 days after buying it. Where does the refund go?", "plan": "", "answer": "original payment method", "kind": "multi"}
+{"id": "kb100", "question": "I was charged on the 1st, but I only confirmed my downgrade to Free on the 3rd. Will the charge be refunded?", "plan": "", "answer": "no", "kind": "multi"}
+{"id": "kb101", "question": "My order arrived 12 business days after its estimate and I want to return it. What does the return cost me?", "plan": "", "answer": "free", "kind": "multi"}
+{"id": "kb102", "question": "My headphones arrived broken 20 days ago. Can I choose a refund, and what does the return label cost?", "plan": "", "answer": "refund; free", "kind": "multi"}
+{"id": "kb103", "question": "How many live onboarding sessions does Enterprise include, and how many attendees can each have?", "plan": "", "answer": "2; 20", "kind": "multi"}
+{"id": "kb104", "question": "Our missed-delivery parcel was returned to you. What is deducted from the refund?", "plan": "", "answer": "the original shipping charge", "kind": "multi"}
+{"id": "kb105", "question": "Can we merge our Pro workspace with our Basic workspace?", "plan": "", "answer": "no", "kind": "multi"}
+{"id": "kb106", "question": "Can I make a colleague the workspace owner if they are not an admin yet?", "plan": "", "answer": "no", "kind": "multi"}
+{"id": "kb107", "question": "My Store order was delivered on 2025-05-10. How many days did I have to return it?", "plan": "", "answer": "30 days", "kind": "dated"}
+{"id": "kb108", "question": "My Store order was delivered on 2025-08-01. How many days do I have to return it?", "plan": "", "answer": "45 days", "kind": "dated"}
+{"id": "kb109", "question": "Was there a restocking fee on an office chair delivered in March 2025?", "plan": "", "answer": "no", "kind": "dated"}
+{"id": "kb110", "question": "When did version 2 of the Store returns policy take effect?", "plan": "", "answer": "2025-07-01", "kind": "dated"}
+{"id": "kb111", "question": "What was the monthly Pro price per seat before 2026-03-01?", "plan": "", "answer": "$17", "kind": "dated"}
+{"id": "kb112", "question": "What was the annual Pro price per seat before the 2026 price change?", "plan": "", "answer": "$170", "kind": "dated"}
+{"id": "kb113", "question": "I'm an existing Pro customer and my renewal was on 2026-04-15. Which monthly price per seat applied at that renewal?", "plan": "", "answer": "$17", "kind": "dated"}
+{"id": "kb114", "question": "I'm an existing Pro customer renewing on 2026-07-10. Which monthly price per seat applies?", "plan": "", "answer": "$19", "kind": "dated"}
+{"id": "kb115", "question": "What was the maximum file upload on Pro in May 2026?", "plan": "", "answer": "50 MB", "kind": "dated"}
+{"id": "kb116", "question": "When did SAML SSO become available?", "plan": "", "answer": "2026-04-22", "kind": "dated"}
+{"id": "kb117", "question": "When was the Pro upload limit raised to 100 MB?", "plan": "", "answer": "2026-06-03", "kind": "dated"}
+{"id": "kb118", "question": "Could a Pro user upload an 80 MB file on 2026-05-20?", "plan": "", "answer": "no", "kind": "dated"}
+{"id": "kb119", "question": "What is the largest file I can upload?", "plan": "Basic", "answer": "25 MB", "kind": "plan"}
+{"id": "kb120", "question": "What is the largest file I can upload?", "plan": "Pro", "answer": "100 MB", "kind": "plan"}
+{"id": "kb121", "question": "What is my API rate limit?", "plan": "Free", "answer": "no API access", "kind": "plan"}
+{"id": "kb122", "question": "What is my API rate limit?", "plan": "Pro", "answer": "600 requests per minute", "kind": "plan"}
+{"id": "kb123", "question": "What is my API rate limit?", "plan": "Enterprise", "answer": "3,000 requests per minute", "kind": "plan"}
+{"id": "kb124", "question": "How quickly will support first reply to me?", "plan": "Pro", "answer": "8 business hours", "kind": "plan"}
+{"id": "kb125", "question": "How quickly will support first reply to me?", "plan": "Free", "answer": "community forum only", "kind": "plan"}
+{"id": "kb126", "question": "Can I set up SAML SSO?", "plan": "Enterprise", "answer": "yes", "kind": "plan"}
+{"id": "kb127", "question": "How much reports history do I get?", "plan": "Pro", "answer": "36 months", "kind": "plan"}
+{"id": "kb128", "question": "How many guests can I invite for free?", "plan": "Enterprise", "answer": "50", "kind": "plan"}
+{"id": "kb129", "question": "How much storage do I get per seat?", "plan": "Basic", "answer": "5 GB", "kind": "plan"}
+{"id": "kb130", "question": "What does live onboarding cost me?", "plan": "Enterprise", "answer": "included", "kind": "plan"}
+{"id": "kb131", "question": "How much does express shipping cost?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb132", "question": "What is the price of a standing desk?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb133", "question": "Do you offer a discount for military veterans?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb134", "question": "Who is Fernhollow's CEO?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb135", "question": "Does Workspace integrate with Slack?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb136", "question": "Is there a desktop app for Windows?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb137", "question": "Do you have a referral programme?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb138", "question": "What is your phone number?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb139", "question": "What are the dimensions of your standing desks?", "plan": "", "answer": "not covered", "kind": "not_covered"}
+{"id": "kb140", "question": "How many workspaces can one account own?", "plan": "", "answer": "not covered", "kind": "not_covered"}

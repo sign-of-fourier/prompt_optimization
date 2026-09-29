@@ -64,7 +64,7 @@ async def _flow():
             lib = (await c.get("/examples")).json()
             ex = lib["entries"]
             assert [e["slug"] for e in ex] == ["ticket-triage", "ticket-triage-compress", "ticket-triage-entitlement",
-                                               "hubspot-contact-lookup", "amount-due-loop"]
+                                               "hubspot-contact-lookup", "amount-due-loop", "help-desk-rag"]
             assert ex[0]["rows"] == 50 and ex[1]["goal"] == "compress" and ex[2]["rows"] == 120
             assert ex[2]["modules"] == 1 and ex[2]["steps"] == 1 and ex[0]["modules"] == 2 and ex[0]["steps"] == 0
             # the library screen filters on these, and the entitlement entry says what it needs before it will run
@@ -368,3 +368,28 @@ async def _retrieval_flow():
 
 def test_retrieval_step():
     asyncio.run(_retrieval_flow())
+
+
+async def _rag_library_flow():
+    """The knowledge-base walkthrough: cloning creates the project, its questions and its document set, and points the
+    search step at the new set; one mock fetch later the project validates."""
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            await c.post("/auth/signup", json={"email": "rag-lib@b.co", "password": "password1"})
+            lib = (await c.get("/examples")).json()["entries"]
+            e = next(x for x in lib if x["slug"] == "help-desk-rag")
+            assert e["documents"] and e["rows"] == 141 and e["steps"] == 1
+            cl = (await c.post("/examples/help-desk-rag/clone")).json()
+            p = (await c.get(f"/projects/{cl['id']}")).json()
+            cid = p["spec"]["steps"][0]["tunables"]["corpus"]
+            assert cid == cl["corpus"]["id"] and len((await c.get(f"/corpora/{cid}")).json()["documents"]) == 32
+            did = cl["dataset"]["id"]
+            r = await c.post(f"/datasets/{did}/enrich", json={"step_id": "kb", "mock": True}); assert r.status_code == 200, r.text
+            e2 = r.json()
+            assert e2["report"]["failed"] == 0
+            v = (await c.post(f"/projects/{cl['id']}/validate", json={"dataset_id": e2["id"]})).json()
+            assert v["ok"], [i["message"] for i in v["report"]["issues"] if i["level"] == "error"]
+
+
+def test_rag_library_entry():
+    asyncio.run(_rag_library_flow())

@@ -1,0 +1,131 @@
+{
+ "bundle": 1,
+ "name": "Help desk answers from your documents",
+ "blurb": "Retrieval earning its place: 141 questions about a made-up company, answered from its 32 help and policy documents, which ship already searchable.",
+ "description": "Fernhollow is a made-up company that sells a workspace app and physical goods, so no model knows its refund window, seat limits or delivery times. A search step finds the four passages that best match each question, and one prompt answers from them. The documents are already embedded: nothing is spent making them searchable.\n\nTry it in this order. Pilot with the search step switched off: the model answers from what companies usually do, and gets almost everything wrong. Switch it on and click Fetch on the Data tab (one cheap search per question), then pilot again: most answers come right. Then optimize: the prompt learns to answer in the label's form (\"45 days\", not \"45\"), to prefer the current policy over the superseded one, and to say \"not covered\" instead of inventing.\n\nThe questions mix single facts, facts that differ from the usual industry default, answers that need two documents, dated questions where an old policy was replaced, plan-dependent answers (the plan column), and questions the documents do not answer. A few can be answered without the documents; they are kept as controls.",
+ "tags": [
+  "documents",
+  "search",
+  "rag",
+  "walkthrough"
+ ],
+ "requires": [],
+ "updated": "2026-09-29",
+ "order": 6,
+ "spec": {
+  "name": "Help desk answers from your documents",
+  "modules": [
+   {
+    "id": "answer",
+    "template": "Answer the customer's question about our company's products and policies with the shortest exact answer: a number with its unit, a name, yes/no, or a date. If the passages do not say, answer \"not covered\".\n\nPassages:\n{kb_context}\n\nCustomer's plan (blank if unknown): {plan}\nQuestion: {question}",
+    "description": "answers a customer's question from the retrieved passages",
+    "schema_fields": [
+     {
+      "name": "answer",
+      "type": "string",
+      "description": "the shortest exact answer",
+      "enum": null
+     }
+    ],
+    "model": null,
+    "max_tokens": 128
+   }
+  ],
+  "steps": [
+   {
+    "id": "kb",
+    "manifest": "retrieval@1.0.0",
+    "manifest_sha": "",
+    "inputs": {
+     "query": "question"
+    },
+    "credential": null,
+    "tunables": {
+     "k": 4
+    },
+    "enabled": true
+   }
+  ],
+  "edges": [],
+  "entry": null,
+  "max_steps": 8,
+  "eval_model": "us.amazon.nova-micro-v1:0",
+  "evaluate": {
+   "label_column": "answer",
+   "scorers": [
+    {
+     "type": "exact_match",
+     "name": "",
+     "field": "answer",
+     "normalize": true,
+     "pattern": null,
+     "tolerance": 0.0,
+     "tolerance_mode": "relative",
+     "beta": 1.0,
+     "rubric": "",
+     "judge_model": null,
+     "balanced": false
+    }
+   ],
+   "token_count": true,
+   "objective": {
+    "accuracy": 1.0
+   },
+   "pareto": {}
+  },
+  "optimizer": {
+   "goal": "accuracy",
+   "engine": "gepa",
+   "mode": "weighted",
+   "bo": {
+    "q": 2,
+    "pca": 4,
+    "acquisition": "qei"
+   },
+   "parents_per_round": 1,
+   "children": 1,
+   "minibatch": 5,
+   "rounds": 8,
+   "no_improvement_rounds": 4,
+   "max_usd": 1.0,
+   "max_calls": null,
+   "reflect_model": "us.amazon.nova-lite-v1:0",
+   "reflect_temperature": 1.0,
+   "feedback": "critic",
+   "feedback_template": "expected: {expected}; model answered: {predicted}; metrics: {metrics}",
+   "critic_model": null,
+   "eval_rows": null,
+   "holdout_frac": 0.2,
+   "seed": 0
+  },
+  "mutate": null,
+  "layout": {
+   "step:kb": {
+    "x": 60,
+    "y": 160
+   },
+   "answer": {
+    "x": 340,
+    "y": 160
+   }
+  }
+ },
+ "dataset": {
+  "name": "kb-questions.jsonl",
+  "rows": null,
+  "sample": "kb-questions.jsonl",
+  "input_map": {
+   "question": "question",
+   "plan": "plan"
+  },
+  "label_column": "answer",
+  "omitted": null
+ },
+ "corpus": {
+  "name": "Fernhollow help centre",
+  "sample": "kb.corpus.json",
+  "chunker": "",
+  "documents": [],
+  "vectors": {}
+ }
+}
