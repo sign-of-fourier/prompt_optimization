@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api.js'
+import DrillIn from './DrillIn.jsx'
 
 // What each hosted version is doing (DASHBOARD.md, step 2): traffic, errors, speed, cost, and the score it earned.
 // Reviews, the Jev line, the out-of-date badge and alerts are later steps; their columns are not shown until they exist.
@@ -23,12 +24,14 @@ export default function Dashboard({ onOpen }) {
   const [win, setWin] = useState('24h')
   const [d, setD] = useState(null)
   const [err, setErr] = useState('')
+  const [sel, setSel] = useState(null)
+  const [tick, setTick] = useState(0)
   useEffect(() => {
     let live = true
     const load = () => api.get(`/dashboard?window=${win}`).then(x => live && setD(x)).catch(e => live && setErr(e.message))
     load(); const t = setInterval(load, 30000)
     return () => { live = false; clearInterval(t) }
-  }, [win])
+  }, [win, tick])
   if (err) return <div className="page"><div className="err">{err}</div></div>
   if (!d) return <div className="page muted">Loading…</div>
   const t = d.totals
@@ -48,9 +51,9 @@ export default function Dashboard({ onOpen }) {
       {d.rows.length === 0 && <div className="card muted">Nothing is hosted. Publish a version from a run, then Host it from the project's Serving tab.</div>}
       {d.rows.length > 0 && <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table style={{ minWidth: 900 }}><thead><tr>
-          <th>Hosted version</th><th>Requests</th><th>Errors</th><th>Latency p50 / p95</th><th>Cost</th><th>Earned</th><th>Status</th>
+          <th>Hosted version</th><th>Requests</th><th>Errors</th><th>Latency p50 / p95</th><th>Cost</th><th>Earned</th><th>Reviewed</th><th>Status</th>
         </tr></thead><tbody>
-          {d.rows.map(r => <tr key={r.version_id} style={{ cursor: 'pointer' }} onClick={() => onOpen(r.project_id)} title="Open the project's Serving tab">
+          {d.rows.map(r => <tr key={r.version_id} style={{ cursor: 'pointer', background: sel === r.version_id ? 'rgba(94,227,200,.05)' : undefined }} onClick={() => setSel(sel === r.version_id ? null : r.version_id)} title="Traces, reviews and history">
             <td><b>{r.project}</b> · {r.label}<div className="muted" style={{ fontSize: 12 }}>hosted {new Date(r.hosted_at * 1000).toLocaleDateString()}</div></td>
             <td className="mono">{r.requests.toLocaleString()}<Spark vals={r.sparkline} /></td>
             <td className="mono" style={{ color: r.error_rate > 0.01 ? 'var(--accent2)' : undefined }}>{r.requests ? (r.error_rate * 100).toFixed(1) + '%' : '—'}</td>
@@ -60,10 +63,15 @@ export default function Dashboard({ onOpen }) {
               <div className="muted mono" style={{ fontSize: 12, color: r.cost.per_request && r.cost.estimate && r.cost.per_request > 1.2 * r.cost.estimate ? 'var(--accent2)' : undefined }}>
                 {usd(r.cost.per_request)} / request{r.cost.estimate ? ` (est. ${usd(r.cost.estimate)})` : ''}</div></td>
             <td className="mono">{r.earned.score == null ? '—' : r.earned.score.toFixed(2)}<div className="muted" style={{ fontSize: 12 }}>{r.earned.holdout != null ? `hold-out ${r.earned.holdout.toFixed(2)}` : 'no hold-out'}</div></td>
+            <td>{r.reviewed.random_n
+                ? <><span className="mono">{r.reviewed.random_right} of {r.reviewed.random_n}</span><div className="muted" style={{ fontSize: 12 }}>right (random sample)</div></>
+                : <span className="muted" style={{ fontSize: 12.5 }}>no random reviews yet</span>}
+              {r.reviewed.wrong_found > 0 && <div className="muted" style={{ fontSize: 12 }}>{r.reviewed.wrong_found} wrong found</div>}</td>
             <td><span style={{ color: STATUS[r.status], border: '1px solid currentColor', borderRadius: 999, padding: '1px 8px', fontSize: 12, whiteSpace: 'nowrap' }}>● {r.status_text}</span></td>
           </tr>)}
         </tbody></table></div>}
-      <div className="help" style={{ marginTop: 10 }}>Cost is the AWS cost of each request, loops and document searches included. The forecast adds the last 7 days' average for each day left in the month. Click a row to see its traces.</div>
+      {sel && d.rows.find(r => r.version_id === sel) && <DrillIn row={d.rows.find(r => r.version_id === sel)} onOpenProject={onOpen} onReviewed={() => setTick(x => x + 1)} />}
+      <div className="help" style={{ marginTop: 10 }}>Cost is the AWS cost of each request, loops and document searches included. The forecast adds the last 7 days' average for each day left in the month. Click a row for its traces, reviews and version history.</div>
     </div>
   )
 }

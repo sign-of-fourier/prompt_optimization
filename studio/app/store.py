@@ -51,7 +51,10 @@ create table if not exists corpus_vectors (document_id text not null, corpus_id 
 # `create table if not exists` cannot add a column to a table that already exists on a running box.
 MIGRATIONS = ["alter table traces add column steps text",
               # a replaced document a published version still searches: kept for that version, gone from the set
-              "alter table corpus_documents add column retired real"]
+              "alter table corpus_documents add column retired real",
+              # how the trace came to be labelled: random (the review queue's sample, the only estimate of live
+              # accuracy), suspicious (errors and capped loops first), picked (opened by hand), api; null before this
+              "alter table outcomes add column chosen text"]
 JSON_COLS = {"spec", "source", "metrics", "holdout", "inputs", "parsed", "path", "steps"}
 
 
@@ -176,12 +179,13 @@ def list_traces(con, project_id: str, user_id: str, limit: int = 100) -> list[di
 # system that learned it - which is usually not the one that made the request, and often much later.
 
 def create_outcome(con, *, trace_id: str, project_id: str, user_id: str, kind: str, label: str | None = None,
-                   value: float | None = None, source: str = "api", note: str = "") -> dict:
+                   value: float | None = None, source: str = "api", note: str = "", chosen: str | None = None) -> dict:
     oid = db.new_id()
-    con.execute("insert into outcomes values (?,?,?,?,?,?,?,?,?,?)",
-                (oid, trace_id, project_id, user_id, kind, label, value, source, note, db.now()))
+    con.execute("insert into outcomes (id, trace_id, project_id, user_id, kind, label, value, source, note, created, chosen)"
+                " values (?,?,?,?,?,?,?,?,?,?,?)", (oid, trace_id, project_id, user_id, kind, label, value, source, note, db.now(), chosen))
     con.commit()
-    return {"id": oid, "trace_id": trace_id, "kind": kind, "label": label, "value": value, "source": source, "note": note, "created": db.now()}
+    return {"id": oid, "trace_id": trace_id, "kind": kind, "label": label, "value": value, "source": source, "note": note,
+            "chosen": chosen, "created": db.now()}
 
 
 def list_outcomes(con, trace_ids: list[str]) -> dict[str, list[dict]]:

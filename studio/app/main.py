@@ -765,6 +765,59 @@ def dashboard(request: Request, window: str = "24h", user=auth.User):
     return DB.summary(request.app.state.db, user["id"], window)
 
 
+# ---- dashboard drill-in (DASHBOARD.md step 3) ---------------------------------------------------
+
+def _own_version(request: Request, vid: str, user: dict) -> dict:
+    v = store.get_version(request.app.state.db, vid, user["id"])
+    if not v:
+        raise HTTPException(404, "version not found")
+    return v
+
+
+@app.get("/versions/{vid}/traces")
+def version_traces(vid: str, request: Request, filter: str = "all", limit: int = 100, user=auth.User):
+    _v0()
+    _own_version(request, vid, user)
+    from . import dashboard as DB
+    return DB.version_traces(request.app.state.db, user["id"], vid, filter, min(max(limit, 1), 500))
+
+
+@app.get("/traces/{tid}")
+def trace_detail(tid: str, request: Request, user=auth.User):
+    _v0()
+    con = request.app.state.db
+    t = store.get_trace(con, tid, user["id"])
+    if not t:
+        raise HTTPException(404, "trace not found")
+    return {**t, "outcomes": store.list_outcomes(con, [tid]).get(tid, [])}
+
+
+@app.get("/versions/{vid}/review-queue")
+def review_queue(vid: str, request: Request, mode: str = "random", n: int = 10, user=auth.User):
+    _v0()
+    _own_version(request, vid, user)
+    from . import dashboard as DB
+    return DB.review_queue(request.app.state.db, user["id"], vid, "suspicious" if mode == "suspicious" else "random", min(max(n, 1), 50))
+
+
+class ReviewBody(BaseModel):
+    verdict: str                  # right | wrong
+    label: str | None = None      # the right answer, when the reviewer typed one
+    chosen: str = "picked"        # random | suspicious | picked: how this trace came to be reviewed
+
+
+@app.post("/traces/{tid}/review")
+def review_trace(tid: str, body: ReviewBody, request: Request, user=auth.User):
+    _v0()
+    from . import dashboard as DB
+    try:
+        return DB.record_review(request.app.state.db, user["id"], tid, body.verdict, body.label, body.chosen)
+    except KeyError:
+        raise HTTPException(404, "trace not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 @app.post("/hosting/sync")
 async def hosting_sync(request: Request, user=auth.User):
     """Pull this account's hosted traces and usage now, instead of waiting for the background pull."""
@@ -897,8 +950,10 @@ def post_outcome(tid: str, body: OutcomeBody, request: Request, user=Depends(out
         raise HTTPException(404, "trace not found")
     if body.label is None and body.value is None:
         raise HTTPException(400, "an outcome needs a label (the right answer) or a value (a numeric signal)")
+    by_key = (request.headers.get("authorization") or "").lower().startswith("bearer ") or bool(request.headers.get("x-api-key"))
     return store.create_outcome(con, trace_id=tid, project_id=t["project_id"], user_id=user["id"], kind=body.kind,
-                                label=body.label, value=body.value, source=body.source, note=body.note)
+                                label=body.label, value=body.value, source=body.source, note=body.note,
+                                chosen="api" if by_key else "picked")
 
 
 @app.post("/projects/{pid}/versions/{vid}/restore")

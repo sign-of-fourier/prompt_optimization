@@ -87,3 +87,44 @@ def test_new_versions_errors_and_isolation(con):
     # idle: hosted, no traffic in the window
     idle = version(con, "u1", "p1", hosted_days_ago=5)
     assert D.summary(con, "u1", now=NOW)["rows"][0]["status"] == "idle"
+
+
+def full_trace(c, vid, uid, pid, at, answer="bug", error=None, capped=False):
+    tid = db.new_id()
+    c.execute("insert into traces (id, version_id, project_id, user_id, inputs, output, parsed, path, metrics, usd, latency_s, error, created)"
+              " values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+              (tid, vid, pid, uid, '{"message":"m"}', f'{{"queue":"{answer}"}}', f'{{"queue":"{answer}"}}', '["route"]',
+               '{"capped": 1.0}' if capped else '{}', 0.001, 1.0, error, at))
+    return tid
+
+
+def test_drill_in_traces_reviews_and_provenance(con):
+    import random
+    vid = version(con, "u1", "p1", hosted_days_ago=5)
+    ok = [full_trace(con, vid, "u1", "p1", NOW - 60 * (i + 1)) for i in range(12)]
+    bad = full_trace(con, vid, "u1", "p1", NOW - 30, error="Timeout")
+    loop = full_trace(con, vid, "u1", "p1", NOW - 20, capped=True)
+    assert {t["id"] for t in D.version_traces(con, "u1", vid, "errors")} == {bad, loop}
+    assert D.version_traces(con, "u2", vid) == []                              # someone else's version: nothing
+    # suspicious puts the failed and capped requests first; random never repeats a reviewed trace
+    q = D.review_queue(con, "u1", vid, "suspicious", n=5, rng=random.Random(0), now=NOW)
+    assert {q[0]["id"], q[1]["id"]} == {bad, loop} and len(q) == 5 and q[2]["answer"] == "bug"
+    D.record_review(con, "u1", ok[0], "right", chosen="random")
+    D.record_review(con, "u1", ok[1], "wrong", label="billing", chosen="random")
+    D.record_review(con, "u1", ok[2], "wrong", chosen="random")               # wrong, no answer typed
+    D.record_review(con, "u1", bad, "wrong", label="bug", chosen="suspicious")
+    D.record_review(con, "u1", ok[3], "right", chosen="picked")
+    got = {o["trace_id"]: o for o in (store.list_outcomes(con, ok[:3])[t][-1] for t in ok[:3])}
+    assert got[ok[0]]["label"] == "bug" and got[ok[0]]["value"] == 1.0            # right: the trace's own answer is the label
+    assert got[ok[1]]["label"] == "billing" and got[ok[2]]["label"] is None and got[ok[2]]["chosen"] == "random"
+    assert all(t["id"] not in ok[:4] + [bad] for t in D.review_queue(con, "u1", vid, "random", n=50, now=NOW))
+    s = D.reviewed_stats(con, "u1", vid)
+    # accuracy from random reviews only (1 of 3); wrong answers found by any route (3); everything labelled (5)
+    assert s == {"random_n": 3, "random_right": 1, "labelled": 5, "wrong_found": 3}
+    D.record_review(con, "u1", ok[2], "right", chosen="random")                 # changed their mind: the last verdict counts
+    assert D.reviewed_stats(con, "u1", vid)["random_right"] == 2
+    assert D.summary(con, "u1", now=NOW)["rows"][0]["reviewed"]["random_n"] == 3
+    with pytest.raises(KeyError):
+        D.record_review(con, "u2", ok[5], "right")
+    with pytest.raises(ValueError):
+        D.record_review(con, "u1", ok[5], "maybe")

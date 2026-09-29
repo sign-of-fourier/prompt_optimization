@@ -79,6 +79,7 @@ def _row(con, user_id: str, vid: str, hosted_at: float, window_s: float, now: fl
                  "per_request": spent_win / len(win) if win else None, "estimate": H.estimate(v).get("usd_per_request")},
         "earned": {"score": v.get("score"), "holdout": ho.get("best_score"), "n_rows": v.get("n_rows")},
         "status": status[0], "status_text": status[1],
+        "reviewed": reviewed_stats(con, user_id, vid),
     }
 
 
@@ -97,3 +98,83 @@ def summary(con, user_id: str, window: str = "24h", now: float | None = None) ->
                    "forecast_partial": sum(1 for f in fc if f is None)},
         "rows": rows,
     }
+
+
+# ---- drill-in (step 3): traces, reviews, version history ----------------------------------------
+
+REVIEWED = ("review", "correction")          # outcome kinds that mean "someone said what the right answer was"
+
+
+def answer_of(t: dict) -> str | None:
+    """The trace's answer as a label: the single output field if there is one, else the raw output."""
+    import json
+    for p in (t.get("parsed"), t.get("output")):
+        if isinstance(p, str):   # some paths store the parsed object as its JSON text
+            try:
+                p = json.loads(p)
+            except ValueError:
+                continue
+        if isinstance(p, dict) and len(p) == 1:
+            v = next(iter(p.values()))
+            return None if v is None else str(v)
+    return t.get("output")
+
+
+def version_traces(con, user_id: str, vid: str, filt: str = "all", limit: int = 100) -> list[dict]:
+    """The hosted version's recent requests, newest first, each with its outcomes."""
+    ts = [store._row(r) for r in con.execute("select * from traces where version_id=? and user_id=? order by created desc limit ?",
+                                             (vid, user_id, max(limit * 4, limit)))]
+    outs = store.list_outcomes(con, [t["id"] for t in ts])
+    for t in ts:
+        t["outcomes"] = outs.get(t["id"], [])
+        t["capped"] = bool((t.get("metrics") or {}).get("capped"))
+    keep = {"all": lambda t: True, "errors": lambda t: t.get("error") or t["capped"],
+            "reviewed": lambda t: any(o["kind"] in REVIEWED for o in t["outcomes"]),
+            "unreviewed": lambda t: not any(o["kind"] in REVIEWED for o in t["outcomes"])}.get(filt, lambda t: True)
+    return [t for t in ts if keep(t)][:limit]
+
+
+def review_queue(con, user_id: str, vid: str, mode: str = "random", n: int = 10, days: int = 30, rng=None,
+                 now: float | None = None) -> list[dict]:
+    """Unreviewed traces to label. `random` is a uniform sample of the last `days` (the only sample whose reviews
+    estimate live accuracy); `suspicious` puts failed and capped requests first, then fills at random."""
+    import random
+    rng = rng or random.Random()
+    now = time.time() if now is None else now
+    pool = [t for t in version_traces(con, user_id, vid, "unreviewed", limit=5000) if t["created"] >= now - days * 86400]
+    if mode == "suspicious":
+        bad = [t for t in pool if t.get("error") or t["capped"]]
+        rest = [t for t in pool if t not in bad]
+        picked = bad[:n] + rng.sample(rest, min(len(rest), max(0, n - len(bad))))
+    else:
+        picked = rng.sample(pool, min(len(pool), n))
+    return [{**t, "answer": answer_of(t)} for t in picked]
+
+
+def record_review(con, user_id: str, tid: str, verdict: str, label: str | None = None, chosen: str = "picked") -> dict:
+    """Right: the trace's own answer becomes its label. Wrong: the typed answer if given (then it is also a
+    correction), or no label. `chosen` records how the trace came to be reviewed."""
+    t = store.get_trace(con, tid, user_id)
+    if t is None:
+        raise KeyError(tid)
+    if verdict not in ("right", "wrong") or chosen not in ("random", "suspicious", "picked"):
+        raise ValueError("verdict is right or wrong; chosen is random, suspicious or picked")
+    if verdict == "right":
+        label = answer_of(t)
+    label = (label or "").strip() or None
+    return store.create_outcome(con, trace_id=tid, project_id=t["project_id"], user_id=user_id, kind="review",
+                                label=label, value=1.0 if verdict == "right" else 0.0, source="studio", chosen=chosen)
+
+
+def reviewed_stats(con, user_id: str, vid: str) -> dict[str, Any]:
+    """The Reviewed column: accuracy from random reviews only (the last verdict per trace counts), plus how many
+    wrong answers have been found by any route - what an optimization learns from."""
+    rows = con.execute("select o.trace_id, o.value, o.chosen, o.kind from outcomes o join traces t on t.id=o.trace_id"
+                       " where t.version_id=? and t.user_id=? and o.kind in ('review','correction') order by o.created",
+                       (vid, user_id)).fetchall()
+    last: dict[str, tuple] = {}
+    for tid, value, chosen, kind in rows:
+        last[tid] = (1.0 if kind == "review" and value == 1.0 else 0.0, chosen)
+    rand = [v for v, c in last.values() if c == "random"]
+    return {"random_n": len(rand), "random_right": int(sum(rand)), "labelled": len(last),
+            "wrong_found": sum(1 for v, _ in last.values() if v == 0.0)}

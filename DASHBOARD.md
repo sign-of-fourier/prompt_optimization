@@ -177,6 +177,13 @@ studio only ever holds aggregates).
   - the account forecast appears only when every hosted version is 3+ days old;
   - Reviewed, Quality (Jev), the out-of-date badge and alerts are not shown until their steps exist; the one status
     rule is errors over 5% with 20+ requests, else healthy, or idle with no traffic.
+- **Step 3 (2026-09-29):** the drill-in under the table (a row opens it): traces with all / errors / reviewed /
+  unreviewed filters and a detail view (inputs, what the steps returned, path, output, cost, tokens, outcomes); the
+  review queue (random sample of the last 30 days, or suspicious first) with Right / Wrong / Save correction; version
+  history, read-only. Reviews are outcomes of kind `review` with a new `chosen` column (random, suspicious, picked,
+  api); "Right" stores the trace's own answer as the label, so every reviewed trace is a labelled row. The Reviewed
+  column counts random reviews only (last verdict per trace) and shows wrong answers found by any route. Not done:
+  a route filter (by the router's choice) and turning reviews into dataset rows (Update, step 7).
 
 ## Not in v1
 

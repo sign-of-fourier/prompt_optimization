@@ -155,6 +155,15 @@ async def _flow():
             tr2 = (await c.get(f"/projects/{pid}/traces")).json()
             assert tr2[0]["id"] == served["trace_id"] and tr2[0]["version_id"] == v["id"] and tr2[0]["output"] == served["output"]
             assert tr2[0]["inputs"]["question"] == row["question"] and tr2[0]["error"] is None
+            # the dashboard drill-in: the version's traces, one trace's detail, a review with its provenance
+            vt = (await c.get(f"/versions/{v['id']}/traces")).json(); assert vt[0]["id"] == served["trace_id"]
+            assert (await c.get(f"/traces/{served['trace_id']}")).json()["output"] == served["output"]
+            rq = (await c.get(f"/versions/{v['id']}/review-queue")).json(); assert served["trace_id"] in {t["id"] for t in rq}
+            rv = (await c.post(f"/traces/{served['trace_id']}/review", json={"verdict": "right", "chosen": "random"})).json()
+            assert rv["value"] == 1.0 and rv["chosen"] == "random"
+            assert rv["label"] == served["parsed"]["answer"], (rv["label"], served["parsed"])
+            assert (await c.post(f"/traces/{served['trace_id']}/review", json={"verdict": "meh"})).status_code == 400
+            assert served["trace_id"] not in {t["id"] for t in (await c.get(f"/versions/{v['id']}/review-queue")).json()}
             await c.delete(f"/keys/{k['id']}"); assert (await c.get("/keys")).json() == []
             assert (await c.post(f"/v/{v['id']}/run", json={"inputs": {}}, headers=H)).status_code == 401  # revoked
             # the flywheel (v0): served answers -> corrections -> a dataset -> a run that starts from what is deployed
@@ -171,7 +180,7 @@ async def _flow():
             # corrected twice: the agent changed their mind, that is one row, not two
             await c.post(f"/traces/{tids[0][0]}/outcome", json={"kind": "correction", "label": "Elsewhere"}, headers=H2)
             tl = (await c.get(f"/projects/{pid}/traces")).json()
-            assert len(tl[0]["outcomes"]) >= 1 and sum(len(t["outcomes"]) for t in tl) == 7
+            assert len(tl[0]["outcomes"]) >= 1 and sum(len(t["outcomes"]) for t in tl) == 8   # 7 corrections + the drill-in review above
             assert (await c.post(f"/traces/nope/outcome", json={"label": "x"}, headers=H2)).status_code == 404
             # promote: an ordinary dataset, with provenance on every row
             pr = (await c.post(f"/projects/{pid}/datasets/from-traces", json={"version_id": v["id"]})).json()
