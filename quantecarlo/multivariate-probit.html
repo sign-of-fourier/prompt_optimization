@@ -98,7 +98,7 @@
       </svg>
       <div class="cap">Two hidden scores with correlation 0.5. Each dashed line is one outcome's threshold; the four regions are the four outcome patterns. Because the cloud is tilted, it puts more mass on "both yes" and "both no" than independence would.</div>
     </div>
-    <p>Two properties make this model unusually easy to reason about:</p>
+    <p>Two properties keep its structure readable, whatever classifier sits under each outcome:</p>
     <ul>
       <li><strong>Each part stays its own model.</strong> The probability of each outcome on its own is Φ(η_j(x)), which is exactly what a single-outcome classifier would give you. Adding Σ doesn't change those predictions; it adds joint ones.</li>
       <li><strong>Dependence is a handful of readable numbers.</strong> Four outcomes need six correlations. Each one says, after accounting for the features, how strongly two outcomes travel together.</li>
@@ -116,7 +116,7 @@ proba.conditional(3, given={0: 1})    # P(timing | budget confirmed, x)</code></
   <div class="wrap prose">
     <h2>Why fitting it has been hard</h2>
     <p>The textbook way to fit a multivariate probit is to maximise its full likelihood over every parameter at once. Each row's likelihood is the probability of its observed pattern, a d-dimensional normal integral with no closed form. So every optimizer step means thousands of numerical integrals, and every margin's coefficients are tied to every other's.</p>
-    <p>That's why the Python options are thin. <a href="https://www.statsmodels.org/" target="_blank" rel="noopener">statsmodels</a> fits one probit per outcome, which gets the parts right but has no Σ at all. On a test with a known correlation of 0.6, its estimate of "at least one outcome" was off by 0.072; the package below was off by 0.020. <a href="https://github.com/david-cortes/multinomial_probit" target="_blank" rel="noopener">multinomial_probit</a> by David Cortes takes the full-likelihood route for a single categorical outcome, so four binary outcomes become sixteen classes. It is now archived, and on a current SciPy its fit returned NaN coefficients or ran past 30 seconds on every test run. The full-likelihood route asks a lot of the optimizer, and the bill grows with 2<sup>d</sup>.</p>
+    <p>That's why the Python options are thin. <a href="https://www.statsmodels.org/" target="_blank" rel="noopener">statsmodels</a> fits one probit per outcome, which gets the parts right but has no Σ at all. On a test with a known correlation of 0.6, its estimate of "at least one outcome" was off by 0.072; the package below was off by 0.020. The other route is the full likelihood, which is what the classical implementations, R&rsquo;s <code>mvProbit</code> and Stata&rsquo;s <code>mvprobit</code>, maximise. It works, but every optimizer step pays for a d-dimensional integral on every row.</p>
     <h3>IFM: fit the parts, then the dependence</h3>
     <p><strong>Inference Functions for Margins</strong> (IFM) splits the problem in two:</p>
     <ol>
@@ -168,8 +168,9 @@ MultivariateProbit(inner=["linear", "xgboost", "rf", "linear"])  # one per outco
   <div class="wrap prose">
     <h2>Where it falls short</h2>
     <ul>
-      <li><strong>It isn't the accuracy leader on every benchmark.</strong> On standard multi-label datasets with six labels, ensembles of classifier chains predicted the exact label set more often. The multivariate probit's case is a coherent, explainable joint model, not a leaderboard. <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/multilabel-benchmarks.md" target="_blank" rel="noopener">Benchmark</a>.</li>
+      <li><strong>It isn't the accuracy leader on every benchmark.</strong> On standard multi-label datasets with six labels, ensembles of classifier chains predicted the exact label set more often. The multivariate probit's case is a coherent joint model with readable dependence, not a leaderboard. <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/multilabel-benchmarks.md" target="_blank" rel="noopener">Benchmark</a>.</li>
       <li><strong>No standard errors yet.</strong> Σ is a point estimate.</li>
+      <li><strong>Explainable only as far as the parts are.</strong> Linear margins give per-outcome coefficients plus Σ, an interpretable model end to end. With XGBoost or random-forest margins, Σ is still readable, but each margin is as much a black box as its classifier.</li>
       <li><strong>Read a correlation as a floor.</strong> Prediction error in the per-outcome models pulls the estimated correlations toward zero.</li>
       <li><strong>Binary outcomes only</strong>, fully observed.</li>
     </ul>
