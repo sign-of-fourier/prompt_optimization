@@ -21,6 +21,7 @@ SITES = {
                               ("use-cases/index.html", "/use-cases/", 0.8), ("use-cases/lead-qualification.html", "/use-cases/lead-qualification", 0.7),
                               ("use-cases/ticket-triage.html", "/use-cases/ticket-triage", 0.7), ("use-cases/invoice-coding.html", "/use-cases/invoice-coding", 0.7),
                               ("use-cases/contract-terms.html", "/use-cases/contract-terms", 0.7), ("use-cases/feedback-tagging.html", "/use-cases/feedback-tagging", 0.7),
+                              ("multivariate-probit.html", "/multivariate-probit", 0.8), ("orthant_key.html", "/orthant_key", 0.5),
                               ("about.html", "/about", 0.8), ("claude-code.html", "/claude-code", 0.6), ("contact.html", "/contact", 0.4)]},
 }
 

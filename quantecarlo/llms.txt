@@ -14,6 +14,8 @@
   - [Invoice coding to the general ledger](https://quantecarlo.com/use-cases/invoice-coding): a slice of the chart per line, scoring account and account group, time-based hold-out.
   - [Contract key terms](https://quantecarlo.com/use-cases/contract-terms): schema first, per-field scorers, "not present" as an answer.
   - [Customer feedback tagging](https://quantecarlo.com/use-cases/feedback-tagging): taxonomy definitions, annotator agreement, per-tag macro recall.
+- [Multivariate probit](https://quantecarlo.com/multivariate-probit): what a multivariate probit is, why multiplying probabilities gets joint questions wrong, IFM fitting with any classifier, scoring at scale; open source package multivariate-probit.
+  - [Orthant key](https://quantecarlo.com/orthant_key): what a key unlocks in the compiled scoring backend and how to request one.
 - [About](https://quantecarlo.com/about): the company, from Monte Carlo acceleration to hyperparameter tuning to prompts; what it builds today.
 - [Claude Code](https://quantecarlo.com/claude-code): step-by-step instructions for coding agents to run the optimizer.
 - [Contact](https://quantecarlo.com/contact): info@quantecarlo.com.

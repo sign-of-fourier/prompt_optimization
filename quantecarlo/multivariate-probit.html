@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multivariate probit: modelling yes/no outcomes that move together — Quante Carlo</title>
+<meta name="description" content="What a multivariate probit is, why multiplying probabilities gets joint questions wrong, how IFM makes the model practical with any classifier, and how to score it at scale. Open source Python package: multivariate-probit.">
+<link rel="canonical" href="https://quantecarlo.com/multivariate-probit">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="Multivariate probit: modelling yes/no outcomes that move together">
+<meta property="og:description" content="Why multiplying probabilities gets joint questions wrong, and a fast, open source multivariate probit that works with any classifier.">
+<meta property="og:url" content="https://quantecarlo.com/multivariate-probit">
+<meta property="og:image" content="https://quantecarlo.com/img/mvprobit-speed.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Multivariate probit: modelling yes/no outcomes that move together">
+<meta name="twitter:description" content="Why multiplying probabilities gets joint questions wrong, and a fast, open source multivariate probit that works with any classifier.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/mvprobit-speed.png">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Multivariate probit: modelling yes/no outcomes that move together", "datePublished": "2026-10-03", "url": "https://quantecarlo.com/multivariate-probit", "author": {"@type": "Organization", "name": "Quante Carlo"}}</script>
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/use-cases/">Use cases</a></li>
+      <li><a class="active" href="/multivariate-probit">Multivariate probit</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Yes/no outcomes that <em>move together</em>.</h1>
+    <p class="lead">A multivariate probit predicts several binary outcomes at once and keeps track of how they depend on each other. This is a short introduction to the model, why the obvious shortcut gets joint questions wrong, and an open source implementation that works with any classifier and scores a million rows in about a second.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/sign-of-fourier/multivariate-probit" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn" href="https://pypi.org/project/multivariate-probit/" target="_blank" rel="noopener">pip install multivariate-probit</a>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap prose">
+    <h2>A target that breaks into parts</h2>
+    <p>Sales teams often qualify a lead with four checks: does the buyer have <strong>budget</strong>, the <strong>authority</strong> to sign, a real <strong>need</strong>, and the right <strong>timing</strong>? A lead is qualified when all four hold. You could train one model on "qualified or not", but then you learn nothing about <em>why</em> a lead fails, and every change to the definition means retraining.</p>
+    <p>The alternative is to model the four parts and combine them. Suppose a model says each check passes with probability 0.6 for some lead. The probability that all four pass is then 0.6 × 0.6 × 0.6 × 0.6 = <strong>0.13</strong>, right?</p>
+    <p>Only if the checks are independent, and they rarely are. A company with budget is more likely to have a decision maker in the room and a near-term need. If the four checks share a moderate correlation of 0.5, the probability that all four pass is <strong>0.29</strong>, more than twice the naive answer. The probability that <em>none</em> pass goes from 0.026 to 0.13, five times higher. Multiplying probabilities is wrong in both directions at once, and it's wrong in exactly the questions you care about.</p>
+    <div class="callout"><strong>The question a multivariate probit answers:</strong> given each part's probability, and how the parts move together, what is the probability of any combination of them?</div>
+  </div>
+</section>
+
+<section id="model">
+  <div class="wrap prose">
+    <h2>The model in one picture</h2>
+    <p>Behind each yes/no outcome is a hidden continuous score. The outcome is "yes" when the score lands above a threshold. Your features set where the threshold sits for each row, and the hidden scores are drawn together from a normal distribution with a correlation matrix, Σ. That is the whole model:</p>
+    <pre><code>Y_j = 1[ η_j(x) + e_j &gt; 0 ],    e ~ N(0, Σ),    j = 1 … d</code></pre>
+    <div class="fig">
+      <svg viewBox="0 0 640 340" role="img" aria-labelledby="mvp-fig-title mvp-fig-desc">
+        <title id="mvp-fig-title">Two correlated hidden scores and the four outcome patterns</title>
+        <desc id="mvp-fig-desc">A tilted ellipse shows the joint distribution of two positively correlated hidden scores. A vertical and a horizontal threshold line split the plane into four regions, one per outcome pattern. Most of the ellipse falls in the both-yes and both-no regions.</desc>
+        <defs>
+          <radialGradient id="mvp-dens" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#5ee3c8" stop-opacity=".55"/>
+            <stop offset="100%" stop-color="#5ee3c8" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="640" height="340" fill="#111a33"/>
+        <g transform="translate(320 170) rotate(-35)">
+          <ellipse rx="230" ry="95" fill="url(#mvp-dens)"/>
+          <ellipse rx="160" ry="66" fill="none" stroke="#5ee3c8" stroke-opacity=".5" stroke-width="1.5"/>
+          <ellipse rx="85" ry="35" fill="none" stroke="#5ee3c8" stroke-opacity=".8" stroke-width="1.5"/>
+        </g>
+        <line x1="290" y1="20" x2="290" y2="320" stroke="#ffb454" stroke-width="2" stroke-dasharray="6 5"/>
+        <line x1="40" y1="195" x2="600" y2="195" stroke="#ffb454" stroke-width="2" stroke-dasharray="6 5"/>
+        <g font-family="system-ui, sans-serif" font-size="15" fill="#e8ecf7">
+          <text x="460" y="60">budget yes, timing yes</text>
+          <text x="60" y="60" fill="#9aa6c8">budget no, timing yes</text>
+          <text x="60" y="300">budget no, timing no</text>
+          <text x="460" y="300" fill="#9aa6c8">budget yes, timing no</text>
+        </g>
+        <g font-family="system-ui, sans-serif" font-size="13" fill="#ffb454">
+          <text x="298" y="34">budget threshold</text>
+          <text x="44" y="188">timing threshold</text>
+        </g>
+      </svg>
+      <div class="cap">Two hidden scores with correlation 0.5. Each dashed line is one outcome's threshold; the four regions are the four outcome patterns. Because the cloud is tilted, it puts more mass on "both yes" and "both no" than independence would.</div>
+    </div>
+    <p>Two properties make this model unusually easy to reason about:</p>
+    <ul>
+      <li><strong>Each part stays its own model.</strong> The probability of each outcome on its own is Φ(η_j(x)), which is exactly what a single-outcome classifier would give you. Adding Σ doesn't change those predictions; it adds joint ones.</li>
+      <li><strong>Dependence is a handful of readable numbers.</strong> Four outcomes need six correlations. Each one says, after accounting for the features, how strongly two outcomes travel together.</li>
+    </ul>
+    <p>Every joint question is an exact consequence of those two pieces: a full pattern, "all of these", "any of these", "none of these", or one outcome <em>given</em> the others. The probabilities of all 2<sup>d</sup> patterns add up to exactly 1. Nothing is assembled by hand or bolted on afterwards.</p>
+    <pre><code>proba = model.predict_proba(X)
+proba.all([0, 1, 2, 3])               # qualified: all four checks pass
+proba.any([0, 1, 2, 3])               # at least one passes
+proba.conditional(3, given={0: 1})    # P(timing | budget confirmed, x)</code></pre>
+    <p>That last line is where the parts pay off. If a rep has confirmed budget, the chance that timing is also right goes up, here from 0.60 to 0.73, and with budget, authority and need all confirmed it reaches 0.84. Those updates come from the same fitted model, with no retraining.</p>
+  </div>
+</section>
+
+<section id="fitting">
+  <div class="wrap prose">
+    <h2>Why fitting it has been hard</h2>
+    <p>The textbook way to fit a multivariate probit is to maximise its full likelihood over every parameter at once. Each row's likelihood is the probability of its observed pattern, a d-dimensional normal integral with no closed form. So every optimizer step means thousands of numerical integrals, and every margin's coefficients are tied to every other's.</p>
+    <p>That's why the Python options are thin. <a href="https://www.statsmodels.org/" target="_blank" rel="noopener">statsmodels</a> fits one probit per outcome, which gets the parts right but has no Σ at all. On a test with a known correlation of 0.6, its estimate of "at least one outcome" was off by 0.072; the package below was off by 0.020. <a href="https://github.com/david-cortes/multinomial_probit" target="_blank" rel="noopener">multinomial_probit</a> by David Cortes takes the full-likelihood route for a single categorical outcome, so four binary outcomes become sixteen classes. It is now archived, and on a current SciPy its fit returned NaN coefficients or ran past 30 seconds on every test run. The full-likelihood route asks a lot of the optimizer, and the bill grows with 2<sup>d</sup>.</p>
+    <h3>IFM: fit the parts, then the dependence</h3>
+    <p><strong>Inference Functions for Margins</strong> (IFM) splits the problem in two:</p>
+    <ol>
+      <li><strong>Fit each outcome on its own</strong>, with whatever model suits it. Each fit is cross-validated so the next stage only sees out-of-fold predictions. Skip that, and an overfit model makes every outcome look perfectly correlated with every other.</li>
+      <li><strong>Hold those fits fixed and estimate Σ</strong> by maximum likelihood. Estimating it one pair of outcomes at a time needs only two-dimensional integrals, which have a fast closed form.</li>
+    </ol>
+    <p>In testing, the pair-at-a-time fit matched the full-likelihood fit's accuracy at about 1/3000 of the time: <strong>0.07 seconds against 2–4 minutes</strong> at four outcomes. And because stage one never needs gradients from stage two, the per-outcome model can be anything, including a boosted ensemble that a joint optimizer could never reach inside.</p>
+    <p class="m">Measurements: <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/comparators.md" target="_blank" rel="noopener">comparators study</a>. Algorithm and the alternatives rejected: <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/ifm.md" target="_blank" rel="noopener">ifm.md</a>.</p>
+  </div>
+</section>
+
+<section id="byo">
+  <div class="wrap prose">
+    <h2>Bring your own model, or use ours</h2>
+    <p>The second stage only ever sees each outcome's predicted probability, mapped onto the hidden-score scale. So any classifier with <code>predict_proba</code> can stand in for any outcome, and different outcomes can use different models.</p>
+    <pre><code>from multivariate_probit import MultivariateProbit
+
+MultivariateProbit(inner="linear")                       # probit regression (default)
+MultivariateProbit(inner="xgboost")                      # XGBoost, tuned for calibrated probabilities
+MultivariateProbit(inner="rf")                           # random forest
+MultivariateProbit(inner=MyCalibratedClassifier())       # anything scikit-learn shaped
+MultivariateProbit(inner=["linear", "xgboost", "rf", "linear"])  # one per outcome</code></pre>
+    <p>The one requirement is honest probabilities. A raw score on an arbitrary scale is rejected, and each fitted outcome reports a calibration slope so a badly scaled model doesn't quietly distort Σ.</p>
+  </div>
+</section>
+
+<section id="scale">
+  <div class="wrap prose">
+    <h2>Scoring at scale</h2>
+    <p>Fitting is the cheap part. Scoring a fitted model is where the cost hides: every row of a test set needs its own d-dimensional integral, and the standard tools slow down sharply as outcomes are added.</p>
+    <div class="fig">
+      <img src="/img/mvprobit-speed.png" alt="Line chart, log scale, of seconds to score one row against the number of outcomes from 3 to 20. Exact quadrature rises from 80 microseconds at 3 outcomes to 58 seconds at 7. SciPy sits between 6 milliseconds and 2 seconds. GHK simulation with 1000 draws runs 0.3 to 1.7 milliseconds and with 100 draws 50 to 360 microseconds. The compiled orthant backend is lowest at 16 to 79 microseconds across the range." width="1560" height="780" loading="lazy">
+      <div class="cap">Seconds per row on a correlation matrix shaped like a real pair-at-a-time fit. GHK is a standard simulation method, run here as plain vectorised numpy. Source: the <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/ghk.md" target="_blank" rel="noopener">GHK study</a>.</div>
+    </div>
+    <div class="callout"><strong>Speed, with a small accuracy trade-off.</strong> The compiled backend scores a row in 20–90 µs up to 20 outcomes, and the hosted GPU service scores about a million rows a second. SciPy takes 3 ms to 2 s per row. The price is a median error of up to about 0.007 on a probability, roughly the accuracy of 100-draw simulation, and the same answer on every call.</div>
+    <p>There are three ways to score, and the choice is yours:</p>
+    <div class="tablewrap"><table>
+      <tr><th>Route</th><th>Speed</th><th>Accuracy</th></tr>
+      <tr><td>Exact quadrature (default)</td><td>fine to 6 outcomes, impractical past 7</td><td>about 1e-5</td></tr>
+      <tr><td>SciPy</td><td>3 ms to 2 s per row</td><td>reference grade, random</td></tr>
+      <tr><td>Compiled <code>orthant</code> backend</td><td>20–90 µs per row, to 20 outcomes</td><td>median error ≤ 0.007, deterministic</td></tr>
+      <tr><td>Hosted <code>quantecarlo.orthant_cdf</code></td><td>about 1 s per million rows at 20 outcomes</td><td>same as compiled</td></tr>
+    </table></div>
+    <p>The compiled backend ships with the package for Linux on CPython 3.11 and 3.12. Without a key it handles up to three outcomes; a <a href="/orthant_key">key</a> unlocks the rest. The hosted service is for test sets too large for one machine and comes with the <a href="https://github.com/sign-of-fourier/quantecarlo#orthant-probabilities-orthant_cdf" target="_blank" rel="noopener">quantecarlo</a> client.</p>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="wrap prose">
+    <h2>Where it falls short</h2>
+    <ul>
+      <li><strong>It isn't the accuracy leader on every benchmark.</strong> On standard multi-label datasets with six labels, ensembles of classifier chains predicted the exact label set more often. The multivariate probit's case is a coherent, explainable joint model, not a leaderboard. <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/multilabel-benchmarks.md" target="_blank" rel="noopener">Benchmark</a>.</li>
+      <li><strong>No standard errors yet.</strong> Σ is a point estimate.</li>
+      <li><strong>Read a correlation as a floor.</strong> Prediction error in the per-outcome models pulls the estimated correlations toward zero.</li>
+      <li><strong>Binary outcomes only</strong>, fully observed.</li>
+    </ul>
+    <p class="m">The full list: <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/limitations.md" target="_blank" rel="noopener">limitations.md</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Try it</h2>
+    <pre><code>pip install multivariate-probit            # numpy + scipy only
+pip install multivariate-probit[all]       # adds xgboost, scikit-learn and the compiled backend</code></pre>
+    <div class="btns" style="margin-top:18px">
+      <a class="btn primary" href="https://github.com/sign-of-fourier/multivariate-probit" target="_blank" rel="noopener">github.com/sign-of-fourier/multivariate-probit</a>
+      <a class="btn" href="/orthant_key">Get an orthant key</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>

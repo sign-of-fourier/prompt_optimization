@@ -4,7 +4,7 @@ Downstream of **bpto** (https://github.com/sign-of-fourier/bpto), consumed stric
 Three hosts, one repo, one box:
 
 - `quantecarlo/` — static site at `quantecarlo.com`: the optimizer and the company (prompt learning, GEPA vs BO,
-  findings, About). Its nav links promptcompression.ai and Impromptune.
+  findings, About), plus the multivariate-probit package page and its orthant key page. Its nav links promptcompression.ai and Impromptune.
 - `compression/` — static site at `promptcompression.ai`: content marketing for the compression objective
   (business case, worked studio example). Its nav links Impromptune. `skills/prompt-compression/SKILL.md` is the
   installable Claude Code skill. `style.css`, `favicon.svg`, `img/` are shared: `quantecarlo/` symlinks to them.
@@ -72,7 +72,8 @@ Deploy: `deploy/nginx.conf` (three server blocks; old `/studio/` paths redirect 
 - The canvas spec (`app/models.py`, `ProjectSpec`) is plain JSON and the contract between `web/` and `app/`; change
   both sides together, and `app/compile.py` is the only place that turns a spec into bpto objects.
 - Site copy that states a number or finding must trace to a bpto `experiments/*/NOTES.md` on GitHub, or to a
-  studio run whose screenshot is on the page. This binds `impromptune/` too: prefer linking quantecarlo.com's
+  studio run whose screenshot is on the page. On `multivariate-probit.html` and `orthant_key.html` the source is instead
+  `docs/studies/` in github.com/sign-of-fourier/multivariate-probit (chart: `site-charts/mvprobit.py`). This binds `impromptune/` too: prefer linking quantecarlo.com's
   findings over restating a figure, and keep the division — quantecarlo owns the method and the evidence,
   promptcompression owns the compression business case, impromptune owns the product and its docs.
 - The words in `GLOSSARY.md` are binding on UI copy and on `impromptune/`: a **prompt** is a node the optimizer

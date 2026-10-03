@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orthant key: unlock the compiled backend for multivariate-probit — Quante Carlo</title>
+<meta name="description" content="What an orthant key unlocks in the multivariate-probit package (any number of outcomes, high resolution), how to install it, and how to request one.">
+<link rel="canonical" href="https://quantecarlo.com/orthant_key">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Quante Carlo">
+<meta property="og:title" content="Orthant key for multivariate-probit">
+<meta property="og:description" content="What an orthant key unlocks in the multivariate-probit package (any number of outcomes, high resolution), how to install it, and how to request one.">
+<meta property="og:url" content="https://quantecarlo.com/orthant_key">
+<meta property="og:image" content="https://quantecarlo.com/img/mvprobit-speed.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Orthant key for multivariate-probit">
+<meta name="twitter:description" content="What an orthant key unlocks in the multivariate-probit package (any number of outcomes, high resolution), how to install it, and how to request one.">
+<meta name="twitter:image" content="https://quantecarlo.com/img/mvprobit-speed.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <div class="wrap">
+    <a class="brand" href="/">Quante<span>Carlo</span></a>
+    <ul>
+      <li><a href="/">Home</a></li>
+      <li><a href="/how-it-works">How it works</a></li>
+      <li><a href="/prompt-optimization">Prompt optimization</a></li>
+      <li><a href="/findings">Findings</a></li>
+      <li><a href="/use-cases/">Use cases</a></li>
+      <li><a href="/multivariate-probit">Multivariate probit</a></li>
+      <li><a href="/claude-code">Claude Code</a></li>
+      <li><a href="/about">About</a></li>
+      <li><a href="/contact">Contact</a></li>
+      <li class="ext"><a href="https://promptcompression.ai/">promptcompression.ai ↗</a></li>
+      <li class="ext"><a href="https://impromptune.com/">Impromptune ↗</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>The <em>orthant</em> key.</h1>
+    <p class="lead">The <a href="/multivariate-probit">multivariate-probit</a> package ships a compiled scoring backend that evaluates each row in 20–90 µs up to 20 outcomes. It runs free for small problems. A key unlocks the rest.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap prose">
+    <h2>What the key unlocks</h2>
+    <div class="tablewrap"><table>
+      <tr><th></th><th>Free</th><th>With a key</th></tr>
+      <tr><td>Outcomes per problem</td><td>up to 3</td><td>any (measured to 20)</td></tr>
+      <tr><td>Resolution</td><td><code>"low"</code> only</td><td><code>"low"</code> or <code>"high"</code></td></tr>
+      <tr><td>Accuracy at <code>"high"</code></td><td>—</td><td>median error ≤ 0.007 on a probability, deterministic</td></tr>
+    </table></div>
+    <p>Accuracy and speed against SciPy and GHK simulation are in the <a href="https://github.com/sign-of-fourier/multivariate-probit/blob/main/docs/studies/ghk.md" target="_blank" rel="noopener">GHK study</a>. Use <code>"high"</code> for anything you report: <code>"low"</code> is several times less accurate and no faster at typical batch sizes.</p>
+
+    <h2>Install and use</h2>
+    <pre><code>pip install multivariate-probit[orthant]   # CPython 3.11 / 3.12, x86-64 Linux
+export ORTHANT_KEY=...                     # or save it to ~/.orthant/key</code></pre>
+    <pre><code>from multivariate_probit import MultivariateProbit
+
+model = MultivariateProbit(inner="xgboost", dependence="pairwise",
+                           evaluator="orthant", resolution="high").fit(X, Y)
+model.predict_proba(X_test).joint(Y_test)</code></pre>
+    <p>A backend that can't run as asked raises an error; it never silently falls back to another one. For test sets too large for one machine, the same scoring runs as a hosted GPU service through <a href="https://github.com/sign-of-fourier/quantecarlo#orthant-probabilities-orthant_cdf" target="_blank" rel="noopener"><code>quantecarlo.orthant_cdf</code></a>.</p>
+
+    <h2>Get a key</h2>
+    <p>Tell us what you're scoring: roughly how many outcomes and rows. We'll send a key.</p>
+    <div class="btns"><a class="btn primary" href="/contact">Request a key</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Quante Carlo · Claverack, NY · built on <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">bpto</a>, open source</div>
+    <div><a href="https://promptcompression.ai/">promptcompression.ai</a> · <a href="https://impromptune.com/">Impromptune</a> · <a href="https://github.com/sign-of-fourier/bpto" target="_blank" rel="noopener">GitHub</a> · <a href="/about">About</a> · <a href="/contact">Contact</a></div>
+  </div>
+</footer>
+</body>
+</html>
